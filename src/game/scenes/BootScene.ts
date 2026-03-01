@@ -4320,6 +4320,30 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.createAnimations();
+    this.createTilesetAtlas();
     this.scene.start("WorldScene");
+  }
+
+  // Combine every tile texture into one horizontal canvas strip.
+  // Phaser Tilemap uses this single texture for batch-GPU rendering.
+  createTilesetAtlas() {
+    const KEYS = [
+      "tile_grass", "tile_grass_lush", "tile_grass_dark",
+      "tile_dirt", "tile_dirt_dark", "tile_cobble", "tile_path",
+      "tile_water", "tile_water_deep", "tile_stone", "tile_stone_mossy",
+      "tile_dark", "tile_wall", "tile_lava", "tile_sand", "tile_arena",
+      "tile_swamp", "tile_wood",
+    ];
+    const TS = 32;
+    const atlas = this.textures.createCanvas("__tileset__", KEYS.length * TS, TS);
+    if (!atlas) return;
+    const ctx = atlas.context;
+    KEYS.forEach((key, i) => {
+      const tex = this.textures.get(key);
+      const frame = tex.get();
+      const src = frame.source.image as CanvasImageSource;
+      ctx.drawImage(src, frame.cutX, frame.cutY, TS, TS, i * TS, 0, TS, TS);
+    });
+    atlas.refresh();
   }
 }

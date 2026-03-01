@@ -19,6 +19,17 @@ const ATTACK_RANGE = 60;
 const ATTACK_COOLDOWN = 600;
 const CLICK_STOP_DIST = 6;
 
+// Ordered list of tile texture keys — must match BootScene.createTilesetAtlas() order.
+const TILE_KEYS = [
+  "tile_grass", "tile_grass_lush", "tile_grass_dark",
+  "tile_dirt", "tile_dirt_dark", "tile_cobble", "tile_path",
+  "tile_water", "tile_water_deep", "tile_stone", "tile_stone_mossy",
+  "tile_dark", "tile_wall", "tile_lava", "tile_sand", "tile_arena",
+  "tile_swamp", "tile_wood",
+] as const;
+const TILE_IDX: Record<string, number> = {};
+TILE_KEYS.forEach((k, i) => { TILE_IDX[k] = i; });
+
 interface EnemySprite extends Phaser.Physics.Arcade.Sprite {
   enemyType: EnemyType;
   hp: number;
@@ -82,13 +93,12 @@ export class WorldScene extends Phaser.Scene {
   // Blocking decoration colliders
   private decoColliders!: Phaser.Physics.Arcade.StaticGroup;
 
-  // === TILE CHUNK SYSTEM ===
-  // Each chunk is a 512×512 RenderTexture (1 GPU draw call).
-  // Only chunks inside/near the camera viewport are kept alive.
-  private mapChunks: Map<string, Phaser.GameObjects.RenderTexture> = new Map();
-  private decoTilesByChunk: Map<string, Array<[string, number, number]>> = new Map();
-  private readonly CHUNK_PX = 512;
-  private chunkUpdateTimer = 0;
+  // === TILEMAP SYSTEM ===
+  // TilemapLayer renders ALL visible tiles in ONE WebGL draw call
+  // with automatic camera culling — zero per-frame CPU cost.
+  private tileMap: Phaser.Tilemaps.Tilemap | null = null;
+  private baseLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private decoLayer: Phaser.Tilemaps.TilemapLayer | null = null;
 
   // Throttled position update
   private throttledUpdatePosition = throttle(
@@ -189,6 +199,8 @@ export class WorldScene extends Phaser.Scene {
 
     // Collider with decorations
     this.physics.add.collider(this.player, this.decoColliders);
+    // Collider with tilemap border walls
+    if (this.baseLayer) this.physics.add.collider(this.player, this.baseLayer);
 
     // Spawn game entities
     this.spawnEnemies();
@@ -276,29 +288,51 @@ export class WorldScene extends Phaser.Scene {
   generateMap() {
     const mapConfig = getMapConfig(this.currentMap);
     const { width, height, tileSize } = mapConfig;
+    const cols = width / tileSize;
+    const rows = height / tileSize;
 
-    // Clear any existing chunks
-    this.mapChunks.forEach(rt => rt.destroy());
-    this.mapChunks.clear();
-    this.decoTilesByChunk.clear();
+    // Destroy previous tilemap if scene is restarting
+    if (this.tileMap) { this.tileMap.destroy(); this.tileMap = null; }
 
-    // 4 invisible border walls instead of per-tile sprites
-    this.addInvisibleWall(width / 2, tileSize / 2, width, tileSize);
-    this.addInvisibleWall(width / 2, height - tileSize / 2, width, tileSize);
-    this.addInvisibleWall(tileSize / 2, height / 2, tileSize, height);
-    this.addInvisibleWall(width - tileSize / 2, height / 2, tileSize, height);
+    // --- BASE TILEMAP LAYER ---
+    // One TilemapLayer = one WebGL draw call for all visible tiles (camera-culled).
+    const map = this.make.tilemap({
+      width: cols, height: rows,
+      tileWidth: tileSize, tileHeight: tileSize,
+    });
+    const tileset = map.addTilesetImage("tiles", "__tileset__", tileSize, tileSize, 0, 0)!;
+    this.tileMap = map;
 
-    // Area-specific decoration (queues tiles via drawTile)
+    const baseLayer = map.createBlankLayer("base", tileset)!;
+    baseLayer.setDepth(0);
+    this.baseLayer = baseLayer;
+
+    // Fast bulk-fill via direct array access (O(n), no per-call overhead)
+    const wallIdx = TILE_IDX["tile_wall"];
+    for (let ty = 0; ty < rows; ty++) {
+      const row = baseLayer.layer.data[ty];
+      for (let tx = 0; tx < cols; tx++) {
+        const isBorder = tx === 0 || ty === 0 || tx >= cols - 1 || ty >= rows - 1;
+        row[tx].index = isBorder ? wallIdx
+          : TILE_IDX[this.getBaseTileKeyAt(tx * tileSize, ty * tileSize)];
+      }
+    }
+    baseLayer.calculateFacesWithin();
+    baseLayer.setCollision(wallIdx); // border walls block player automatically
+
+    // --- DECO TILEMAP LAYER (roads, water, arena floors …) ---
+    const decoLayer = map.createBlankLayer("deco", tileset)!;
+    decoLayer.setDepth(1);
+    this.decoLayer = decoLayer;
+
+    // Area-specific decoration — calls drawTile() which writes to decoLayer
     switch (this.currentMap) {
       case "village": this.decorateVillage(width, height, tileSize); break;
-      case "fields": this.decorateFields(width, height, tileSize); break;
-      case "forest": this.decorateForest(width, height, tileSize); break;
+      case "fields":  this.decorateFields(width, height, tileSize);  break;
+      case "forest":  this.decorateForest(width, height, tileSize);  break;
       case "dungeon": this.decorateDungeon(width, height, tileSize); break;
-      case "arena": this.decorateArena(width, height, tileSize); break;
+      case "arena":   this.decorateArena(width, height, tileSize);   break;
     }
-
-    // Build initial visible chunks
-    this.updateMapChunks();
   }
 
   // --- VILLAGE DECORATION --- (4800×3600)
@@ -1268,16 +1302,14 @@ export class WorldScene extends Phaser.Scene {
     wall.refreshBody();
   }
 
-  // Queue a floor/deco tile into the appropriate render-texture chunk
+  // Write a visual tile directly to the deco TilemapLayer (zero runtime cost after setup)
   drawTile(key: string, wx: number, wy: number) {
-    const cx = Math.floor(wx / this.CHUNK_PX);
-    const cy = Math.floor(wy / this.CHUNK_PX);
-    const ck = `${cx},${cy}`;
-    if (!this.decoTilesByChunk.has(ck)) this.decoTilesByChunk.set(ck, []);
-    this.decoTilesByChunk.get(ck)!.push([key, wx, wy]);
+    const idx = TILE_IDX[key];
+    if (idx === undefined || !this.decoLayer) return;
+    this.decoLayer.putTileAt(idx, Math.floor(wx / 32), Math.floor(wy / 32));
   }
 
-  // Deterministic base-tile selector (reproducible — chunk can be re-built identically)
+  // Deterministic base-tile selector (same position always returns same tile)
   getBaseTileKeyAt(wx: number, wy: number): string {
     const n = (Math.abs(Math.sin(wx * 3.7 + wy * 6.1) * 99999) | 0) % 100;
     switch (this.currentMap) {
@@ -1287,77 +1319,6 @@ export class WorldScene extends Phaser.Scene {
       case "dungeon": return n < 50 ? "tile_dark" : n < 80 ? "tile_stone" : "tile_stone_mossy";
       case "arena":   return n < 70 ? "tile_sand" : n < 90 ? "tile_arena" : "tile_stone";
       default: return "tile_grass";
-    }
-  }
-
-  // Build one CHUNK_PX×CHUNK_PX RenderTexture (base tiles + queued deco tiles baked in)
-  private buildChunk(chunkX: number, chunkY: number): Phaser.GameObjects.RenderTexture | null {
-    const cp = this.CHUNK_PX;
-    const ts = 32;
-    const wx0 = chunkX * cp;
-    const wy0 = chunkY * cp;
-    const mapConfig = getMapConfig(this.currentMap);
-    const chW = Math.min(cp, mapConfig.width - wx0);
-    const chH = Math.min(cp, mapConfig.height - wy0);
-    if (chW <= 0 || chH <= 0) return null;
-
-    const rt = this.add.renderTexture(wx0, wy0, chW, chH);
-    rt.setOrigin(0, 0).setDepth(0);
-
-    // Stamp base tiles
-    for (let ty = 0; ty < chH; ty += ts) {
-      for (let tx = 0; tx < chW; tx += ts) {
-        const wx = wx0 + tx;
-        const wy = wy0 + ty;
-        const isBorder = wx < ts || wy < ts ||
-                         wx >= mapConfig.width - ts || wy >= mapConfig.height - ts;
-        const key = isBorder ? "tile_wall" : this.getBaseTileKeyAt(wx, wy);
-        rt.stamp(key, undefined, tx + ts / 2, ty + ts / 2);
-      }
-    }
-
-    // Stamp deco tiles queued for this chunk
-    const decos = this.decoTilesByChunk.get(`${chunkX},${chunkY}`);
-    if (decos) {
-      for (const [key, wx, wy] of decos) {
-        rt.stamp(key, undefined, wx - wx0, wy - wy0);
-      }
-    }
-    return rt;
-  }
-
-  // Lazy chunk streaming — called throttled every 400 ms from update()
-  updateMapChunks() {
-    const cam = this.cameras.main;
-    const cp = this.CHUNK_PX;
-    const margin = 1;
-    const cxMin = Math.floor(cam.scrollX / cp) - margin;
-    const cxMax = Math.ceil((cam.scrollX + cam.width) / cp) + margin;
-    const cyMin = Math.floor(cam.scrollY / cp) - margin;
-    const cyMax = Math.ceil((cam.scrollY + cam.height) / cp) + margin;
-    const mapConfig = getMapConfig(this.currentMap);
-    const maxCx = Math.ceil(mapConfig.width / cp);
-    const maxCy = Math.ceil(mapConfig.height / cp);
-
-    for (let cy = Math.max(0, cyMin); cy < Math.min(maxCy, cyMax); cy++) {
-      for (let cx = Math.max(0, cxMin); cx < Math.min(maxCx, cxMax); cx++) {
-        const key = `${cx},${cy}`;
-        if (!this.mapChunks.has(key)) {
-          const rt = this.buildChunk(cx, cy);
-          if (rt) this.mapChunks.set(key, rt);
-        }
-      }
-    }
-
-    // Destroy chunks far from camera
-    const destroyMargin = margin + 2;
-    for (const [key, rt] of this.mapChunks) {
-      const [kcx, kcy] = key.split(",").map(Number);
-      if (kcx < cxMin - destroyMargin || kcx > cxMax + destroyMargin ||
-          kcy < cyMin - destroyMargin || kcy > cyMax + destroyMargin) {
-        rt.destroy();
-        this.mapChunks.delete(key);
-      }
     }
   }
 
@@ -2034,13 +1995,6 @@ export class WorldScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     if (!this.player || !this.player.active) return;
 
-    // Chunk streaming throttle
-    this.chunkUpdateTimer += delta;
-    if (this.chunkUpdateTimer > 400) {
-      this.chunkUpdateTimer = 0;
-      this.updateMapChunks();
-    }
-
     const store = useGameStore.getState();
     const playerData = store.player;
     if (!playerData) return;
@@ -2345,10 +2299,10 @@ export class WorldScene extends Phaser.Scene {
       this.input.keyboard.removeAllKeys(true);
     }
 
-    // Clean up map chunks
-    this.mapChunks.forEach(rt => rt.destroy());
-    this.mapChunks.clear();
-    this.decoTilesByChunk.clear();
+    // Clean up tilemap
+    if (this.tileMap) { this.tileMap.destroy(); this.tileMap = null; }
+    this.baseLayer = null;
+    this.decoLayer = null;
 
     // Remove event listeners from canvas
     this.input.removeAllListeners();
