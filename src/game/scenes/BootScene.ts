@@ -215,7 +215,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   // ========================
-  // FRONT VIEW (DOWN) - Detailed with walk animation
+  // FRONT VIEW (DOWN) - Ultra-detailed with walk animation
   // ========================
   drawHeroFront(g: Phaser.GameObjects.Graphics, cfg: any, frame: number) {
     const bob = frame === 0 ? 0 : -1;
@@ -224,179 +224,395 @@ export class BootScene extends Phaser.Scene {
     const la = frame === 1 ? 1 : frame === 2 ? -1 : 0;
     const ra = frame === 2 ? 1 : frame === 1 ? -1 : 0;
 
-    // Shadow
-    g.fillStyle(0x000000, 0.2);
-    g.fillEllipse(24, 44, 20, 6);
+    // Ground shadow (elliptical, soft)
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(24, 45, 22, 5);
+    g.fillStyle(0x000000, 0.08);
+    g.fillEllipse(24, 45, 26, 7);
 
-    // Cape
+    // Cape (rendered behind body)
     if (cfg.cape) {
-      g.fillStyle(cfg.cape, 0.9);
-      g.fillRoundedRect(14, 18 + bob, 20, 24, 3);
-      g.fillStyle(this.darken(cfg.cape, 30), 0.6);
-      g.fillRect(16, 28 + bob, 16, 12);
+      g.fillStyle(cfg.cape, 0.85);
+      g.fillRoundedRect(13, 18 + bob, 22, 25, 4);
+      g.fillStyle(this.darken(cfg.cape, 25), 0.5);
+      g.fillRect(15, 26 + bob, 18, 14);
+      // Cape fold lines
+      g.fillStyle(this.darken(cfg.cape, 40), 0.3);
+      g.fillRect(19, 22 + bob, 1, 18);
+      g.fillRect(28, 22 + bob, 1, 18);
+      // Cape bottom tatter
+      g.fillStyle(cfg.cape, 0.6);
+      g.fillRect(14, 41 + bob, 3, 2);
+      g.fillRect(31, 41 + bob, 3, 2);
     }
 
-    // Legs
+    // Legs with muscle definition
     g.fillStyle(cfg.pants, 1);
     g.fillRect(17, 34 + ll, 6, 8);
     g.fillRect(25, 34 + rl, 6, 8);
+    // Knee highlight
+    g.fillStyle(this.lighten(cfg.pants, 15), 0.4);
+    g.fillRect(18, 35 + ll, 3, 2);
+    g.fillRect(26, 35 + rl, 3, 2);
+    // Inner leg shadow
+    g.fillStyle(this.darken(cfg.pants, 20), 0.4);
+    g.fillRect(22, 36 + ll, 1, 5);
+    g.fillRect(25, 36 + rl, 1, 5);
+    // Boots with detail
     g.fillStyle(cfg.boots, 1);
     g.fillRect(16, 40 + ll, 7, 4);
     g.fillRect(25, 40 + rl, 7, 4);
-    g.fillStyle(this.darken(cfg.boots, 20), 1);
+    // Boot toe cap
+    g.fillStyle(this.lighten(cfg.boots, 15), 0.5);
+    g.fillRect(16, 40 + ll, 3, 1);
+    g.fillRect(25, 40 + rl, 3, 1);
+    // Boot sole
+    g.fillStyle(this.darken(cfg.boots, 30), 1);
     g.fillRect(16, 43 + ll, 7, 1);
     g.fillRect(25, 43 + rl, 7, 1);
-    g.fillStyle(this.lighten(cfg.boots, 20), 0.4);
-    g.fillRect(17, 40 + ll, 2, 1);
-    g.fillRect(26, 40 + rl, 2, 1);
+    // Boot strap
+    g.fillStyle(this.darken(cfg.boots, 15), 0.7);
+    g.fillRect(16, 41 + ll, 7, 1);
+    g.fillRect(25, 41 + rl, 7, 1);
+    // Boot buckle
+    g.fillStyle(0xdaa520, 0.8);
+    g.fillRect(18, 41 + ll, 2, 1);
+    g.fillRect(28, 41 + rl, 2, 1);
 
-    // Body / Armor
+    // Body / Armor — layered with rich detail
     g.fillStyle(cfg.armor, 1);
     g.fillRoundedRect(15, 18 + bob, 18, 17, 2);
-    g.fillStyle(cfg.armorLight, 0.7);
-    g.fillRect(16, 19 + bob, 4, 6);
-    g.fillRect(28, 19 + bob, 4, 6);
-    g.fillStyle(cfg.armorDark, 0.6);
-    g.fillRect(17, 30 + bob, 14, 3);
-    g.fillStyle(cfg.armorLight, 0.3);
-    g.fillRect(22, 20 + bob, 4, 8);
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(16, 32 + bob, 16, 2);
-    g.fillStyle(0xdaa520, 1);
-    g.fillRect(22, 32 + bob, 4, 2);
-    g.fillStyle(cfg.armorLight, 1);
-    g.fillEllipse(16, 20 + bob, 8, 6);
-    g.fillEllipse(32, 20 + bob, 8, 6);
+    // Chest plate gradient
+    g.fillStyle(cfg.armorLight, 0.6);
+    g.fillRect(16, 19 + bob, 16, 4);
+    // Central chest line
+    g.fillStyle(cfg.armorDark, 0.3);
+    g.fillRect(23, 19 + bob, 2, 12);
+    // Side armor panels
+    g.fillStyle(cfg.armorDark, 0.4);
+    g.fillRect(16, 25 + bob, 4, 6);
+    g.fillRect(28, 25 + bob, 4, 6);
+    // Chest emblem (ornate diamond)
+    g.fillStyle(0xdaa520, 0.8);
+    g.fillRect(23, 22 + bob, 2, 2);
+    g.fillRect(22, 23 + bob, 4, 2);
+    g.fillRect(23, 25 + bob, 2, 2);
+    // Abdominal armor segments
     g.fillStyle(cfg.armorDark, 0.5);
-    g.fillRect(13, 21 + bob, 3, 1);
-    g.fillRect(32, 21 + bob, 3, 1);
+    g.fillRect(17, 30 + bob, 14, 1);
+    g.fillRect(17, 28 + bob, 14, 1);
+    // Armor edge highlight (specular)
+    g.fillStyle(this.lighten(cfg.armorLight, 30), 0.35);
+    g.fillRect(16, 18 + bob, 16, 1);
+    // Belt with ornate buckle
+    g.fillStyle(0x6b4226, 1);
+    g.fillRect(15, 33 + bob, 18, 2);
+    g.fillStyle(0xdaa520, 1);
+    g.fillRect(22, 33 + bob, 4, 2);
+    // Belt pouch (left)
+    g.fillStyle(0x5a3a1a, 0.9);
+    g.fillRect(15, 31 + bob, 4, 3);
+    g.fillStyle(0xdaa520, 0.6);
+    g.fillRect(16, 31 + bob, 2, 1);
+    // Shoulder pads
+    g.fillStyle(cfg.armorLight, 1);
+    g.fillEllipse(16, 20 + bob, 8, 7);
+    g.fillEllipse(32, 20 + bob, 8, 7);
+    // Shoulder pad edge
+    g.fillStyle(this.darken(cfg.armorLight, 25), 0.6);
+    g.fillEllipse(16, 22 + bob, 7, 3);
+    g.fillEllipse(32, 22 + bob, 7, 3);
+    // Shoulder rivets
+    g.fillStyle(0xdaa520, 0.7);
+    g.fillCircle(16, 19 + bob, 1);
+    g.fillCircle(32, 19 + bob, 1);
 
-    // Arms
+    // Arms with detail
     g.fillStyle(cfg.skin, 1);
     g.fillRect(12, 21 + bob + la, 4, 10);
     g.fillRect(32, 21 + bob + ra, 4, 10);
+    // Arm muscle highlight
+    g.fillStyle(this.lighten(cfg.skin, 15), 0.4);
+    g.fillRect(12, 22 + bob + la, 2, 4);
+    g.fillRect(34, 22 + bob + ra, 2, 4);
+    // Bracers/gauntlets
     g.fillStyle(cfg.armorDark, 1);
-    g.fillRect(12, 28 + bob + la, 4, 4);
-    g.fillRect(32, 28 + bob + ra, 4, 4);
-    g.fillStyle(this.lighten(cfg.armorDark, 30), 0.5);
-    g.fillRect(13, 28 + bob + la, 2, 1);
-    g.fillRect(33, 28 + bob + ra, 2, 1);
+    g.fillRect(11, 27 + bob + la, 5, 5);
+    g.fillRect(32, 27 + bob + ra, 5, 5);
+    // Bracer detail
+    g.fillStyle(this.lighten(cfg.armorDark, 25), 0.5);
+    g.fillRect(12, 28 + bob + la, 3, 1);
+    g.fillRect(33, 28 + bob + ra, 3, 1);
+    g.fillRect(12, 30 + bob + la, 3, 1);
+    g.fillRect(33, 30 + bob + ra, 3, 1);
+    // Hands
+    g.fillStyle(cfg.skin, 1);
+    g.fillRect(12, 31 + bob + la, 3, 2);
+    g.fillRect(33, 31 + bob + ra, 3, 2);
 
     // Neck
     g.fillStyle(cfg.skin, 1);
-    g.fillRect(21, 15 + bob, 6, 4);
-    // Head
-    g.fillRoundedRect(17, 4 + bob, 14, 14, 4);
-    // Hair
-    g.fillStyle(cfg.hair, 1);
-    g.fillRoundedRect(17, 3 + bob, 14, 7, 3);
-    g.fillRect(17, 4 + bob, 2, 8);
-    g.fillRect(29, 4 + bob, 2, 8);
-    // Eyes
-    g.fillStyle(0xffffff, 1);
-    g.fillRect(20, 9 + bob, 3, 3);
-    g.fillRect(25, 9 + bob, 3, 3);
-    g.fillStyle(0x222222, 1);
-    g.fillRect(21, 10 + bob, 2, 2);
-    g.fillRect(26, 10 + bob, 2, 2);
-    g.fillStyle(0xffffff, 0.8);
-    g.fillRect(22, 10 + bob, 1, 1);
-    g.fillRect(27, 10 + bob, 1, 1);
-    // Mouth & Nose
-    g.fillStyle(this.darken(cfg.skin, 40), 1);
-    g.fillRect(22, 14 + bob, 4, 1);
-    g.fillStyle(this.darken(cfg.skin, 20), 1);
-    g.fillRect(23, 12 + bob, 2, 2);
-    // Ear hints
-    g.fillStyle(this.darken(cfg.skin, 15), 1);
-    g.fillRect(16, 9 + bob, 2, 3);
-    g.fillRect(30, 9 + bob, 2, 3);
+    g.fillRect(21, 14 + bob, 6, 5);
+    // Neck shadow
+    g.fillStyle(this.darken(cfg.skin, 20), 0.3);
+    g.fillRect(21, 17 + bob, 6, 2);
 
-    // --- CLASS GEAR ---
+    // Head — detailed face
+    g.fillStyle(cfg.skin, 1);
+    g.fillRoundedRect(17, 4 + bob, 14, 14, 5);
+    // Cheek blush
+    g.fillStyle(0xff9999, 0.1);
+    g.fillCircle(19, 12 + bob, 2);
+    g.fillCircle(29, 12 + bob, 2);
+    // Jaw shadow
+    g.fillStyle(this.darken(cfg.skin, 15), 0.3);
+    g.fillRect(18, 14 + bob, 12, 2);
+    // Hair — detailed with strands
+    g.fillStyle(cfg.hair, 1);
+    g.fillRoundedRect(16, 2 + bob, 16, 8, 4);
+    g.fillRect(16, 4 + bob, 2, 9);
+    g.fillRect(30, 4 + bob, 2, 9);
+    // Hair highlight
+    g.fillStyle(this.lighten(cfg.hair, 25), 0.4);
+    g.fillRect(20, 3 + bob, 4, 2);
+    // Hair strand detail
+    g.fillStyle(this.darken(cfg.hair, 15), 0.4);
+    g.fillRect(22, 4 + bob, 1, 5);
+    g.fillRect(26, 4 + bob, 1, 5);
+    // Eyes — expressive with iris detail
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(19, 8 + bob, 4, 4, 1);
+    g.fillRoundedRect(25, 8 + bob, 4, 4, 1);
+    // Iris color
+    g.fillStyle(0x4488cc, 1);
+    g.fillRect(20, 9 + bob, 3, 3);
+    g.fillRect(26, 9 + bob, 3, 3);
+    // Pupil
+    g.fillStyle(0x111111, 1);
+    g.fillRect(21, 10 + bob, 2, 2);
+    g.fillRect(27, 10 + bob, 2, 2);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.9);
+    g.fillRect(22, 9 + bob, 1, 1);
+    g.fillRect(28, 9 + bob, 1, 1);
+    // Eyelids
+    g.fillStyle(this.darken(cfg.skin, 25), 0.5);
+    g.fillRect(19, 8 + bob, 4, 1);
+    g.fillRect(25, 8 + bob, 4, 1);
+    // Eyebrows
+    g.fillStyle(this.darken(cfg.hair, 20), 1);
+    g.fillRect(19, 7 + bob, 4, 1);
+    g.fillRect(25, 7 + bob, 4, 1);
+    // Nose with bridge highlight
+    g.fillStyle(this.darken(cfg.skin, 18), 1);
+    g.fillRect(23, 11 + bob, 2, 3);
+    g.fillStyle(this.lighten(cfg.skin, 10), 0.5);
+    g.fillRect(23, 11 + bob, 1, 2);
+    // Mouth with lip detail
+    g.fillStyle(this.darken(cfg.skin, 35), 1);
+    g.fillRect(22, 15 + bob, 4, 1);
+    g.fillStyle(this.darken(cfg.skin, 10), 0.5);
+    g.fillRect(22, 14 + bob, 4, 1);
+    // Ears
+    g.fillStyle(this.darken(cfg.skin, 12), 1);
+    g.fillRect(16, 9 + bob, 2, 4);
+    g.fillRect(30, 9 + bob, 2, 4);
+    // Inner ear
+    g.fillStyle(this.darken(cfg.skin, 25), 0.5);
+    g.fillRect(16, 10 + bob, 1, 2);
+    g.fillRect(31, 10 + bob, 1, 2);
+
+    // --- CLASS GEAR (enhanced) ---
     if (cfg.hasHelmet) {
       g.fillStyle(cfg.helmetColor, 1);
-      g.fillRoundedRect(16, 2 + bob, 16, 10, 3);
-      g.fillStyle(this.lighten(cfg.helmetColor, 30), 0.6);
-      g.fillRect(18, 3 + bob, 12, 2);
-      g.fillStyle(this.darken(cfg.helmetColor, 40), 1);
-      g.fillRect(19, 9 + bob, 10, 2);
+      g.fillRoundedRect(15, 1 + bob, 18, 11, 4);
+      // Helmet visor
+      g.fillStyle(this.darken(cfg.helmetColor, 30), 1);
+      g.fillRect(18, 9 + bob, 12, 2);
+      // Helmet top highlight
+      g.fillStyle(this.lighten(cfg.helmetColor, 40), 0.5);
+      g.fillRect(18, 2 + bob, 12, 2);
+      // Helmet rivets
+      g.fillStyle(this.lighten(cfg.helmetColor, 25), 0.8);
+      g.fillCircle(18, 5 + bob, 0.5);
+      g.fillCircle(30, 5 + bob, 0.5);
+      g.fillCircle(24, 2 + bob, 0.5);
+      // Plume
       g.fillStyle(0xcc2222, 1);
-      g.fillRect(22, 0 + bob, 4, 3);
+      g.fillRect(22, -2 + bob, 4, 4);
+      g.fillStyle(0xee4444, 0.7);
+      g.fillRect(23, -3 + bob, 2, 2);
+      g.fillStyle(0xaa1111, 0.6);
+      g.fillRect(22, 1 + bob, 4, 1);
     }
     if (cfg.hasHat) {
       g.fillStyle(cfg.hatColor, 1);
-      g.fillTriangle(24, -4 + bob, 14, 10 + bob, 34, 10 + bob);
-      g.fillStyle(this.lighten(cfg.hatColor, 40), 0.5);
-      g.fillRect(14, 8 + bob, 20, 3);
+      g.fillTriangle(24, -5 + bob, 12, 10 + bob, 36, 10 + bob);
+      // Hat brim
+      g.fillStyle(this.darken(cfg.hatColor, 15), 0.8);
+      g.fillRect(12, 8 + bob, 24, 3);
+      // Hat band
+      g.fillStyle(this.lighten(cfg.hatColor, 40), 0.6);
+      g.fillRect(17, 6 + bob, 14, 2);
+      // Star ornament
       g.fillStyle(0xffdd44, 1);
-      g.fillRect(22, 2 + bob, 3, 3);
+      g.fillRect(22, 1 + bob, 3, 3);
+      g.fillStyle(0xffee88, 0.6);
+      g.fillRect(23, 0 + bob, 1, 5);
+      g.fillRect(21, 2 + bob, 5, 1);
     }
     if (cfg.hasHood) {
       g.fillStyle(cfg.hoodColor, 0.9);
-      g.fillRoundedRect(15, 1 + bob, 18, 14, 5);
-      g.fillStyle(this.darken(cfg.hoodColor, 30), 0.6);
-      g.fillRect(17, 8 + bob, 14, 3);
+      g.fillRoundedRect(14, 0 + bob, 20, 15, 6);
+      g.fillStyle(this.darken(cfg.hoodColor, 25), 0.5);
+      g.fillRect(17, 8 + bob, 14, 4);
+      // Hood seam
+      g.fillStyle(this.darken(cfg.hoodColor, 40), 0.3);
+      g.fillRect(23, 1 + bob, 2, 12);
     }
     if (cfg.hasSword) {
+      // Ornate sword
       g.fillStyle(cfg.weaponHandle, 1);
       g.fillRect(8, 22 + bob + la, 2, 7);
+      // Crossguard with gold ends
       g.fillStyle(0xdaa520, 1);
-      g.fillRect(6, 21 + bob + la, 6, 2);
+      g.fillRect(5, 21 + bob + la, 8, 2);
+      g.fillStyle(0xffd700, 0.6);
+      g.fillRect(5, 21 + bob + la, 2, 2);
+      g.fillRect(11, 21 + bob + la, 2, 2);
+      // Pommel
+      g.fillStyle(0xdaa520, 1);
+      g.fillCircle(9, 30 + bob + la, 1.5);
+      // Blade with fuller
       g.fillStyle(cfg.weapon, 1);
-      g.fillRect(8, 10 + bob + la, 2, 12);
-      g.fillStyle(this.lighten(cfg.weapon, 40), 0.6);
-      g.fillRect(9, 11 + bob + la, 1, 10);
+      g.fillRect(7, 8 + bob + la, 4, 14);
+      // Blade edge highlight
+      g.fillStyle(this.lighten(cfg.weapon, 50), 0.7);
+      g.fillRect(10, 9 + bob + la, 1, 12);
+      // Blade center fuller
+      g.fillStyle(this.darken(cfg.weapon, 20), 0.4);
+      g.fillRect(8, 10 + bob + la, 1, 10);
+      // Tip
+      g.fillStyle(cfg.weapon, 1);
+      g.fillTriangle(9, 5 + bob + la, 7, 8 + bob + la, 11, 8 + bob + la);
     }
     if (cfg.hasShield) {
+      // Ornate kite shield
       g.fillStyle(cfg.armorDark, 1);
-      g.fillRoundedRect(35, 20 + bob + ra, 10, 12, 3);
-      g.fillStyle(cfg.armorLight, 0.7);
-      g.fillRect(37, 22 + bob + ra, 6, 8);
+      g.fillRoundedRect(34, 19 + bob + ra, 12, 14, 3);
+      // Shield face
+      g.fillStyle(cfg.armorLight, 0.8);
+      g.fillRect(36, 21 + bob + ra, 8, 10);
+      // Shield boss
       g.fillStyle(0xdaa520, 1);
-      g.fillRect(39, 24 + bob + ra, 2, 4);
-      g.fillRect(38, 25 + bob + ra, 4, 2);
+      g.fillCircle(40, 26 + bob + ra, 2);
+      g.fillStyle(0xffd700, 0.6);
+      g.fillCircle(40, 26 + bob + ra, 1);
+      // Shield border
+      g.fillStyle(0xdaa520, 0.6);
+      g.fillRect(35, 19 + bob + ra, 1, 14);
+      g.fillRect(45, 19 + bob + ra, 1, 14);
+      g.fillRect(35, 19 + bob + ra, 11, 1);
+      // Shield cross emblem
+      g.fillStyle(cfg.armor, 0.6);
+      g.fillRect(39, 22 + bob + ra, 2, 8);
+      g.fillRect(37, 25 + bob + ra, 6, 2);
     }
     if (cfg.hasStaff) {
+      // Gnarled staff
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(8, 5 + bob + la, 2, 36);
+      g.fillRect(7, 6 + bob + la, 3, 36);
+      // Staff wood grain
+      g.fillStyle(this.darken(cfg.weaponHandle, 20), 0.4);
+      g.fillRect(8, 10 + bob + la, 1, 30);
+      // Staff wrapping
+      g.fillStyle(0xdaa520, 0.6);
+      g.fillRect(7, 18 + bob + la, 3, 1);
+      g.fillRect(7, 22 + bob + la, 3, 1);
+      // Crystal orb
+      g.fillStyle(cfg.orbColor || 0x44ddff, 0.4);
+      g.fillCircle(8, 5 + bob + la, 6);
       g.fillStyle(cfg.orbColor || 0x44ddff, 0.9);
-      g.fillCircle(9, 5 + bob + la, 4);
-      g.fillStyle(0xffffff, 0.5);
-      g.fillRect(7, 3 + bob + la, 2, 2);
+      g.fillCircle(8, 5 + bob + la, 4);
+      // Orb inner glow
+      g.fillStyle(this.lighten(cfg.orbColor || 0x44ddff, 50), 0.6);
+      g.fillCircle(7, 3 + bob + la, 2);
+      // Orb sparkle
+      g.fillStyle(0xffffff, 0.8);
+      g.fillRect(6, 3 + bob + la, 1, 1);
+      // Magic particles
+      g.fillStyle(cfg.orbColor || 0x44ddff, 0.3);
+      g.fillCircle(4, 2 + bob + la, 1);
+      g.fillCircle(12, 4 + bob + la, 1);
+      g.fillCircle(6, 8 + bob + la, 0.5);
     }
     if (cfg.hasOrb) {
-      g.fillStyle(cfg.orbColor, 0.6);
+      g.fillStyle(cfg.orbColor, 0.3);
+      g.fillCircle(38, 16 + bob + ra, 7);
+      g.fillStyle(cfg.orbColor, 0.7);
       g.fillCircle(38, 16 + bob + ra, 5);
-      g.fillStyle(0xffffff, 0.4);
-      g.fillRect(36, 14 + bob + ra, 2, 2);
+      g.fillStyle(this.lighten(cfg.orbColor, 50), 0.5);
+      g.fillCircle(36, 14 + bob + ra, 2);
+      g.fillStyle(0xffffff, 0.6);
+      g.fillRect(36, 13 + bob + ra, 1, 1);
     }
     if (cfg.hasBow) {
+      // Detailed longbow
       g.fillStyle(cfg.weapon, 1);
-      g.fillRect(7, 14 + bob + la, 2, 20);
-      g.fillRect(5, 14 + bob + la, 3, 2);
-      g.fillRect(5, 32 + bob + la, 3, 2);
-      g.fillStyle(0xcccccc, 0.8);
-      g.fillRect(9, 15 + bob + la, 1, 18);
+      g.fillRect(6, 12 + bob + la, 3, 22);
+      // Bow curve (top and bottom)
+      g.fillStyle(this.lighten(cfg.weapon, 20), 0.8);
+      g.fillRect(4, 12 + bob + la, 3, 2);
+      g.fillRect(4, 32 + bob + la, 3, 2);
+      // Bow tips
+      g.fillStyle(0xdaa520, 0.8);
+      g.fillRect(5, 11 + bob + la, 1, 2);
+      g.fillRect(5, 33 + bob + la, 1, 2);
+      // Bowstring
+      g.fillStyle(0xcccccc, 0.9);
+      g.fillRect(9, 13 + bob + la, 1, 20);
+      // Grip wrapping
+      g.fillStyle(0x664422, 0.8);
+      g.fillRect(6, 21 + bob + la, 3, 4);
     }
     if (cfg.hasQuiver) {
-      g.fillStyle(0x8b5a2b, 1);
-      g.fillRect(34, 14 + bob, 5, 16);
+      g.fillStyle(0x7a4a1b, 1);
+      g.fillRect(33, 13 + bob, 6, 18);
+      // Quiver lip
+      g.fillStyle(0x5a3a15, 1);
+      g.fillRect(33, 13 + bob, 6, 2);
+      // Arrows
       g.fillStyle(0xcccccc, 1);
-      g.fillRect(35, 12 + bob, 1, 3);
-      g.fillRect(37, 13 + bob, 1, 2);
+      g.fillRect(34, 10 + bob, 1, 5);
+      g.fillRect(36, 11 + bob, 1, 4);
+      g.fillRect(38, 10 + bob, 1, 5);
+      // Arrow feathers
+      g.fillStyle(0xcc4444, 0.7);
+      g.fillRect(34, 10 + bob, 1, 2);
+      g.fillRect(38, 10 + bob, 1, 2);
     }
     if (cfg.hasLance) {
+      // Ornate lance
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(8, 0 + bob + la, 2, 40);
+      g.fillRect(7, -2 + bob + la, 3, 44);
+      // Shaft wrapping
+      g.fillStyle(0xdaa520, 0.5);
+      g.fillRect(7, 20 + bob + la, 3, 1);
+      g.fillRect(7, 24 + bob + la, 3, 1);
+      // Lance head
       g.fillStyle(cfg.weapon, 1);
-      g.fillTriangle(9, -4 + bob + la, 5, 3 + bob + la, 13, 3 + bob + la);
-      g.fillStyle(this.lighten(cfg.weapon, 40), 0.6);
-      g.fillRect(8, -2 + bob + la, 1, 4);
+      g.fillTriangle(8, -8 + bob + la, 4, 0 + bob + la, 13, 0 + bob + la);
+      // Lance head highlight
+      g.fillStyle(this.lighten(cfg.weapon, 50), 0.6);
+      g.fillRect(8, -6 + bob + la, 1, 5);
+      // Pennant
+      g.fillStyle(0xcc2222, 0.8);
+      g.fillTriangle(10, 0 + bob + la, 10, 6 + bob + la, 16, 3 + bob + la);
     }
   }
 
   // ========================
-  // BACK VIEW (UP) - Walk animation
+  // BACK VIEW (UP) - Ultra-detailed walk animation
   // ========================
   drawHeroBack(g: Phaser.GameObjects.Graphics, cfg: any, frame: number) {
     const bob = frame === 0 ? 0 : -1;
@@ -406,135 +622,195 @@ export class BootScene extends Phaser.Scene {
     const ra = frame === 2 ? 1 : frame === 1 ? -1 : 0;
 
     // Shadow
-    g.fillStyle(0x000000, 0.2);
-    g.fillEllipse(24, 44, 20, 6);
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(24, 45, 22, 5);
 
     // Legs
-    g.fillStyle(this.darken(cfg.pants, 10), 1);
+    g.fillStyle(this.darken(cfg.pants, 8), 1);
     g.fillRect(17, 34 + ll, 6, 8);
     g.fillRect(25, 34 + rl, 6, 8);
-    g.fillStyle(this.darken(cfg.boots, 10), 1);
+    // Leg seam
+    g.fillStyle(this.darken(cfg.pants, 25), 0.3);
+    g.fillRect(20, 35 + ll, 1, 6);
+    g.fillRect(28, 35 + rl, 1, 6);
+    // Boots
+    g.fillStyle(this.darken(cfg.boots, 8), 1);
     g.fillRect(16, 40 + ll, 7, 4);
     g.fillRect(25, 40 + rl, 7, 4);
     g.fillStyle(this.darken(cfg.boots, 30), 1);
     g.fillRect(16, 43 + ll, 7, 1);
     g.fillRect(25, 43 + rl, 7, 1);
+    // Boot strap
+    g.fillStyle(this.darken(cfg.boots, 15), 0.6);
+    g.fillRect(16, 41 + ll, 7, 1);
+    g.fillRect(25, 41 + rl, 7, 1);
 
-    // Body (back)
-    g.fillStyle(this.darken(cfg.armor, 10), 1);
+    // Body (back view, slightly darker)
+    g.fillStyle(this.darken(cfg.armor, 8), 1);
     g.fillRoundedRect(15, 18 + bob, 18, 17, 2);
-    g.fillStyle(cfg.armorDark, 0.5);
+    // Back armor panels
+    g.fillStyle(cfg.armorDark, 0.4);
     g.fillRect(16, 19 + bob, 16, 14);
-    g.fillStyle(cfg.armorLight, 0.25);
+    // Spine detail
+    g.fillStyle(cfg.armorLight, 0.2);
     g.fillRect(23, 20 + bob, 2, 12);
-    g.fillRect(18, 25 + bob, 12, 2);
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(16, 32 + bob, 16, 2);
+    // Horizontal back plates
+    g.fillStyle(cfg.armorDark, 0.3);
+    g.fillRect(17, 22 + bob, 14, 1);
+    g.fillRect(17, 26 + bob, 14, 1);
+    g.fillRect(17, 30 + bob, 14, 1);
+    // Belt
+    g.fillStyle(0x6b4226, 1);
+    g.fillRect(15, 33 + bob, 18, 2);
+    // Shoulder pads (back view)
     g.fillStyle(cfg.armorLight, 0.9);
-    g.fillEllipse(16, 20 + bob, 8, 6);
-    g.fillEllipse(32, 20 + bob, 8, 6);
+    g.fillEllipse(16, 20 + bob, 8, 7);
+    g.fillEllipse(32, 20 + bob, 8, 7);
+    g.fillStyle(this.darken(cfg.armorLight, 20), 0.5);
+    g.fillEllipse(16, 22 + bob, 7, 3);
+    g.fillEllipse(32, 22 + bob, 7, 3);
 
     // Cape (prominent from behind)
     if (cfg.cape) {
       g.fillStyle(cfg.cape, 1);
-      g.fillRoundedRect(15, 19 + bob, 18, 22, 3);
-      g.fillStyle(this.darken(cfg.cape, 20), 0.4);
-      g.fillRect(20, 22 + bob, 1, 18);
-      g.fillRect(27, 22 + bob, 1, 18);
-      g.fillStyle(this.lighten(cfg.cape, 15), 0.3);
-      g.fillRect(23, 20 + bob, 2, 20);
+      g.fillRoundedRect(14, 19 + bob, 20, 24, 4);
+      // Cape fold lines
+      g.fillStyle(this.darken(cfg.cape, 20), 0.35);
+      g.fillRect(19, 22 + bob, 1, 20);
+      g.fillRect(28, 22 + bob, 1, 20);
+      // Cape highlight center
+      g.fillStyle(this.lighten(cfg.cape, 15), 0.25);
+      g.fillRect(23, 20 + bob, 2, 22);
+      // Cape emblem
+      g.fillStyle(this.lighten(cfg.cape, 30), 0.4);
+      g.fillCircle(24, 30 + bob, 3);
+      // Cape wave effect on walk
       if (frame === 1) {
-        g.fillStyle(this.darken(cfg.cape, 10), 0.3);
-        g.fillRect(15, 36 + bob, 4, 4);
+        g.fillStyle(this.darken(cfg.cape, 15), 0.3);
+        g.fillRect(14, 38 + bob, 5, 4);
       } else if (frame === 2) {
-        g.fillStyle(this.darken(cfg.cape, 10), 0.3);
-        g.fillRect(29, 36 + bob, 4, 4);
+        g.fillStyle(this.darken(cfg.cape, 15), 0.3);
+        g.fillRect(29, 38 + bob, 5, 4);
       }
+      // Cape bottom tatter
+      g.fillStyle(cfg.cape, 0.5);
+      g.fillRect(15, 42 + bob, 3, 1);
+      g.fillRect(30, 42 + bob, 3, 1);
     }
 
     // Arms
     g.fillStyle(cfg.skin, 1);
     g.fillRect(12, 21 + bob + la, 4, 10);
     g.fillRect(32, 21 + bob + ra, 4, 10);
+    // Bracers
     g.fillStyle(cfg.armorDark, 1);
-    g.fillRect(12, 28 + bob + la, 4, 4);
-    g.fillRect(32, 28 + bob + ra, 4, 4);
+    g.fillRect(11, 27 + bob + la, 5, 5);
+    g.fillRect(32, 27 + bob + ra, 5, 5);
+    g.fillStyle(this.lighten(cfg.armorDark, 20), 0.4);
+    g.fillRect(12, 29 + bob + la, 3, 1);
+    g.fillRect(33, 29 + bob + ra, 3, 1);
 
     // Neck
     g.fillStyle(cfg.skin, 1);
-    g.fillRect(21, 15 + bob, 6, 4);
+    g.fillRect(21, 14 + bob, 6, 5);
     // Head (back)
-    g.fillRoundedRect(17, 4 + bob, 14, 14, 4);
-    // Hair covers back
+    g.fillRoundedRect(17, 4 + bob, 14, 14, 5);
+    // Hair covers back of head completely
     g.fillStyle(cfg.hair, 1);
-    g.fillRoundedRect(16, 3 + bob, 16, 14, 4);
-    g.fillStyle(this.darken(cfg.hair, 15), 0.5);
+    g.fillRoundedRect(16, 2 + bob, 16, 16, 5);
+    // Hair shading/texture
+    g.fillStyle(this.darken(cfg.hair, 12), 0.4);
     g.fillRect(18, 8 + bob, 12, 8);
+    // Hair strand lines
+    g.fillStyle(this.darken(cfg.hair, 25), 0.25);
+    g.fillRect(20, 4 + bob, 1, 12);
+    g.fillRect(24, 4 + bob, 1, 12);
+    g.fillRect(28, 4 + bob, 1, 12);
+    // Hair highlight
+    g.fillStyle(this.lighten(cfg.hair, 20), 0.3);
+    g.fillRect(21, 3 + bob, 6, 2);
 
     // --- GEAR FROM BACK ---
     if (cfg.hasHelmet) {
       g.fillStyle(cfg.helmetColor, 1);
-      g.fillRoundedRect(16, 2 + bob, 16, 12, 3);
-      g.fillStyle(this.darken(cfg.helmetColor, 20), 0.5);
-      g.fillRect(18, 5 + bob, 12, 8);
+      g.fillRoundedRect(15, 1 + bob, 18, 13, 4);
+      g.fillStyle(this.darken(cfg.helmetColor, 20), 0.4);
+      g.fillRect(17, 6 + bob, 14, 7);
+      // Helmet rivets back
+      g.fillStyle(this.lighten(cfg.helmetColor, 20), 0.6);
+      g.fillCircle(18, 5 + bob, 0.5);
+      g.fillCircle(30, 5 + bob, 0.5);
+      // Plume
       g.fillStyle(0xcc2222, 1);
-      g.fillRect(22, 0 + bob, 4, 3);
+      g.fillRect(22, -2 + bob, 4, 4);
+      g.fillStyle(0xaa1111, 0.5);
+      g.fillRect(22, 1 + bob, 4, 2);
     }
     if (cfg.hasHat) {
       g.fillStyle(cfg.hatColor, 1);
-      g.fillTriangle(24, -4 + bob, 14, 10 + bob, 34, 10 + bob);
-      g.fillStyle(this.lighten(cfg.hatColor, 40), 0.5);
-      g.fillRect(14, 8 + bob, 20, 3);
+      g.fillTriangle(24, -5 + bob, 12, 10 + bob, 36, 10 + bob);
+      g.fillStyle(this.darken(cfg.hatColor, 15), 0.7);
+      g.fillRect(12, 8 + bob, 24, 3);
     }
     if (cfg.hasHood) {
       g.fillStyle(cfg.hoodColor, 0.9);
-      g.fillRoundedRect(15, 1 + bob, 18, 14, 5);
+      g.fillRoundedRect(14, 0 + bob, 20, 16, 6);
       g.fillStyle(this.darken(cfg.hoodColor, 20), 0.4);
-      g.fillRect(17, 6 + bob, 14, 8);
+      g.fillRect(17, 6 + bob, 14, 9);
+      g.fillStyle(this.darken(cfg.hoodColor, 35), 0.2);
+      g.fillRect(23, 2 + bob, 2, 13);
     }
     if (cfg.hasQuiver) {
-      g.fillStyle(0x8b5a2b, 1);
-      g.fillRect(28, 12 + bob, 6, 18);
+      g.fillStyle(0x7a4a1b, 1);
+      g.fillRect(27, 11 + bob, 7, 20);
+      g.fillStyle(0x5a3a15, 1);
+      g.fillRect(27, 11 + bob, 7, 2);
       g.fillStyle(0xcccccc, 1);
-      g.fillRect(29, 10 + bob, 1, 3);
-      g.fillRect(31, 11 + bob, 1, 2);
-      g.fillRect(33, 10 + bob, 1, 3);
+      g.fillRect(28, 8 + bob, 1, 5);
+      g.fillRect(30, 9 + bob, 1, 4);
+      g.fillRect(32, 8 + bob, 1, 5);
+      g.fillStyle(0xcc4444, 0.6);
+      g.fillRect(28, 8 + bob, 1, 2);
+      g.fillRect(32, 8 + bob, 1, 2);
     }
     if (cfg.hasShield) {
-      g.fillStyle(cfg.armorDark, 0.8);
-      g.fillRoundedRect(18, 20 + bob, 12, 14, 3);
-      g.fillStyle(cfg.armorLight, 0.5);
-      g.fillRect(20, 22 + bob, 8, 10);
-      g.fillStyle(0xdaa520, 0.7);
-      g.fillRect(23, 25 + bob, 2, 4);
+      g.fillStyle(cfg.armorDark, 0.85);
+      g.fillRoundedRect(17, 20 + bob, 14, 15, 3);
+      g.fillStyle(cfg.armorLight, 0.4);
+      g.fillRect(19, 22 + bob, 10, 11);
+      g.fillStyle(0xdaa520, 0.5);
+      g.fillCircle(24, 27 + bob, 2);
     }
     if (cfg.hasSword) {
-      g.fillStyle(0x553322, 1);
-      g.fillRect(10, 16 + bob, 3, 20);
-      g.fillStyle(cfg.weapon, 0.6);
+      g.fillStyle(0x5a3a1a, 1);
+      g.fillRect(10, 16 + bob, 3, 22);
+      g.fillStyle(cfg.weapon, 0.5);
       g.fillRect(11, 10 + bob, 1, 8);
     }
     if (cfg.hasStaff) {
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(34, 5 + bob, 2, 34);
-      g.fillStyle(cfg.orbColor || 0x44ddff, 0.7);
-      g.fillCircle(35, 5 + bob, 3);
+      g.fillRect(33, 4 + bob, 3, 36);
+      g.fillStyle(this.darken(cfg.weaponHandle, 15), 0.3);
+      g.fillRect(34, 8 + bob, 1, 30);
+      g.fillStyle(cfg.orbColor || 0x44ddff, 0.6);
+      g.fillCircle(34, 4 + bob, 4);
+      g.fillStyle(0xffffff, 0.4);
+      g.fillRect(33, 2 + bob, 1, 1);
     }
     if (cfg.hasBow) {
-      g.fillStyle(cfg.weapon, 0.8);
-      g.fillRect(12, 14 + bob, 2, 18);
+      g.fillStyle(cfg.weapon, 0.7);
+      g.fillRect(12, 14 + bob, 2, 20);
     }
     if (cfg.hasLance) {
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(34, 0 + bob, 2, 38);
-      g.fillStyle(cfg.weapon, 0.8);
-      g.fillTriangle(35, -4 + bob, 32, 2 + bob, 38, 2 + bob);
+      g.fillRect(33, -2 + bob, 3, 40);
+      g.fillStyle(cfg.weapon, 0.7);
+      g.fillTriangle(34, -7 + bob, 31, 0 + bob, 38, 0 + bob);
     }
   }
 
   // ========================
-  // SIDE VIEW (LEFT) - Walk animation
-  // Right direction uses flipX in WorldScene
+  // SIDE VIEW (LEFT) - Ultra-detailed walk animation
   // ========================
   drawHeroSide(g: Phaser.GameObjects.Graphics, cfg: any, frame: number) {
     const bob = frame === 0 ? 0 : -1;
@@ -544,15 +820,19 @@ export class BootScene extends Phaser.Scene {
     const blx = frame === 2 ? -2 : frame === 1 ? 1 : 0;
 
     // Shadow
-    g.fillStyle(0x000000, 0.2);
-    g.fillEllipse(24, 44, 16, 5);
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(24, 45, 18, 5);
 
-    // Cape behind
+    // Cape behind (further back for side view)
     if (cfg.cape) {
-      g.fillStyle(cfg.cape, 0.7);
-      g.fillRoundedRect(26, 18 + bob, 10, 22, 3);
-      g.fillStyle(this.darken(cfg.cape, 20), 0.4);
-      g.fillRect(28, 24 + bob, 1, 14);
+      g.fillStyle(cfg.cape, 0.65);
+      g.fillRoundedRect(26, 17 + bob, 12, 24, 4);
+      g.fillStyle(this.darken(cfg.cape, 25), 0.35);
+      g.fillRect(28, 24 + bob, 1, 16);
+      g.fillRect(32, 24 + bob, 1, 16);
+      // Cape tip
+      g.fillStyle(cfg.cape, 0.4);
+      g.fillRect(30, 40 + bob, 4, 2);
     }
 
     // Back leg
@@ -560,138 +840,239 @@ export class BootScene extends Phaser.Scene {
     g.fillRect(22 + blx, 34 + bl, 5, 8);
     g.fillStyle(this.darken(cfg.boots, 15), 1);
     g.fillRect(21 + blx, 40 + bl, 6, 4);
+    g.fillStyle(this.darken(cfg.boots, 30), 1);
+    g.fillRect(21 + blx, 43 + bl, 6, 1);
 
     // Back arm
     g.fillStyle(this.darken(cfg.skin, 15), 1);
     g.fillRect(28, 21 + bob, 3, 9);
     g.fillStyle(this.darken(cfg.armorDark, 10), 1);
-    g.fillRect(28, 27 + bob, 3, 4);
+    g.fillRect(28, 27 + bob, 3, 5);
 
-    // Body (narrower)
+    // Body (narrower for side profile)
     g.fillStyle(cfg.armor, 1);
-    g.fillRoundedRect(18, 18 + bob, 12, 16, 2);
-    g.fillStyle(cfg.armorLight, 0.5);
-    g.fillRect(19, 19 + bob, 4, 6);
-    g.fillStyle(cfg.armorDark, 0.4);
-    g.fillRect(19, 30 + bob, 10, 2);
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(18, 32 + bob, 12, 2);
+    g.fillRoundedRect(17, 18 + bob, 14, 16, 2);
+    // Side armor plate
+    g.fillStyle(cfg.armorLight, 0.45);
+    g.fillRect(18, 19 + bob, 5, 6);
+    // Armor bottom edge
+    g.fillStyle(cfg.armorDark, 0.35);
+    g.fillRect(18, 30 + bob, 12, 2);
+    // Belt
+    g.fillStyle(0x6b4226, 1);
+    g.fillRect(17, 32 + bob, 14, 2);
     g.fillStyle(0xdaa520, 0.8);
-    g.fillRect(19, 32 + bob, 2, 2);
+    g.fillRect(18, 32 + bob, 2, 2);
+    // Shoulder pad
     g.fillStyle(cfg.armorLight, 0.9);
-    g.fillEllipse(20, 20 + bob, 8, 6);
+    g.fillEllipse(19, 20 + bob, 10, 7);
+    g.fillStyle(this.darken(cfg.armorLight, 20), 0.4);
+    g.fillEllipse(19, 22 + bob, 8, 3);
+    // Side armor detail
+    g.fillStyle(cfg.armorDark, 0.25);
+    g.fillRect(19, 24 + bob, 10, 1);
+    g.fillRect(19, 27 + bob, 10, 1);
 
     // Front leg
     g.fillStyle(cfg.pants, 1);
     g.fillRect(20 + flx, 34 + fl, 5, 8);
+    // Knee highlight
+    g.fillStyle(this.lighten(cfg.pants, 12), 0.4);
+    g.fillRect(21 + flx, 35 + fl, 2, 2);
+    // Boots
     g.fillStyle(cfg.boots, 1);
     g.fillRect(19 + flx, 40 + fl, 6, 4);
-    g.fillStyle(this.darken(cfg.boots, 20), 1);
+    g.fillStyle(this.darken(cfg.boots, 25), 1);
     g.fillRect(19 + flx, 43 + fl, 6, 1);
+    // Boot strap
+    g.fillStyle(this.darken(cfg.boots, 12), 0.6);
+    g.fillRect(19 + flx, 41 + fl, 6, 1);
 
     // Front arm
     g.fillStyle(cfg.skin, 1);
-    g.fillRect(16, 21 + bob, 4, 10);
+    g.fillRect(15, 21 + bob, 4, 10);
+    g.fillStyle(this.lighten(cfg.skin, 12), 0.35);
+    g.fillRect(15, 22 + bob, 2, 4);
+    // Bracer
     g.fillStyle(cfg.armorDark, 1);
-    g.fillRect(16, 28 + bob, 4, 4);
+    g.fillRect(14, 27 + bob, 5, 5);
+    g.fillStyle(this.lighten(cfg.armorDark, 20), 0.4);
+    g.fillRect(15, 29 + bob, 3, 1);
+    // Hand
+    g.fillStyle(cfg.skin, 1);
+    g.fillRect(15, 31 + bob, 3, 2);
 
     // Neck
     g.fillStyle(cfg.skin, 1);
-    g.fillRect(20, 15 + bob, 5, 4);
-    // Head (side profile facing left)
-    g.fillRoundedRect(16, 4 + bob, 14, 13, 4);
-    // Nose extends left
-    g.fillRect(14, 10 + bob, 3, 3);
-    g.fillStyle(this.darken(cfg.skin, 20), 1);
-    g.fillRect(14, 12 + bob, 2, 1);
-    // Hair
+    g.fillRect(20, 14 + bob, 5, 5);
+    // Neck shadow
+    g.fillStyle(this.darken(cfg.skin, 18), 0.3);
+    g.fillRect(20, 17 + bob, 5, 2);
+
+    // Head (side profile — detailed)
+    g.fillStyle(cfg.skin, 1);
+    g.fillRoundedRect(15, 4 + bob, 15, 14, 5);
+    // Chin/jaw definition
+    g.fillStyle(this.darken(cfg.skin, 12), 0.3);
+    g.fillRect(15, 14 + bob, 10, 2);
+    // Nose extends left (more defined)
+    g.fillStyle(cfg.skin, 1);
+    g.fillRect(13, 9 + bob, 3, 4);
+    g.fillStyle(this.darken(cfg.skin, 18), 0.7);
+    g.fillRect(13, 12 + bob, 2, 1);
+    // Nostril hint
+    g.fillStyle(this.darken(cfg.skin, 30), 0.5);
+    g.fillRect(13, 12 + bob, 1, 1);
+
+    // Hair — side profile
     g.fillStyle(cfg.hair, 1);
-    g.fillRoundedRect(18, 3 + bob, 12, 7, 3);
-    g.fillRect(28, 4 + bob, 2, 8);
-    g.fillRect(16, 5 + bob, 3, 4);
-    // Eye
+    g.fillRoundedRect(17, 2 + bob, 14, 8, 4);
+    g.fillRect(29, 4 + bob, 2, 9);
+    g.fillRect(15, 5 + bob, 3, 4);
+    // Hair highlight
+    g.fillStyle(this.lighten(cfg.hair, 20), 0.35);
+    g.fillRect(20, 3 + bob, 4, 2);
+    // Hair strand
+    g.fillStyle(this.darken(cfg.hair, 15), 0.3);
+    g.fillRect(24, 4 + bob, 1, 5);
+
+    // Eye (side — single larger eye)
     g.fillStyle(0xffffff, 1);
-    g.fillRect(18, 9 + bob, 3, 3);
-    g.fillStyle(0x222222, 1);
-    g.fillRect(18, 10 + bob, 2, 2);
-    g.fillStyle(0xffffff, 0.8);
-    g.fillRect(19, 10 + bob, 1, 1);
+    g.fillRoundedRect(17, 8 + bob, 4, 4, 1);
+    // Iris
+    g.fillStyle(0x4488cc, 1);
+    g.fillRect(17, 9 + bob, 3, 3);
+    // Pupil
+    g.fillStyle(0x111111, 1);
+    g.fillRect(17, 10 + bob, 2, 2);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.9);
+    g.fillRect(19, 9 + bob, 1, 1);
+    // Eyelid
+    g.fillStyle(this.darken(cfg.skin, 22), 0.5);
+    g.fillRect(17, 8 + bob, 4, 1);
+    // Eyebrow
+    g.fillStyle(this.darken(cfg.hair, 15), 1);
+    g.fillRect(17, 7 + bob, 4, 1);
+    // Cheek
+    g.fillStyle(0xff9999, 0.08);
+    g.fillCircle(17, 13 + bob, 2);
     // Mouth
-    g.fillStyle(this.darken(cfg.skin, 40), 1);
-    g.fillRect(16, 14 + bob, 3, 1);
+    g.fillStyle(this.darken(cfg.skin, 35), 1);
+    g.fillRect(15, 14 + bob, 3, 1);
     // Ear
     g.fillStyle(this.darken(cfg.skin, 10), 1);
-    g.fillRect(28, 9 + bob, 2, 3);
+    g.fillRect(28, 9 + bob, 3, 4);
+    g.fillStyle(this.darken(cfg.skin, 25), 0.4);
+    g.fillRect(29, 10 + bob, 1, 2);
 
-    // --- GEAR SIDE ---
+    // --- GEAR SIDE (enhanced) ---
     if (cfg.hasHelmet) {
       g.fillStyle(cfg.helmetColor, 1);
-      g.fillRoundedRect(15, 2 + bob, 16, 10, 3);
-      g.fillStyle(this.lighten(cfg.helmetColor, 30), 0.5);
-      g.fillRect(17, 3 + bob, 12, 2);
-      g.fillStyle(this.darken(cfg.helmetColor, 40), 1);
-      g.fillRect(16, 9 + bob, 8, 2);
+      g.fillRoundedRect(14, 1 + bob, 18, 11, 4);
+      g.fillStyle(this.lighten(cfg.helmetColor, 30), 0.45);
+      g.fillRect(16, 2 + bob, 14, 2);
+      g.fillStyle(this.darken(cfg.helmetColor, 35), 1);
+      g.fillRect(15, 9 + bob, 8, 2);
+      // Plume side
       g.fillStyle(0xcc2222, 1);
-      g.fillRect(22, 0 + bob, 4, 3);
+      g.fillRect(22, -2 + bob, 4, 4);
     }
     if (cfg.hasHat) {
       g.fillStyle(cfg.hatColor, 1);
-      g.fillTriangle(22, -4 + bob, 14, 10 + bob, 32, 10 + bob);
-      g.fillStyle(this.lighten(cfg.hatColor, 40), 0.5);
-      g.fillRect(12, 8 + bob, 20, 3);
+      g.fillTriangle(22, -5 + bob, 12, 10 + bob, 34, 10 + bob);
+      g.fillStyle(this.darken(cfg.hatColor, 12), 0.7);
+      g.fillRect(10, 8 + bob, 24, 3);
+      g.fillStyle(0xffdd44, 0.9);
+      g.fillRect(22, 1 + bob, 2, 2);
     }
     if (cfg.hasHood) {
       g.fillStyle(cfg.hoodColor, 0.9);
-      g.fillRoundedRect(15, 1 + bob, 16, 14, 5);
+      g.fillRoundedRect(14, 0 + bob, 18, 15, 6);
+      g.fillStyle(this.darken(cfg.hoodColor, 25), 0.4);
+      g.fillRect(16, 8 + bob, 14, 6);
     }
     if (cfg.hasSword) {
+      // Side sword with fuller
       g.fillStyle(cfg.weapon, 1);
-      g.fillRect(12, 10 + bob, 2, 14);
-      g.fillStyle(this.lighten(cfg.weapon, 40), 0.5);
-      g.fillRect(13, 11 + bob, 1, 12);
-      g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(12, 22 + bob, 2, 5);
+      g.fillRect(11, 8 + bob, 3, 16);
+      g.fillStyle(this.lighten(cfg.weapon, 45), 0.5);
+      g.fillRect(13, 9 + bob, 1, 14);
+      g.fillStyle(this.darken(cfg.weapon, 15), 0.3);
+      g.fillRect(12, 10 + bob, 1, 12);
+      // Crossguard
       g.fillStyle(0xdaa520, 1);
-      g.fillRect(10, 21 + bob, 6, 2);
+      g.fillRect(9, 22 + bob, 7, 2);
+      // Handle
+      g.fillStyle(cfg.weaponHandle, 1);
+      g.fillRect(11, 23 + bob, 3, 6);
+      // Tip
+      g.fillStyle(cfg.weapon, 1);
+      g.fillTriangle(12, 5 + bob, 11, 8 + bob, 14, 8 + bob);
     }
     if (cfg.hasShield) {
       g.fillStyle(cfg.armorDark, 0.9);
-      g.fillRoundedRect(28, 20 + bob, 6, 12, 2);
-      g.fillStyle(cfg.armorLight, 0.5);
-      g.fillRect(29, 22 + bob, 4, 8);
+      g.fillRoundedRect(27, 19 + bob, 7, 14, 2);
+      g.fillStyle(cfg.armorLight, 0.45);
+      g.fillRect(28, 21 + bob, 5, 10);
+      g.fillStyle(0xdaa520, 0.6);
+      g.fillCircle(30, 26 + bob, 1);
     }
     if (cfg.hasStaff) {
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(12, 4 + bob, 2, 36);
-      g.fillStyle(cfg.orbColor || 0x44ddff, 0.8);
-      g.fillCircle(13, 4 + bob, 4);
-      g.fillStyle(0xffffff, 0.4);
-      g.fillRect(11, 2 + bob, 2, 2);
+      g.fillRect(11, 3 + bob, 3, 38);
+      g.fillStyle(this.darken(cfg.weaponHandle, 15), 0.3);
+      g.fillRect(12, 8 + bob, 1, 30);
+      g.fillStyle(cfg.orbColor || 0x44ddff, 0.4);
+      g.fillCircle(12, 3 + bob, 5);
+      g.fillStyle(cfg.orbColor || 0x44ddff, 0.85);
+      g.fillCircle(12, 3 + bob, 3);
+      g.fillStyle(0xffffff, 0.6);
+      g.fillRect(10, 1 + bob, 1, 1);
     }
     if (cfg.hasOrb) {
-      g.fillStyle(cfg.orbColor, 0.5);
-      g.fillCircle(13, 14 + bob, 4);
+      g.fillStyle(cfg.orbColor, 0.4);
+      g.fillCircle(12, 14 + bob, 5);
+      g.fillStyle(cfg.orbColor, 0.7);
+      g.fillCircle(12, 14 + bob, 3);
     }
     if (cfg.hasBow) {
       g.fillStyle(cfg.weapon, 1);
-      g.fillRect(10, 14 + bob, 2, 18);
-      g.fillRect(8, 14 + bob, 3, 2);
-      g.fillRect(8, 30 + bob, 3, 2);
-      g.fillStyle(0xcccccc, 0.7);
-      g.fillRect(12, 15 + bob, 1, 16);
+      g.fillRect(9, 12 + bob, 3, 20);
+      g.fillStyle(this.lighten(cfg.weapon, 20), 0.7);
+      g.fillRect(7, 12 + bob, 3, 2);
+      g.fillRect(7, 30 + bob, 3, 2);
+      g.fillStyle(0xdaa520, 0.7);
+      g.fillRect(8, 11 + bob, 1, 2);
+      g.fillRect(8, 31 + bob, 1, 2);
+      g.fillStyle(0xcccccc, 0.8);
+      g.fillRect(12, 13 + bob, 1, 18);
+      // Grip
+      g.fillStyle(0x664422, 0.7);
+      g.fillRect(9, 20 + bob, 3, 4);
     }
     if (cfg.hasQuiver) {
-      g.fillStyle(0x8b5a2b, 1);
-      g.fillRect(30, 14 + bob, 4, 14);
+      g.fillStyle(0x7a4a1b, 1);
+      g.fillRect(30, 13 + bob, 5, 16);
+      g.fillStyle(0x5a3a15, 1);
+      g.fillRect(30, 13 + bob, 5, 2);
       g.fillStyle(0xcccccc, 1);
-      g.fillRect(31, 12 + bob, 1, 3);
-      g.fillRect(33, 13 + bob, 1, 2);
+      g.fillRect(31, 11 + bob, 1, 4);
+      g.fillRect(33, 12 + bob, 1, 3);
+      g.fillStyle(0xcc4444, 0.6);
+      g.fillRect(31, 11 + bob, 1, 2);
     }
     if (cfg.hasLance) {
       g.fillStyle(cfg.weaponHandle, 1);
-      g.fillRect(10, 0 + bob, 2, 40);
+      g.fillRect(9, -4 + bob, 3, 46);
+      g.fillStyle(0xdaa520, 0.4);
+      g.fillRect(9, 20 + bob, 3, 1);
       g.fillStyle(cfg.weapon, 1);
-      g.fillTriangle(11, -4 + bob, 8, 2 + bob, 14, 2 + bob);
+      g.fillTriangle(10, -10 + bob, 7, -2 + bob, 14, -2 + bob);
+      g.fillStyle(this.lighten(cfg.weapon, 40), 0.5);
+      g.fillRect(10, -8 + bob, 1, 5);
+      g.fillStyle(0xcc2222, 0.7);
+      g.fillTriangle(12, -2 + bob, 12, 4 + bob, 18, 1 + bob);
     }
   }
 
@@ -701,47 +1082,107 @@ export class BootScene extends Phaser.Scene {
   generateSlimeTexture() {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 32;
-    // Shadow
-    g.fillStyle(0x000000, 0.15);
+    // Double shadow for depth
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(16, 29, 26, 6);
+    g.fillStyle(0x000000, 0.18);
     g.fillEllipse(16, 28, 22, 5);
-    // Body - layered blob
-    g.fillStyle(0x11aa33, 1);
-    g.fillEllipse(16, 21, 28, 18);
-    g.fillStyle(0x22cc44, 0.9);
-    g.fillEllipse(16, 19, 24, 16);
-    // Inner gel highlight
-    g.fillStyle(0x44ff66, 0.5);
-    g.fillEllipse(13, 16, 14, 10);
-    // Specular highlight
-    g.fillStyle(0xffffff, 0.35);
-    g.fillEllipse(11, 13, 8, 5);
+    // Base puddle (gel pool spreading)
+    g.fillStyle(0x0d8828, 0.5);
+    g.fillEllipse(16, 27, 26, 7);
+    // Main body layers
+    g.fillStyle(0x0f9930, 1);
+    g.fillEllipse(16, 21, 28, 19);
+    g.fillStyle(0x15bb3c, 0.95);
+    g.fillEllipse(16, 20, 25, 17);
+    g.fillStyle(0x1ccc48, 0.85);
+    g.fillEllipse(16, 19, 22, 15);
+    // Inner gel core (translucent center glow)
+    g.fillStyle(0x33ee55, 0.4);
+    g.fillEllipse(14, 17, 16, 12);
+    g.fillStyle(0x55ff77, 0.25);
+    g.fillEllipse(13, 15, 12, 8);
+    // Dark underside with gradient
+    g.fillStyle(0x005518, 0.5);
+    g.fillEllipse(16, 26, 22, 7);
+    g.fillStyle(0x003f12, 0.3);
+    g.fillEllipse(16, 28, 18, 4);
+    // Surface vein lines
+    g.fillStyle(0x0a7722, 0.3);
+    g.fillRect(10, 18, 1, 6);
+    g.fillRect(22, 16, 1, 7);
+    g.fillRect(7, 22, 1, 4);
+    g.fillRect(25, 21, 1, 4);
+    // Specular highlight cluster
+    g.fillStyle(0xffffff, 0.4);
+    g.fillEllipse(11, 13, 9, 5);
+    g.fillStyle(0xffffff, 0.3);
+    g.fillCircle(9, 11, 2.5);
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(8, 10, 1.5);
+    // Small secondary highlight
+    g.fillStyle(0xffffff, 0.15);
+    g.fillEllipse(22, 14, 5, 3);
+    // Internal bubbles (trapped air)
+    g.fillStyle(0x88ffaa, 0.25);
+    g.fillCircle(19, 20, 2);
+    g.fillCircle(10, 22, 1.5);
+    g.fillCircle(23, 18, 1);
     g.fillStyle(0xffffff, 0.2);
-    g.fillCircle(9, 11, 2);
-    // Dark underside
-    g.fillStyle(0x006622, 0.4);
-    g.fillEllipse(16, 26, 20, 6);
-    // Eyes (cute)
+    g.fillCircle(19, 19, 0.7);
+    g.fillCircle(10, 21, 0.5);
+    // Eyes (expressive with depth)
     g.fillStyle(0xffffff, 1);
-    g.fillEllipse(12, 17, 6, 5);
-    g.fillEllipse(21, 17, 6, 5);
+    g.fillEllipse(12, 17, 7, 6);
+    g.fillEllipse(21, 17, 7, 6);
+    // Iris
+    g.fillStyle(0x226633, 0.8);
+    g.fillEllipse(13, 18, 4, 4);
+    g.fillEllipse(22, 18, 4, 4);
+    // Pupil
     g.fillStyle(0x000000, 1);
-    g.fillCircle(13, 18, 2);
-    g.fillCircle(22, 18, 2);
-    g.fillStyle(0xffffff, 0.9);
-    g.fillCircle(12, 17, 1);
-    g.fillCircle(21, 17, 1);
-    // Mouth
-    g.fillStyle(0x006622, 0.8);
-    g.fillEllipse(16, 23, 6, 2);
-    // Gel drips
-    g.fillStyle(0x22cc44, 0.6);
-    g.fillEllipse(6, 25, 4, 6);
-    g.fillEllipse(26, 24, 3, 5);
+    g.fillCircle(13, 18, 1.5);
+    g.fillCircle(22, 18, 1.5);
+    // Eye shine (dual)
+    g.fillStyle(0xffffff, 0.95);
+    g.fillCircle(11, 16, 1);
+    g.fillCircle(20, 16, 1);
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(14, 19, 0.5);
+    g.fillCircle(23, 19, 0.5);
+    // Eyelid hint
+    g.fillStyle(0x15bb3c, 0.6);
+    g.fillEllipse(12, 15, 6, 2);
+    g.fillEllipse(21, 15, 6, 2);
+    // Mouth (happy/mischievous)
+    g.fillStyle(0x005518, 0.9);
+    g.fillEllipse(16, 23, 7, 3);
+    g.fillStyle(0x003310, 0.6);
+    g.fillEllipse(16, 23, 5, 2);
+    // Tongue hint
+    g.fillStyle(0xcc5555, 0.5);
+    g.fillEllipse(17, 24, 3, 1);
+    // Gel drips (more detailed)
+    g.fillStyle(0x1ccc48, 0.7);
+    g.fillEllipse(5, 25, 4, 7);
+    g.fillEllipse(27, 24, 3, 6);
+    g.fillEllipse(3, 23, 2, 4);
+    // Drip tips
+    g.fillStyle(0x15bb3c, 0.5);
+    g.fillCircle(5, 29, 1.5);
+    g.fillCircle(27, 28, 1);
+    // Surface tension film
+    g.fillStyle(0x88ffbb, 0.12);
+    g.fillEllipse(16, 18, 20, 14);
     // Sparkle particles
-    g.fillStyle(0xaaffaa, 0.6);
+    g.fillStyle(0xccffcc, 0.7);
     g.fillCircle(8, 12, 1);
     g.fillCircle(22, 11, 1);
-    g.fillCircle(18, 14, 0.5);
+    g.fillCircle(18, 14, 0.7);
+    g.fillStyle(0xffffff, 0.8);
+    g.fillCircle(6, 14, 0.5);
+    g.fillCircle(26, 13, 0.5);
+    g.fillCircle(16, 11, 0.5);
     g.generateTexture("enemy_slime", S, S);
     g.destroy();
   }
@@ -749,72 +1190,152 @@ export class BootScene extends Phaser.Scene {
   generateWolfTexture() {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 36;
-    // Shadow
-    g.fillStyle(0x000000, 0.15);
+    // Double shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(18, 35, 30, 5);
+    g.fillStyle(0x000000, 0.18);
     g.fillEllipse(18, 34, 28, 4);
-    // Tail
-    g.fillStyle(0x555555, 0.8);
-    g.fillEllipse(33, 17, 10, 5);
-    g.fillStyle(0x666666, 0.6);
-    g.fillEllipse(35, 16, 6, 3);
-    // Legs (back pair darker)
+    // Tail — bushy with fur strands
+    g.fillStyle(0x555555, 0.85);
+    g.fillEllipse(33, 17, 11, 6);
+    g.fillStyle(0x666666, 0.7);
+    g.fillEllipse(35, 16, 7, 4);
+    g.fillStyle(0xddddcc, 0.35);
+    g.fillEllipse(35, 17, 4, 2);
+    // Tail fur strands
+    g.fillStyle(0x444444, 0.3);
+    g.fillRect(32, 14, 1, 5);
+    g.fillRect(35, 15, 1, 3);
+    // Back legs (muscular, darker)
     g.fillStyle(0x555555, 1);
-    g.fillRect(22, 27, 3, 7);
-    g.fillRect(28, 27, 3, 7);
-    // Legs (front pair)
-    g.fillStyle(0x666666, 1);
-    g.fillRect(8, 27, 3, 7);
-    g.fillRect(14, 27, 3, 7);
-    // Paws
+    g.fillRect(22, 26, 4, 8);
+    g.fillRect(28, 26, 4, 8);
+    // Back leg muscle highlight
+    g.fillStyle(0x777777, 0.35);
+    g.fillRect(23, 27, 2, 4);
+    g.fillRect(29, 27, 2, 4);
+    // Back paws with toes
     g.fillStyle(0x444444, 1);
-    g.fillEllipse(9, 34, 5, 2);
-    g.fillEllipse(15, 34, 5, 2);
-    g.fillEllipse(23, 34, 5, 2);
-    g.fillEllipse(29, 34, 5, 2);
-    // Body
+    g.fillEllipse(24, 34, 6, 2.5);
+    g.fillEllipse(30, 34, 6, 2.5);
+    g.fillStyle(0x333333, 1);
+    g.fillCircle(22, 34, 1);
+    g.fillCircle(26, 34, 1);
+    g.fillCircle(28, 34, 1);
+    g.fillCircle(32, 34, 1);
+    // Front legs
     g.fillStyle(0x666666, 1);
-    g.fillEllipse(18, 22, 30, 16);
-    // Fur texture
-    g.fillStyle(0x777777, 0.7);
-    g.fillEllipse(18, 18, 22, 10);
-    g.fillStyle(0x888888, 0.4);
-    g.fillEllipse(14, 20, 10, 6);
-    // Belly
-    g.fillStyle(0x888888, 0.5);
-    g.fillEllipse(18, 26, 18, 6);
+    g.fillRect(8, 26, 4, 8);
+    g.fillRect(14, 26, 4, 8);
+    // Front leg muscle
+    g.fillStyle(0x888888, 0.3);
+    g.fillRect(9, 27, 2, 4);
+    g.fillRect(15, 27, 2, 4);
+    // Front paws with toes
+    g.fillStyle(0x444444, 1);
+    g.fillEllipse(10, 34, 6, 2.5);
+    g.fillEllipse(16, 34, 6, 2.5);
+    g.fillStyle(0x333333, 1);
+    g.fillCircle(8, 34, 1);
+    g.fillCircle(12, 34, 1);
+    g.fillCircle(14, 34, 1);
+    g.fillCircle(18, 34, 1);
+    // Claws
+    g.fillStyle(0x222222, 1);
+    g.fillRect(7, 34, 1, 1);
+    g.fillRect(12, 34, 1, 1);
+    g.fillRect(13, 34, 1, 1);
+    g.fillRect(18, 34, 1, 1);
+    // Body (layered fur)
+    g.fillStyle(0x5a5a5a, 1);
+    g.fillEllipse(18, 22, 32, 17);
+    g.fillStyle(0x6a6a6a, 0.8);
+    g.fillEllipse(18, 20, 28, 14);
+    // Back ridge fur
+    g.fillStyle(0x777777, 0.6);
+    g.fillEllipse(20, 16, 20, 5);
+    // Fur strand lines on body
+    g.fillStyle(0x4d4d4d, 0.3);
+    g.fillRect(10, 17, 1, 5);
+    g.fillRect(14, 16, 1, 6);
+    g.fillRect(20, 17, 1, 4);
+    g.fillRect(26, 18, 1, 5);
+    g.fillRect(22, 15, 1, 4);
+    // Belly (lighter underfur)
+    g.fillStyle(0x999999, 0.5);
+    g.fillEllipse(18, 26, 20, 7);
+    g.fillStyle(0xaaaaaa, 0.25);
+    g.fillEllipse(18, 27, 14, 4);
     // Head
     g.fillStyle(0x777777, 1);
-    g.fillEllipse(7, 16, 16, 14);
-    // Snout
+    g.fillEllipse(7, 16, 17, 15);
+    // Forehead ridge
+    g.fillStyle(0x888888, 0.5);
+    g.fillEllipse(7, 12, 10, 5);
+    // Cheek fur
+    g.fillStyle(0x888888, 0.4);
+    g.fillEllipse(4, 19, 6, 5);
+    g.fillEllipse(12, 19, 6, 5);
+    // Snout layers
     g.fillStyle(0x888888, 1);
-    g.fillEllipse(2, 19, 8, 6);
-    g.fillStyle(0x222222, 1);
-    g.fillEllipse(0, 18, 3, 2);
-    // Open mouth
-    g.fillStyle(0x882222, 0.6);
-    g.fillEllipse(3, 21, 6, 2);
-    g.fillStyle(0xffffff, 0.8);
-    g.fillRect(1, 20, 1, 2);
-    g.fillRect(4, 20, 1, 2);
-    // Ears
+    g.fillEllipse(2, 19, 9, 7);
+    g.fillStyle(0x999999, 0.6);
+    g.fillEllipse(2, 18, 7, 5);
+    // Nose (detailed)
+    g.fillStyle(0x1a1a1a, 1);
+    g.fillEllipse(0, 18, 4, 3);
+    g.fillStyle(0x444444, 0.5);
+    g.fillCircle(0, 17, 1);
+    // Nostrils
+    g.fillStyle(0x000000, 0.7);
+    g.fillCircle(-1, 18, 0.5);
+    g.fillCircle(1, 18, 0.5);
+    // Open snarling mouth
+    g.fillStyle(0x882222, 0.7);
+    g.fillEllipse(3, 22, 7, 3);
+    g.fillStyle(0xaa3333, 0.5);
+    g.fillEllipse(3, 22, 5, 2);
+    // Fangs (upper + lower)
+    g.fillStyle(0xffffff, 0.9);
+    g.fillRect(0, 20, 1, 3);
+    g.fillRect(4, 20, 1, 3);
+    g.fillStyle(0xeeeeee, 0.7);
+    g.fillRect(1, 22, 1, 2);
+    g.fillRect(3, 22, 1, 2);
+    // Ears (layered)
     g.fillStyle(0x777777, 1);
-    g.fillTriangle(5, 6, 2, 12, 9, 12);
-    g.fillTriangle(14, 6, 10, 12, 17, 12);
-    g.fillStyle(0xcc8888, 0.4);
-    g.fillTriangle(5, 8, 3, 11, 8, 11);
-    g.fillTriangle(14, 8, 12, 11, 16, 11);
-    // Eyes (fierce yellow)
+    g.fillTriangle(5, 5, 1, 12, 9, 12);
+    g.fillTriangle(14, 5, 10, 12, 17, 12);
+    // Ear inner
+    g.fillStyle(0xcc8888, 0.45);
+    g.fillTriangle(5, 7, 3, 11, 8, 11);
+    g.fillTriangle(14, 7, 12, 11, 16, 11);
+    // Ear edge highlight
+    g.fillStyle(0x999999, 0.3);
+    g.fillRect(3, 8, 1, 3);
+    g.fillRect(12, 8, 1, 3);
+    // Eyes (fierce glowing amber)
+    g.fillStyle(0x000000, 1);
+    g.fillEllipse(6, 15, 5, 4);
+    g.fillEllipse(12, 15, 5, 4);
     g.fillStyle(0xffcc00, 1);
     g.fillEllipse(6, 15, 4, 3);
     g.fillEllipse(12, 15, 4, 3);
+    // Slit pupil
     g.fillStyle(0x000000, 1);
-    g.fillCircle(6, 15, 1);
-    g.fillCircle(12, 15, 1);
-    // Fur detail lines
-    g.fillStyle(0x555555, 0.3);
-    g.fillRect(10, 14, 1, 4);
-    g.fillRect(20, 18, 1, 5);
-    g.fillRect(26, 20, 1, 4);
+    g.fillEllipse(6, 15, 1.5, 2.5);
+    g.fillEllipse(12, 15, 1.5, 2.5);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.7);
+    g.fillCircle(5, 14, 0.7);
+    g.fillCircle(11, 14, 0.7);
+    // Brow ridge
+    g.fillStyle(0x666666, 0.7);
+    g.fillRect(4, 13, 4, 1);
+    g.fillRect(10, 13, 4, 1);
+    // Scar across face
+    g.fillStyle(0xaa8888, 0.4);
+    g.fillRect(8, 12, 1, 6);
     g.generateTexture("enemy_wolf", S, S);
     g.destroy();
   }
@@ -825,83 +1346,181 @@ export class BootScene extends Phaser.Scene {
     const bone = 0xddddcc;
     const boneDark = 0xbbbbaa;
     const boneShadow = 0x999988;
+    const boneHighlight = 0xeeeedd;
     // Shadow
-    g.fillStyle(0x000000, 0.12);
-    g.fillEllipse(18, 35, 16, 3);
-    // Legs
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(18, 35, 18, 4);
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(18, 35, 14, 3);
+    // Ghostly aura
+    g.fillStyle(0x4444ff, 0.04);
+    g.fillCircle(18, 20, 18);
+    // Legs (femur + tibia detail)
     g.fillStyle(boneDark, 1);
-    g.fillRect(15, 29, 3, 7);
-    g.fillRect(22, 29, 3, 7);
-    // Knee joints
-    g.fillStyle(bone, 1);
-    g.fillCircle(16, 29, 2);
-    g.fillCircle(23, 29, 2);
-    // Feet
+    g.fillRect(14, 29, 4, 7);
+    g.fillRect(21, 29, 4, 7);
+    // Bone joint bulges
+    g.fillStyle(boneHighlight, 0.6);
+    g.fillCircle(16, 29, 2.5);
+    g.fillCircle(23, 29, 2.5);
+    g.fillCircle(16, 34, 2);
+    g.fillCircle(23, 34, 2);
+    // Tibia ridge
+    g.fillStyle(boneShadow, 0.3);
+    g.fillRect(15, 30, 1, 5);
+    g.fillRect(22, 30, 1, 5);
+    // Feet bones
     g.fillStyle(boneShadow, 1);
-    g.fillRect(14, 34, 5, 2);
-    g.fillRect(21, 34, 5, 2);
+    g.fillRect(13, 34, 6, 2);
+    g.fillRect(20, 34, 6, 2);
+    // Toe bones
+    g.fillStyle(boneDark, 0.7);
+    g.fillRect(12, 35, 2, 1);
+    g.fillRect(17, 35, 2, 1);
+    g.fillRect(19, 35, 2, 1);
+    g.fillRect(24, 35, 2, 1);
     // Pelvis
     g.fillStyle(boneDark, 1);
-    g.fillEllipse(20, 28, 12, 4);
-    // Ribcage
+    g.fillEllipse(20, 28, 14, 5);
+    g.fillStyle(boneHighlight, 0.4);
+    g.fillEllipse(20, 27, 10, 3);
+    // Spine
     g.fillStyle(bone, 1);
-    g.fillRect(19, 17, 2, 12);
-    for (let i = 0; i < 4; i++) {
-      g.fillStyle(bone, 0.9);
-      g.fillRect(14, 18 + i * 3, 12, 1);
-      g.fillStyle(boneShadow, 0.5);
-      g.fillRect(15, 19 + i * 3, 10, 1);
+    g.fillRect(19, 16, 2, 13);
+    // Vertebrae detail
+    g.fillStyle(boneShadow, 0.5);
+    for (let i = 0; i < 5; i++) {
+      g.fillCircle(20, 17 + i * 2.5, 1.5);
     }
-    // Collar bone
-    g.fillStyle(boneDark, 1);
-    g.fillRect(12, 16, 16, 2);
-    // Shoulder joints
+    // Ribcage
+    for (let i = 0; i < 5; i++) {
+      g.fillStyle(bone, 0.9);
+      g.fillRect(13, 17 + i * 2.5, 14, 1);
+      g.fillStyle(boneShadow, 0.4);
+      g.fillRect(14, 18 + i * 2.5, 12, 0.5);
+      // Rib curve ends
+      g.fillStyle(bone, 0.7);
+      g.fillCircle(13, 17 + i * 2.5, 0.7);
+      g.fillCircle(27, 17 + i * 2.5, 0.7);
+    }
+    // Collarbone
     g.fillStyle(bone, 1);
-    g.fillCircle(12, 17, 2.5);
-    g.fillCircle(28, 17, 2.5);
+    g.fillRect(11, 15, 18, 2);
+    g.fillStyle(boneHighlight, 0.5);
+    g.fillRect(12, 15, 16, 1);
+    // Shoulder joints (ball & socket visible)
+    g.fillStyle(bone, 1);
+    g.fillCircle(11, 16, 3);
+    g.fillCircle(29, 16, 3);
+    g.fillStyle(boneShadow, 0.4);
+    g.fillCircle(11, 16, 1.5);
+    g.fillCircle(29, 16, 1.5);
     // Arms
     g.fillStyle(boneDark, 1);
-    g.fillRect(10, 18, 3, 10);
-    g.fillRect(27, 18, 3, 10);
-    // Hands
-    g.fillStyle(boneShadow, 0.8);
-    g.fillCircle(11, 28, 2);
-    g.fillCircle(28, 28, 2);
-    // Head (skull)
-    g.fillStyle(bone, 1);
-    g.fillRoundedRect(12, 2, 16, 15, 5);
-    // Skull shading
+    g.fillRect(9, 17, 3, 11);
+    g.fillRect(28, 17, 3, 11);
+    // Elbow joints
+    g.fillStyle(bone, 0.8);
+    g.fillCircle(10, 22, 2);
+    g.fillCircle(29, 22, 2);
+    // Radius/ulna split hint
     g.fillStyle(boneShadow, 0.3);
-    g.fillRect(14, 14, 12, 2);
-    // Eye sockets
-    g.fillStyle(0x111111, 1);
-    g.fillEllipse(17, 8, 5, 4);
-    g.fillEllipse(25, 8, 5, 4);
-    // Red evil glow
-    g.fillStyle(0xff2222, 0.8);
-    g.fillCircle(17, 8, 1.5);
-    g.fillCircle(25, 8, 1.5);
-    // Nose hole
-    g.fillStyle(0x222222, 1);
-    g.fillTriangle(20, 10, 19, 13, 22, 13);
-    // Teeth
+    g.fillRect(10, 23, 1, 5);
+    g.fillRect(29, 23, 1, 5);
+    // Hands (bony fingers)
+    g.fillStyle(boneShadow, 0.9);
+    g.fillCircle(10, 28, 2);
+    g.fillCircle(29, 28, 2);
+    g.fillStyle(boneDark, 0.7);
+    g.fillRect(8, 28, 1, 3);
+    g.fillRect(10, 29, 1, 2);
+    g.fillRect(12, 28, 1, 3);
+    g.fillRect(27, 28, 1, 3);
+    g.fillRect(29, 29, 1, 2);
+    g.fillRect(31, 28, 1, 3);
+    // Skull (detailed)
     g.fillStyle(bone, 1);
-    g.fillRect(15, 14, 10, 2);
-    g.fillStyle(0x444444, 0.6);
-    for (let i = 0; i < 5; i++) {
-      g.fillRect(16 + i * 2, 14, 1, 2);
+    g.fillRoundedRect(11, 1, 18, 16, 6);
+    // Skull top ridge
+    g.fillStyle(boneHighlight, 0.5);
+    g.fillEllipse(20, 4, 14, 5);
+    // Temple shadows
+    g.fillStyle(boneShadow, 0.3);
+    g.fillRect(12, 8, 2, 5);
+    g.fillRect(26, 8, 2, 5);
+    // Cheekbones
+    g.fillStyle(boneHighlight, 0.3);
+    g.fillEllipse(14, 11, 4, 3);
+    g.fillEllipse(26, 11, 4, 3);
+    // Eye sockets (deep, detailed)
+    g.fillStyle(0x0a0a0a, 1);
+    g.fillEllipse(16, 8, 6, 5);
+    g.fillEllipse(24, 8, 6, 5);
+    // Socket inner shadow
+    g.fillStyle(0x000000, 0.5);
+    g.fillEllipse(16, 9, 4, 3);
+    g.fillEllipse(24, 9, 4, 3);
+    // Glowing eyes
+    g.fillStyle(0xff2222, 0.6);
+    g.fillCircle(16, 8, 2);
+    g.fillCircle(24, 8, 2);
+    g.fillStyle(0xff4444, 1);
+    g.fillCircle(16, 8, 1);
+    g.fillCircle(24, 8, 1);
+    g.fillStyle(0xffaaaa, 0.5);
+    g.fillCircle(16, 8, 0.5);
+    g.fillCircle(24, 8, 0.5);
+    // Nose hole (triangular)
+    g.fillStyle(0x111111, 1);
+    g.fillTriangle(20, 10, 18, 13, 22, 13);
+    g.fillStyle(0x1a1a1a, 0.5);
+    g.fillRect(19, 12, 2, 1);
+    // Teeth (individual, some missing)
+    g.fillStyle(bone, 1);
+    g.fillRect(14, 14, 12, 2);
+    // Individual teeth
+    g.fillStyle(0x333333, 0.7);
+    for (let i = 0; i < 6; i++) {
+      g.fillRect(15 + i * 2, 14, 1, 2);
     }
-    // Crack on skull
-    g.fillStyle(boneShadow, 0.5);
-    g.fillRect(24, 3, 1, 5);
-    g.fillRect(25, 5, 1, 2);
-    // Sword
-    g.fillStyle(0x888888, 1);
-    g.fillRect(7, 10, 2, 18);
-    g.fillStyle(0x666666, 1);
-    g.fillRect(4, 9, 8, 2);
-    g.fillStyle(0xaaaaaa, 0.5);
-    g.fillRect(8, 11, 1, 16);
+    // Missing tooth gap
+    g.fillStyle(0x111111, 0.8);
+    g.fillRect(21, 14, 2, 2);
+    // Jaw shadow  
+    g.fillStyle(boneShadow, 0.4);
+    g.fillRect(15, 16, 10, 1);
+    // Skull crack (more detailed)
+    g.fillStyle(boneShadow, 0.6);
+    g.fillRect(23, 2, 1, 4);
+    g.fillRect(24, 4, 1, 3);
+    g.fillRect(23, 6, 1, 2);
+    // Rusty sword (ancient, damaged)
+    g.fillStyle(0x777766, 1);
+    g.fillRect(6, 8, 3, 20);
+    g.fillStyle(0x888877, 0.5);
+    g.fillRect(7, 9, 1, 18);
+    // Sword edge damage
+    g.fillStyle(0x666655, 0.6);
+    g.fillRect(5, 12, 1, 2);
+    g.fillRect(9, 16, 1, 2);
+    g.fillRect(5, 20, 1, 1);
+    // Rune glowing on blade
+    g.fillStyle(0xff4444, 0.3);
+    g.fillRect(7, 14, 1, 3);
+    // Crossguard
+    g.fillStyle(0x555544, 1);
+    g.fillRect(3, 7, 9, 2);
+    // Handle
+    g.fillStyle(0x664422, 1);
+    g.fillRect(6, 26, 3, 4);
+    // Pommel
+    g.fillStyle(0x555544, 0.8);
+    g.fillCircle(7, 30, 2);
+    // Armor fragment on shoulder
+    g.fillStyle(0x445566, 0.5);
+    g.fillEllipse(11, 15, 6, 4);
+    g.fillStyle(0x556677, 0.3);
+    g.fillEllipse(11, 14, 4, 2);
     g.generateTexture("enemy_skeleton", S, S);
     g.destroy();
   }
@@ -911,74 +1530,158 @@ export class BootScene extends Phaser.Scene {
     const S = 30;
     // Shadow
     g.fillStyle(0x000000, 0.12);
-    g.fillEllipse(15, 28, 16, 3);
-    // Legs
+    g.fillEllipse(15, 28, 18, 4);
+    g.fillStyle(0x000000, 0.08);
+    g.fillEllipse(15, 29, 14, 3);
+    // Legs (scrawny green)
     g.fillStyle(0x448811, 1);
-    g.fillRect(10, 23, 4, 6);
-    g.fillRect(17, 23, 4, 6);
-    // Boots
+    g.fillRect(9, 22, 4, 7);
+    g.fillRect(17, 22, 4, 7);
+    // Knee bulge
+    g.fillStyle(0x55aa22, 0.5);
+    g.fillCircle(11, 23, 1.5);
+    g.fillCircle(19, 23, 1.5);
+    // Shin highlight
+    g.fillStyle(0x66bb33, 0.25);
+    g.fillRect(10, 24, 2, 3);
+    g.fillRect(18, 24, 2, 3);
+    // Boots (worn leather)
     g.fillStyle(0x553322, 1);
-    g.fillRect(9, 27, 5, 3);
-    g.fillRect(16, 27, 5, 3);
-    // Body (leather tunic)
-    g.fillStyle(0x664433, 0.9);
-    g.fillRoundedRect(8, 12, 14, 12, 2);
-    // Leather shading
+    g.fillRect(8, 27, 6, 3);
+    g.fillRect(16, 27, 6, 3);
+    g.fillStyle(0x442211, 0.6);
+    g.fillRect(8, 29, 6, 1);
+    g.fillRect(16, 29, 6, 1);
+    // Boot stitching
+    g.fillStyle(0x332211, 0.4);
+    g.fillRect(10, 27, 1, 2);
+    g.fillRect(18, 27, 1, 2);
+    // Body (leather tunic, layered)
+    g.fillStyle(0x664433, 0.95);
+    g.fillRoundedRect(7, 11, 16, 13, 2);
+    // Tunic stitching lines
     g.fillStyle(0x553322, 0.5);
-    g.fillRect(10, 18, 10, 4);
-    // Belt
+    g.fillRect(10, 13, 10, 1);
+    g.fillRect(10, 17, 10, 1);
+    g.fillRect(10, 20, 10, 1);
+    // Leather patches
+    g.fillStyle(0x775544, 0.5);
+    g.fillRect(8, 14, 5, 4);
+    g.fillStyle(0x554433, 0.4);
+    g.fillRect(17, 16, 4, 3);
+    // Belt with buckle
     g.fillStyle(0x443322, 1);
-    g.fillRect(8, 22, 14, 2);
+    g.fillRect(7, 22, 16, 2);
     g.fillStyle(0xddaa22, 1);
-    g.fillRect(14, 22, 2, 2);
-    // Head
+    g.fillRect(13, 22, 3, 2);
+    // Belt pouch
+    g.fillStyle(0x553322, 0.7);
+    g.fillRect(8, 22, 3, 3);
+    // Head (large for body)
     g.fillStyle(0x66aa33, 1);
-    g.fillRoundedRect(7, 1, 18, 14, 5);
-    // Face shading
-    g.fillStyle(0x558822, 0.5);
-    g.fillRect(10, 10, 12, 4);
-    // Big pointy ears
+    g.fillRoundedRect(6, 0, 19, 15, 6);
+    // Face lighter center
+    g.fillStyle(0x77bb44, 0.4);
+    g.fillEllipse(16, 8, 12, 10);
+    // Brow ridge
+    g.fillStyle(0x559922, 0.8);
+    g.fillRect(9, 3, 13, 3);
+    // War paint (tribal marks)
+    g.fillStyle(0xcc3333, 0.4);
+    g.fillRect(8, 6, 2, 3);
+    g.fillRect(22, 6, 2, 3);
+    g.fillStyle(0xcc3333, 0.25);
+    g.fillRect(12, 11, 1, 2);
+    g.fillRect(19, 11, 1, 2);
+    // Big pointy ears (detailed)
     g.fillStyle(0x66aa33, 1);
-    g.fillTriangle(2, 5, 7, 3, 7, 9);
-    g.fillTriangle(29, 5, 24, 3, 24, 9);
-    g.fillStyle(0xcc8866, 0.4);
-    g.fillTriangle(4, 5, 7, 4, 7, 8);
-    g.fillTriangle(27, 5, 24, 4, 24, 8);
-    // Eyes (big, yellow, menacing)
+    g.fillTriangle(1, 4, 7, 2, 7, 9);
+    g.fillTriangle(29, 4, 24, 2, 24, 9);
+    // Ear inner
+    g.fillStyle(0xcc8866, 0.45);
+    g.fillTriangle(3, 5, 7, 3, 7, 8);
+    g.fillTriangle(27, 5, 24, 3, 24, 8);
+    // Ear ridge
+    g.fillStyle(0x558822, 0.4);
+    g.fillRect(5, 5, 1, 3);
+    g.fillRect(25, 5, 1, 3);
+    // Eyes (large, menacing yellow-green)
     g.fillStyle(0x000000, 1);
+    g.fillEllipse(13, 7, 7, 6);
+    g.fillEllipse(21, 7, 7, 6);
+    g.fillStyle(0xffee00, 1);
     g.fillEllipse(13, 7, 6, 5);
     g.fillEllipse(21, 7, 6, 5);
-    g.fillStyle(0xffee00, 1);
-    g.fillEllipse(13, 7, 5, 4);
-    g.fillEllipse(21, 7, 5, 4);
+    // Iris (slit)
+    g.fillStyle(0x886600, 0.7);
+    g.fillEllipse(13, 7, 3, 4);
+    g.fillEllipse(21, 7, 3, 4);
+    // Pupil (vertical slit)
     g.fillStyle(0x000000, 1);
-    g.fillCircle(13, 7, 1.5);
-    g.fillCircle(21, 7, 1.5);
-    g.fillStyle(0xffffff, 0.6);
-    g.fillCircle(12, 6, 0.5);
-    g.fillCircle(20, 6, 0.5);
-    // Angry brows
+    g.fillEllipse(13, 7, 1.5, 3.5);
+    g.fillEllipse(21, 7, 1.5, 3.5);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.65);
+    g.fillCircle(12, 6, 0.7);
+    g.fillCircle(20, 6, 0.7);
+    // Angry brows (slanted)
     g.fillStyle(0x448811, 1);
     g.fillRect(10, 4, 5, 2);
     g.fillRect(19, 4, 5, 2);
-    // Nose (big)
+    // Wart on nose
     g.fillStyle(0x55aa22, 1);
-    g.fillEllipse(17, 10, 4, 3);
-    g.fillStyle(0x448811, 0.5);
-    g.fillCircle(16, 10, 0.5);
-    g.fillCircle(18, 10, 0.5);
-    // Mouth with teeth
+    g.fillEllipse(17, 10, 5, 4);
+    g.fillStyle(0x66bb33, 0.6);
+    g.fillCircle(16, 9, 1);
+    // Nostrils
+    g.fillStyle(0x337711, 0.7);
+    g.fillCircle(16, 11, 0.7);
+    g.fillCircle(18, 11, 0.7);
+    // Wart
+    g.fillStyle(0x448811, 0.8);
+    g.fillCircle(19, 9, 1);
+    // Mouth (jagged teeth)
     g.fillStyle(0x333300, 1);
-    g.fillRect(12, 12, 8, 2);
-    g.fillStyle(0xeeeeee, 1);
-    g.fillRect(13, 12, 2, 1);
-    g.fillRect(17, 12, 2, 1);
-    // Arms with small dagger
+    g.fillRect(11, 12, 9, 2);
+    g.fillStyle(0xeeeecc, 1);
+    g.fillRect(12, 12, 2, 2);
+    g.fillRect(18, 12, 2, 2);
+    // Lower fangs
+    g.fillStyle(0xddddbb, 0.9);
+    g.fillRect(14, 13, 1, 2);
+    g.fillRect(17, 13, 1, 2);
+    // Chin shadow
+    g.fillStyle(0x558822, 0.4);
+    g.fillRect(12, 14, 7, 1);
+    // Arms (scrawny with wristbands)
     g.fillStyle(0x55aa22, 1);
-    g.fillRect(5, 14, 3, 8);
-    g.fillRect(22, 14, 3, 8);
+    g.fillRect(4, 13, 3, 9);
+    g.fillRect(23, 13, 3, 9);
+    // Arm muscle
+    g.fillStyle(0x66bb33, 0.3);
+    g.fillRect(4, 14, 2, 3);
+    g.fillRect(23, 14, 2, 3);
+    // Wristbands
+    g.fillStyle(0x664422, 0.8);
+    g.fillRect(4, 19, 3, 2);
+    g.fillRect(23, 19, 3, 2);
+    // Hands
+    g.fillStyle(0x55aa22, 0.9);
+    g.fillCircle(5, 22, 1.5);
+    g.fillCircle(24, 22, 1.5);
+    // Dagger (serrated)
     g.fillStyle(0x999999, 1);
-    g.fillRect(4, 12, 1, 9);
+    g.fillRect(3, 11, 2, 10);
+    g.fillStyle(0xbbbbbb, 0.5);
+    g.fillRect(4, 12, 1, 8);
+    // Serration
+    g.fillStyle(0x777777, 0.6);
+    g.fillRect(2, 14, 1, 1);
+    g.fillRect(2, 16, 1, 1);
+    g.fillRect(2, 18, 1, 1);
+    // Dagger handle
+    g.fillStyle(0x664422, 1);
+    g.fillRect(3, 20, 2, 3);
     g.generateTexture("enemy_goblin", S, S);
     g.destroy();
   }
@@ -987,77 +1690,170 @@ export class BootScene extends Phaser.Scene {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 36;
     // Shadow
-    g.fillStyle(0x000000, 0.12);
-    g.fillEllipse(18, 35, 16, 3);
-    // Legs
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(18, 35, 18, 4);
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(18, 35, 14, 3);
+    // Legs (dark leather)
     g.fillStyle(0x443322, 1);
-    g.fillRect(13, 28, 4, 6);
-    g.fillRect(20, 28, 4, 6);
-    // Boots
+    g.fillRect(13, 28, 4, 7);
+    g.fillRect(20, 28, 4, 7);
+    // Leg stitching
+    g.fillStyle(0x332211, 0.4);
+    g.fillRect(14, 29, 1, 5);
+    g.fillRect(21, 29, 1, 5);
+    // Knee pads
+    g.fillStyle(0x555544, 0.5);
+    g.fillEllipse(15, 28, 3, 2);
+    g.fillEllipse(22, 28, 3, 2);
+    // Boots (buckled)
     g.fillStyle(0x332211, 1);
-    g.fillRect(12, 32, 6, 3);
-    g.fillRect(19, 32, 6, 3);
-    g.fillStyle(0x443322, 0.6);
-    g.fillRect(13, 32, 4, 1);
-    g.fillRect(20, 32, 4, 1);
-    // Body (dark leather armor)
+    g.fillRect(12, 33, 6, 3);
+    g.fillRect(19, 33, 6, 3);
+    g.fillStyle(0x221100, 1);
+    g.fillRect(12, 35, 6, 1);
+    g.fillRect(19, 35, 6, 1);
+    // Boot straps
+    g.fillStyle(0x444433, 0.6);
+    g.fillRect(12, 33, 6, 1);
+    g.fillRect(19, 33, 6, 1);
+    // Boot buckle
+    g.fillStyle(0xccaa44, 0.7);
+    g.fillRect(14, 33, 1, 1);
+    g.fillRect(21, 33, 1, 1);
+    // Body (studded leather armor)
     g.fillStyle(0x554433, 1);
-    g.fillRoundedRect(11, 14, 14, 16, 2);
-    // Leather detail
-    g.fillStyle(0x665544, 0.6);
+    g.fillRoundedRect(10, 14, 16, 16, 2);
+    // Leather grain texture
+    g.fillStyle(0x665544, 0.5);
     g.fillRect(12, 16, 12, 2);
     g.fillRect(12, 20, 12, 2);
-    // Belt with buckle
+    g.fillRect(12, 24, 12, 2);
+    // Metal studs on armor
+    g.fillStyle(0x888877, 0.7);
+    g.fillCircle(12, 17, 0.8);
+    g.fillCircle(24, 17, 0.8);
+    g.fillCircle(12, 21, 0.8);
+    g.fillCircle(24, 21, 0.8);
+    g.fillCircle(12, 25, 0.8);
+    g.fillCircle(24, 25, 0.8);
+    // Belt with ornate buckle
     g.fillStyle(0x333322, 1);
-    g.fillRect(11, 26, 14, 3);
+    g.fillRect(10, 26, 16, 3);
     g.fillStyle(0xccaa44, 1);
-    g.fillRect(16, 26, 4, 3);
-    // Cross-body strap
+    g.fillRect(15, 26, 5, 3);
+    g.fillStyle(0xeecc55, 0.5);
+    g.fillRect(16, 27, 3, 1);
+    // Belt pouches
     g.fillStyle(0x443322, 0.8);
+    g.fillRect(11, 27, 3, 2);
+    g.fillRect(22, 27, 3, 2);
+    // Cross-body strap (with buckle)
+    g.fillStyle(0x443322, 0.85);
     g.fillRect(12, 14, 3, 14);
-    // Hood
-    g.fillStyle(0x443322, 0.9);
-    g.fillRoundedRect(10, 0, 16, 10, 5);
-    // Head (face visible)
+    g.fillStyle(0xccaa44, 0.5);
+    g.fillCircle(13, 18, 0.8);
+    // Hood (detailed, layered)
+    g.fillStyle(0x443322, 0.92);
+    g.fillRoundedRect(9, -1, 18, 12, 5);
+    g.fillStyle(0x553322, 0.6);
+    g.fillEllipse(18, 2, 14, 6);
+    // Hood shadow beneath
+    g.fillStyle(0x332211, 0.5);
+    g.fillRect(10, 8, 16, 3);
+    // Head (face visible beneath hood)
     g.fillStyle(0xddbb99, 1);
     g.fillRoundedRect(12, 3, 12, 12, 4);
-    // Mask over nose/mouth
-    g.fillStyle(0x333333, 0.9);
+    // Jaw shadow
+    g.fillStyle(0xcc9977, 0.35);
+    g.fillRect(13, 12, 10, 2);
+    // Stubble
+    g.fillStyle(0xaa8866, 0.2);
+    g.fillRect(13, 11, 10, 3);
+    // Mask (detailed cloth)
+    g.fillStyle(0x2a2a2a, 0.92);
     g.fillRect(12, 9, 12, 5);
-    g.fillStyle(0x222222, 0.5);
+    g.fillStyle(0x1a1a1a, 0.5);
     g.fillRect(14, 10, 8, 1);
-    // Eyes (intense)
-    g.fillStyle(0x000000, 1);
-    g.fillEllipse(16, 7, 3, 3);
-    g.fillEllipse(22, 7, 3, 3);
+    g.fillStyle(0x333333, 0.4);
+    g.fillRect(14, 12, 8, 1);
+    // Mask wrinkle
+    g.fillStyle(0x222222, 0.3);
+    g.fillRect(12, 11, 12, 1);
+    // Scar above mask (across eye area)
+    g.fillStyle(0xdd9988, 0.45);
+    g.fillRect(22, 5, 1, 5);
+    // Eyes (cold, intense)
+    g.fillStyle(0x111111, 1);
+    g.fillEllipse(16, 7, 4, 3.5);
+    g.fillEllipse(22, 7, 4, 3.5);
     g.fillStyle(0xffffff, 1);
-    g.fillCircle(16, 7, 1);
-    g.fillCircle(22, 7, 1);
-    g.fillStyle(0x000000, 1);
-    g.fillCircle(16, 7, 0.5);
-    g.fillCircle(22, 7, 0.5);
-    // Eyebrows (menacing)
+    g.fillEllipse(16, 7, 3, 2.5);
+    g.fillEllipse(22, 7, 3, 2.5);
+    // Iris (steel gray)
+    g.fillStyle(0x556677, 1);
+    g.fillCircle(16, 7, 1.2);
+    g.fillCircle(22, 7, 1.2);
+    g.fillStyle(0x111111, 1);
+    g.fillCircle(16, 7, 0.6);
+    g.fillCircle(22, 7, 0.6);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.7);
+    g.fillCircle(15, 6, 0.5);
+    g.fillCircle(21, 6, 0.5);
+    // Menacing eyebrows
     g.fillStyle(0x554433, 1);
     g.fillRect(14, 5, 5, 1);
     g.fillRect(20, 5, 5, 1);
     // Arms
     g.fillStyle(0x554433, 1);
-    g.fillRect(8, 16, 3, 10);
-    g.fillRect(25, 16, 3, 10);
+    g.fillRect(7, 16, 4, 11);
+    g.fillRect(25, 16, 4, 11);
+    // Arm wrapping
+    g.fillStyle(0x443322, 0.5);
+    g.fillRect(7, 18, 4, 1);
+    g.fillRect(7, 21, 4, 1);
+    g.fillRect(25, 18, 4, 1);
+    g.fillRect(25, 21, 4, 1);
+    // Vambraces
+    g.fillStyle(0x555544, 0.7);
+    g.fillRect(7, 23, 4, 4);
+    g.fillRect(25, 23, 4, 4);
     // Hands
-    g.fillStyle(0xddbb99, 0.8);
-    g.fillCircle(9, 26, 2);
-    g.fillCircle(26, 26, 2);
-    // Sword - right hand
+    g.fillStyle(0xddbb99, 0.85);
+    g.fillCircle(9, 27, 2);
+    g.fillCircle(27, 27, 2);
+    // Sword — right hand (detailed)
     g.fillStyle(0xaaaaaa, 1);
-    g.fillRect(27, 14, 2, 14);
+    g.fillRect(28, 13, 2, 16);
     g.fillStyle(0xcccccc, 0.5);
-    g.fillRect(28, 15, 1, 12);
+    g.fillRect(29, 14, 1, 14);
+    // Blade edge
+    g.fillStyle(0xdddddd, 0.35);
+    g.fillRect(27, 14, 1, 14);
+    // Sword tip
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillTriangle(29, 11, 28, 13, 30, 13);
+    // Crossguard
     g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(26, 13, 4, 2);
-    // Dagger - left hand
+    g.fillRect(26, 12, 6, 2);
+    g.fillStyle(0xccaa44, 0.6);
+    g.fillCircle(26, 13, 0.8);
+    g.fillCircle(32, 13, 0.8);
+    // Handle
+    g.fillStyle(0x664422, 1);
+    g.fillRect(28, 28, 2, 4);
+    // Pommel
+    g.fillStyle(0x8b5a2b, 0.8);
+    g.fillCircle(29, 32, 1.5);
+    // Dagger — left hand (detailed)
     g.fillStyle(0x888888, 1);
-    g.fillRect(7, 18, 1, 8);
+    g.fillRect(7, 16, 1, 10);
+    g.fillStyle(0xaaaaaa, 0.5);
+    g.fillRect(7, 17, 1, 8);
+    // Dagger crossguard
+    g.fillStyle(0x555544, 0.8);
+    g.fillRect(6, 15, 3, 1);
     g.generateTexture("enemy_bandit", S, S);
     g.destroy();
   }
@@ -1066,86 +1862,203 @@ export class BootScene extends Phaser.Scene {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 40;
     // Shadow
-    g.fillStyle(0x000000, 0.15);
-    g.fillEllipse(20, 38, 24, 4);
-    // Legs (muscular)
+    g.fillStyle(0x000000, 0.12);
+    g.fillEllipse(20, 39, 26, 5);
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(20, 38, 22, 4);
+    // Legs (massive, muscular)
     g.fillStyle(0x3d6b1e, 1);
-    g.fillRect(12, 30, 6, 8);
-    g.fillRect(22, 30, 6, 8);
-    g.fillStyle(0x2a5015, 0.5);
-    g.fillRect(14, 32, 2, 4);
-    g.fillRect(24, 32, 2, 4);
-    // Heavy boots
+    g.fillRect(11, 30, 7, 9);
+    g.fillRect(22, 30, 7, 9);
+    // Leg muscle definition
+    g.fillStyle(0x4a7f23, 0.4);
+    g.fillRect(13, 31, 3, 5);
+    g.fillRect(24, 31, 3, 5);
+    g.fillStyle(0x2a5015, 0.35);
+    g.fillRect(12, 33, 2, 4);
+    g.fillRect(23, 33, 2, 4);
+    // Knee guard
+    g.fillStyle(0x555544, 0.6);
+    g.fillEllipse(14, 30, 5, 3);
+    g.fillEllipse(25, 30, 5, 3);
+    // Heavy boots (iron-shod)
     g.fillStyle(0x332211, 1);
-    g.fillRect(11, 36, 8, 3);
-    g.fillRect(21, 36, 8, 3);
-    g.fillStyle(0x555555, 0.5);
-    g.fillRect(12, 36, 6, 1);
-    g.fillRect(22, 36, 6, 1);
-    // Body - massive chest
+    g.fillRect(10, 36, 9, 4);
+    g.fillRect(21, 36, 9, 4);
+    g.fillStyle(0x221100, 1);
+    g.fillRect(10, 39, 9, 1);
+    g.fillRect(21, 39, 9, 1);
+    // Iron toe cap
+    g.fillStyle(0x555555, 0.6);
+    g.fillRect(10, 37, 3, 2);
+    g.fillRect(21, 37, 3, 2);
+    // Boot straps
+    g.fillStyle(0x444433, 0.5);
+    g.fillRect(10, 36, 9, 1);
+    g.fillRect(21, 36, 9, 1);
+    // Body (massive barrel chest)
     g.fillStyle(0x3d6b1e, 1);
-    g.fillRoundedRect(8, 14, 24, 18, 4);
+    g.fillRoundedRect(7, 13, 26, 19, 4);
     // Leather chest armor
-    g.fillStyle(0x664422, 0.8);
-    g.fillRect(10, 16, 20, 14);
-    // Armor plating
-    g.fillStyle(0x555555, 0.5);
-    g.fillRect(11, 17, 8, 6);
-    g.fillRect(21, 17, 8, 6);
-    g.fillStyle(0x666666, 0.3);
-    g.fillRect(12, 18, 6, 4);
-    g.fillRect(22, 18, 6, 4);
-    // Belt
-    g.fillStyle(0x553311, 0.8);
-    g.fillRect(10, 28, 20, 3);
-    g.fillStyle(0xddaa22, 1);
-    g.fillRect(18, 28, 4, 3);
-    // Head (brutish)
+    g.fillStyle(0x664422, 0.85);
+    g.fillRect(9, 15, 22, 15);
+    // Armor plating (riveted)
+    g.fillStyle(0x555555, 0.55);
+    g.fillRect(10, 16, 9, 7);
+    g.fillRect(21, 16, 9, 7);
+    g.fillStyle(0x666666, 0.35);
+    g.fillRect(11, 17, 7, 5);
+    g.fillRect(22, 17, 7, 5);
+    // Rivets on plates
+    g.fillStyle(0x888877, 0.7);
+    g.fillCircle(11, 17, 0.7);
+    g.fillCircle(18, 17, 0.7);
+    g.fillCircle(22, 17, 0.7);
+    g.fillCircle(29, 17, 0.7);
+    g.fillCircle(11, 22, 0.7);
+    g.fillCircle(18, 22, 0.7);
+    g.fillCircle(22, 22, 0.7);
+    g.fillCircle(29, 22, 0.7);
+    // War paint on chest armor (tribal X)
+    g.fillStyle(0xcc2222, 0.35);
+    g.fillRect(14, 18, 1, 6);
+    g.fillRect(25, 18, 1, 6);
+    g.fillRect(12, 20, 5, 1);
+    g.fillRect(23, 20, 5, 1);
+    // Belt (thick with skull buckle)
+    g.fillStyle(0x553311, 0.9);
+    g.fillRect(9, 28, 22, 3);
+    g.fillStyle(0xddddcc, 1);
+    g.fillCircle(20, 29, 2);
+    g.fillStyle(0x111111, 0.7);
+    g.fillCircle(19, 29, 0.5);
+    g.fillCircle(21, 29, 0.5);
+    // Belt pouches
+    g.fillStyle(0x553322, 0.7);
+    g.fillRect(10, 28, 4, 3);
+    g.fillRect(26, 28, 4, 3);
+    // Head (broad brutish jaw)
     g.fillStyle(0x4a7f23, 1);
-    g.fillRoundedRect(11, 2, 18, 14, 5);
-    // Jaw
+    g.fillRoundedRect(10, 1, 20, 15, 5);
+    // Forehead ridge
+    g.fillStyle(0x3d6b1e, 0.7);
+    g.fillRect(11, 2, 18, 3);
+    // Jaw (underbite, massive)
     g.fillStyle(0x3d6b1e, 1);
-    g.fillRect(13, 12, 14, 4);
-    // Tusks
+    g.fillRect(12, 12, 16, 5);
+    g.fillStyle(0x2a5015, 0.5);
+    g.fillRect(13, 14, 14, 2);
+    // Tusks (large, prominent)
     g.fillStyle(0xeeeecc, 1);
-    g.fillRect(14, 13, 2, 3);
-    g.fillRect(24, 13, 2, 3);
-    // Eyes (fierce orange-red)
-    g.fillStyle(0x000000, 1);
-    g.fillEllipse(17, 8, 5, 4);
-    g.fillEllipse(25, 8, 5, 4);
+    g.fillRect(13, 12, 2, 4);
+    g.fillRect(25, 12, 2, 4);
+    g.fillStyle(0xddddbb, 0.7);
+    g.fillRect(13, 11, 2, 2);
+    g.fillRect(25, 11, 2, 2);
+    // Tusk shading
+    g.fillStyle(0xccccaa, 0.4);
+    g.fillRect(14, 13, 1, 2);
+    g.fillRect(26, 13, 1, 2);
+    // Eyes (fierce orange-red, intense)
+    g.fillStyle(0x111111, 1);
+    g.fillEllipse(16, 7, 6, 5);
+    g.fillEllipse(26, 7, 6, 5);
     g.fillStyle(0xff4400, 1);
-    g.fillCircle(17, 8, 2);
-    g.fillCircle(25, 8, 2);
+    g.fillEllipse(16, 7, 5, 4);
+    g.fillEllipse(26, 7, 5, 4);
+    // Pupil (menacing slit)
     g.fillStyle(0x000000, 1);
-    g.fillCircle(17, 8, 1);
-    g.fillCircle(25, 8, 1);
-    // Angry brow ridge
+    g.fillEllipse(16, 7, 1.5, 3);
+    g.fillEllipse(26, 7, 1.5, 3);
+    // Eye glow
+    g.fillStyle(0xff8844, 0.4);
+    g.fillCircle(16, 7, 3);
+    g.fillCircle(26, 7, 3);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(15, 6, 0.7);
+    g.fillCircle(25, 6, 0.7);
+    // Heavy brow ridge
     g.fillStyle(0x2a5015, 1);
-    g.fillRect(14, 5, 5, 2);
-    g.fillRect(22, 5, 5, 2);
-    // Nose
-    g.fillStyle(0x3d6b1e, 0.8);
-    g.fillEllipse(20, 10, 4, 3);
-    // Scars
-    g.fillStyle(0x558833, 0.6);
-    g.fillRect(13, 6, 1, 4);
-    g.fillRect(27, 4, 1, 5);
-    // Arms (massive)
+    g.fillRect(13, 4, 6, 2);
+    g.fillRect(23, 4, 6, 2);
+    // Nose (flat, brutish)
+    g.fillStyle(0x3d6b1e, 0.85);
+    g.fillEllipse(20, 10, 5, 4);
+    g.fillStyle(0x2a5015, 0.5);
+    g.fillCircle(19, 10, 0.7);
+    g.fillCircle(22, 10, 0.7);
+    // Scars (battle damage)
+    g.fillStyle(0x558833, 0.55);
+    g.fillRect(13, 5, 1, 5);
+    g.fillRect(28, 3, 1, 6);
+    // Scar across nose
+    g.fillStyle(0x669944, 0.4);
+    g.fillRect(18, 9, 5, 1);
+    // War paint (tribal marks on face)
+    g.fillStyle(0xcc1111, 0.3);
+    g.fillRect(11, 6, 2, 4);
+    g.fillRect(28, 6, 2, 4);
+    // Arms (massive, muscular)
     g.fillStyle(0x3d6b1e, 1);
-    g.fillRect(4, 16, 5, 14);
-    g.fillRect(31, 16, 5, 14);
-    // Battle axe
+    g.fillRect(3, 15, 6, 15);
+    g.fillRect(31, 15, 6, 15);
+    // Arm muscle striations
+    g.fillStyle(0x4a7f23, 0.35);
+    g.fillRect(4, 17, 3, 6);
+    g.fillRect(32, 17, 3, 6);
+    g.fillStyle(0x2a5015, 0.3);
+    g.fillRect(3, 20, 2, 4);
+    g.fillRect(35, 20, 2, 4);
+    // Arm bands (tribal)
+    g.fillStyle(0x664422, 0.7);
+    g.fillRect(3, 18, 6, 2);
+    g.fillRect(31, 18, 6, 2);
+    // Wrist wrapping
+    g.fillStyle(0x554433, 0.6);
+    g.fillRect(3, 26, 6, 2);
+    g.fillRect(31, 26, 6, 2);
+    // Fists
+    g.fillStyle(0x4a7f23, 0.9);
+    g.fillCircle(5, 30, 3);
+    g.fillCircle(35, 30, 3);
+    // Battle axe (massive, detailed)
     g.fillStyle(0x664422, 1);
-    g.fillRect(1, 6, 3, 28);
-    g.fillStyle(0x888888, 1);
-    g.fillRoundedRect(0, 6, 8, 10, 2);
-    g.fillStyle(0xaaaaaa, 0.5);
-    g.fillRect(1, 7, 6, 8);
-    // Shoulder pads
-    g.fillStyle(0x555555, 0.7);
-    g.fillEllipse(8, 16, 8, 5);
-    g.fillEllipse(32, 16, 8, 5);
+    g.fillRect(0, 5, 3, 30);
+    // Shaft grain
+    g.fillStyle(0x553311, 0.3);
+    g.fillRect(1, 8, 1, 25);
+    // Shaft wrapping
+    g.fillStyle(0x443322, 0.5);
+    g.fillRect(0, 20, 3, 2);
+    g.fillRect(0, 24, 3, 2);
+    // Axe head (large, double-sided appearance)
+    g.fillStyle(0x777777, 1);
+    g.fillRoundedRect(-1, 5, 9, 12, 2);
+    g.fillStyle(0x999999, 0.5);
+    g.fillRect(0, 6, 7, 10);
+    // Axe edge
+    g.fillStyle(0xbbbbbb, 0.6);
+    g.fillRect(-1, 6, 2, 10);
+    // Blood stain on axe
+    g.fillStyle(0x880000, 0.25);
+    g.fillRect(2, 8, 3, 4);
+    // Shoulder pads (spiked)
+    g.fillStyle(0x555555, 0.75);
+    g.fillEllipse(7, 15, 9, 6);
+    g.fillEllipse(33, 15, 9, 6);
+    g.fillStyle(0x666666, 0.5);
+    g.fillEllipse(7, 14, 7, 4);
+    g.fillEllipse(33, 14, 7, 4);
+    // Spikes
+    g.fillStyle(0x555555, 1);
+    g.fillTriangle(5, 10, 4, 15, 7, 15);
+    g.fillTriangle(35, 10, 33, 15, 36, 15);
+    // Tribal necklace
+    g.fillStyle(0xddddcc, 0.5);
+    g.fillRect(14, 13, 12, 1);
+    g.fillStyle(0xcc2222, 0.6);
+    g.fillCircle(20, 14, 1);
     g.generateTexture("enemy_orc", S, S);
     g.destroy();
   }
@@ -1153,93 +2066,207 @@ export class BootScene extends Phaser.Scene {
   generateDarkKnightTexture() {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 42;
-    // Shadow
-    g.fillStyle(0x000000, 0.18);
-    g.fillEllipse(21, 40, 20, 4);
-    // Dark aura
-    g.fillStyle(0x880088, 0.08);
-    g.fillCircle(21, 22, 22);
-    // Legs (armored)
-    g.fillStyle(0x222233, 1);
-    g.fillRect(14, 32, 5, 8);
-    g.fillRect(23, 32, 5, 8);
-    // Armored boots
+    // Double shadow
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(21, 41, 22, 5);
+    g.fillStyle(0x000000, 0.2);
+    g.fillEllipse(21, 40, 18, 4);
+    // Dark aura (pulsing energy)
+    g.fillStyle(0x880088, 0.06);
+    g.fillCircle(21, 22, 24);
+    g.fillStyle(0x6600aa, 0.04);
+    g.fillCircle(21, 22, 20);
+    // Dark energy particles
+    g.fillStyle(0xaa44ff, 0.25);
+    g.fillCircle(5, 18, 1);
+    g.fillCircle(37, 24, 1);
+    g.fillCircle(12, 38, 0.7);
+    g.fillCircle(30, 10, 0.7);
+    g.fillStyle(0xcc66ff, 0.15);
+    g.fillCircle(8, 30, 1.5);
+    g.fillCircle(34, 14, 1.5);
+    // Dark cape behind (flowing, tattered)
+    g.fillStyle(0x0d0011, 0.65);
+    g.fillRoundedRect(11, 16, 20, 22, 4);
+    g.fillStyle(0x1a0022, 0.35);
+    g.fillRect(15, 30, 1, 8);
+    g.fillRect(26, 30, 1, 8);
+    g.fillRect(20, 32, 1, 6);
+    // Cape tatter
+    g.fillStyle(0x0d0011, 0.4);
+    g.fillRect(12, 36, 3, 3);
+    g.fillRect(27, 35, 3, 4);
+    // Legs (dark plate greaves)
+    g.fillStyle(0x1d1d2e, 1);
+    g.fillRect(14, 32, 5, 9);
+    g.fillRect(23, 32, 5, 9);
+    // Greave plate detail
+    g.fillStyle(0x2d2d3e, 0.55);
+    g.fillRect(15, 33, 3, 7);
+    g.fillRect(24, 33, 3, 7);
+    // Knee plate
+    g.fillStyle(0x333344, 0.8);
+    g.fillEllipse(16, 32, 5, 3);
+    g.fillEllipse(25, 32, 5, 3);
+    // Rune on greave
+    g.fillStyle(0x880088, 0.3);
+    g.fillRect(15, 35, 1, 3);
+    g.fillRect(24, 35, 1, 3);
+    // Armored boots (sabatons)
     g.fillStyle(0x111122, 1);
     g.fillRect(13, 38, 7, 3);
     g.fillRect(22, 38, 7, 3);
+    g.fillStyle(0x0a0a15, 1);
+    g.fillRect(13, 40, 7, 1);
+    g.fillRect(22, 40, 7, 1);
+    // Boot edge highlight
     g.fillStyle(0x333344, 0.5);
     g.fillRect(14, 38, 5, 1);
     g.fillRect(23, 38, 5, 1);
-    // Leg armor plates
-    g.fillStyle(0x333344, 0.6);
-    g.fillRect(15, 33, 3, 6);
-    g.fillRect(24, 33, 3, 6);
-    // Body - full plate armor
-    g.fillStyle(0x222233, 1);
-    g.fillRoundedRect(10, 14, 22, 20, 3);
-    // Chest plate detail
-    g.fillStyle(0x333344, 0.6);
-    g.fillRect(12, 16, 18, 2);
-    g.fillRect(12, 20, 18, 2);
-    g.fillRect(12, 24, 18, 2);
-    g.fillRect(12, 28, 18, 2);
-    // Dark emblem
-    g.fillStyle(0x880088, 0.8);
-    g.fillCircle(21, 22, 4);
+    // Body — full ornate plate armor
+    g.fillStyle(0x1d1d2e, 1);
+    g.fillRoundedRect(9, 14, 24, 20, 3);
+    // Chest plate sections
+    g.fillStyle(0x2d2d3e, 0.55);
+    g.fillRect(11, 16, 20, 2);
+    g.fillRect(11, 20, 20, 2);
+    g.fillRect(11, 24, 20, 2);
+    g.fillRect(11, 28, 20, 2);
+    // Vertical rib
+    g.fillStyle(0x2d2d3e, 0.3);
+    g.fillRect(20, 16, 2, 16);
+    // Dark emblem (evil sigil — layered)
+    g.fillStyle(0x880088, 0.85);
+    g.fillCircle(21, 22, 4.5);
+    g.fillStyle(0xaa00aa, 0.6);
+    g.fillCircle(21, 22, 3);
+    g.fillStyle(0xcc44cc, 0.3);
+    g.fillCircle(21, 22, 1.5);
+    // Sigil rune lines
     g.fillStyle(0xaa00aa, 0.5);
-    g.fillCircle(21, 22, 2);
-    // Shoulder pauldrons (ornate)
-    g.fillStyle(0x333344, 1);
-    g.fillEllipse(11, 16, 10, 8);
-    g.fillEllipse(31, 16, 10, 8);
-    g.fillStyle(0x444455, 0.7);
-    g.fillEllipse(11, 15, 8, 5);
-    g.fillEllipse(31, 15, 8, 5);
+    g.fillRect(17, 22, 8, 1);
+    g.fillRect(21, 18, 1, 8);
+    // Shoulder pauldrons (massive, spiked, ornate)
+    g.fillStyle(0x2d2d3e, 1);
+    g.fillEllipse(10, 16, 12, 9);
+    g.fillEllipse(32, 16, 12, 9);
+    g.fillStyle(0x3d3d4e, 0.6);
+    g.fillEllipse(10, 15, 10, 6);
+    g.fillEllipse(32, 15, 10, 6);
+    // Pauldron edge highlight
+    g.fillStyle(0x4d4d5e, 0.35);
+    g.fillEllipse(10, 14, 8, 3);
+    g.fillEllipse(32, 14, 8, 3);
     // Spikes on pauldrons
-    g.fillStyle(0x444455, 1);
-    g.fillTriangle(8, 10, 7, 16, 10, 16);
-    g.fillTriangle(34, 10, 32, 16, 35, 16);
-    // Helmet
-    g.fillStyle(0x222233, 1);
-    g.fillRoundedRect(13, 2, 16, 14, 5);
-    // Visor slit
-    g.fillStyle(0x000000, 1);
-    g.fillRect(16, 9, 10, 2);
-    // Evil red eyes through visor
-    g.fillStyle(0xff0044, 1);
-    g.fillCircle(19, 10, 1.5);
-    g.fillCircle(25, 10, 1.5);
-    g.fillStyle(0xff4488, 0.5);
-    g.fillCircle(19, 10, 2.5);
-    g.fillCircle(25, 10, 2.5);
-    // Helmet crest
-    g.fillStyle(0x333344, 0.8);
-    g.fillRect(15, 3, 12, 3);
+    g.fillStyle(0x3d3d4e, 1);
+    g.fillTriangle(7, 9, 6, 16, 10, 16);
+    g.fillTriangle(35, 9, 32, 16, 36, 16);
+    // Spike tips (bright)
+    g.fillStyle(0x555566, 0.7);
+    g.fillCircle(7, 10, 1);
+    g.fillCircle(35, 10, 1);
+    // Pauldron runes
+    g.fillStyle(0x880088, 0.4);
+    g.fillRect(8, 15, 1, 3);
+    g.fillRect(33, 15, 1, 3);
+    // Helmet (full enclosed, menacing)
+    g.fillStyle(0x1d1d2e, 1);
+    g.fillRoundedRect(12, 1, 18, 16, 5);
+    // Helmet ridge
+    g.fillStyle(0x333344, 0.7);
+    g.fillRect(14, 2, 14, 4);
+    g.fillStyle(0x3d3d4e, 0.4);
+    g.fillRect(15, 3, 12, 2);
+    // Visor slit (detailed)
+    g.fillStyle(0x050508, 1);
+    g.fillRect(15, 9, 12, 2);
+    g.fillStyle(0x0a0a11, 0.6);
+    g.fillRect(15, 11, 12, 1);
+    // Evil glowing eyes through visor
+    g.fillStyle(0xff0044, 0.7);
+    g.fillCircle(19, 10, 2);
+    g.fillCircle(25, 10, 2);
+    g.fillStyle(0xff4488, 1);
+    g.fillCircle(19, 10, 1);
+    g.fillCircle(25, 10, 1);
+    // Eye trail glow
+    g.fillStyle(0xff0044, 0.2);
+    g.fillRect(15, 9, 3, 1);
+    g.fillRect(26, 9, 3, 1);
+    // Helmet crest (dark purple spike)
     g.fillStyle(0x880088, 1);
-    g.fillRect(19, 0, 4, 5);
-    // Arms
-    g.fillStyle(0x222233, 1);
-    g.fillRect(6, 18, 4, 14);
-    g.fillRect(32, 18, 4, 14);
-    // Gauntlets
-    g.fillStyle(0x333344, 0.8);
-    g.fillRect(5, 28, 6, 4);
-    g.fillRect(31, 28, 6, 4);
-    // Dark Greatsword
-    g.fillStyle(0x444444, 1);
-    g.fillRect(3, 6, 3, 28);
-    g.fillStyle(0x555555, 0.6);
-    g.fillRect(4, 7, 1, 26);
-    g.fillStyle(0x880088, 0.5);
-    g.fillRect(0, 6, 9, 2);
+    g.fillRect(19, -2, 4, 6);
+    g.fillStyle(0xaa22aa, 0.5);
+    g.fillRect(20, -1, 2, 4);
+    // Helmet chin guard
+    g.fillStyle(0x222233, 0.8);
+    g.fillRect(15, 14, 12, 2);
+    // Arms (heavy plate)
+    g.fillStyle(0x1d1d2e, 1);
+    g.fillRect(5, 18, 5, 14);
+    g.fillRect(32, 18, 5, 14);
+    // Arm plate sections
+    g.fillStyle(0x2d2d3e, 0.4);
+    g.fillRect(6, 20, 3, 10);
+    g.fillRect(33, 20, 3, 10);
+    // Elbow guard
+    g.fillStyle(0x333344, 0.6);
+    g.fillEllipse(7, 24, 4, 3);
+    g.fillEllipse(34, 24, 4, 3);
+    // Gauntlets (clawed)
+    g.fillStyle(0x2d2d3e, 0.9);
+    g.fillRect(4, 30, 7, 4);
+    g.fillRect(31, 30, 7, 4);
+    g.fillStyle(0x333344, 0.5);
+    g.fillRect(5, 31, 5, 2);
+    g.fillRect(32, 31, 5, 2);
+    // Claw tips
+    g.fillStyle(0x444455, 0.8);
+    g.fillRect(4, 33, 1, 2);
+    g.fillRect(6, 33, 1, 2);
+    g.fillRect(8, 33, 1, 2);
+    g.fillRect(33, 33, 1, 2);
+    g.fillRect(35, 33, 1, 2);
+    g.fillRect(37, 33, 1, 2);
+    // Dark Greatsword (runed, massive)
     g.fillStyle(0x333344, 1);
-    g.fillTriangle(4, 2, 2, 8, 7, 8);
-    // Dark cape flowing
-    g.fillStyle(0x110011, 0.6);
-    g.fillRoundedRect(12, 16, 18, 20, 4);
-    g.fillStyle(0x220022, 0.3);
-    g.fillRect(16, 28, 1, 8);
-    g.fillRect(25, 28, 1, 8);
+    g.fillRect(2, 4, 3, 30);
+    // Blade fuller
+    g.fillStyle(0x444455, 0.5);
+    g.fillRect(3, 5, 1, 28);
+    // Blade edge highlights
+    g.fillStyle(0x555566, 0.35);
+    g.fillRect(1, 6, 1, 26);
+    g.fillRect(5, 6, 1, 26);
+    // Runes on blade (glowing purple)
+    g.fillStyle(0xaa44ff, 0.5);
+    g.fillRect(3, 10, 1, 2);
+    g.fillRect(3, 15, 1, 2);
+    g.fillRect(3, 20, 1, 2);
+    g.fillRect(3, 25, 1, 2);
+    // Crossguard (ornate, dark)
+    g.fillStyle(0x660066, 0.8);
+    g.fillRect(-1, 4, 10, 2);
+    g.fillStyle(0x880088, 0.5);
+    g.fillCircle(-1, 5, 1.5);
+    g.fillCircle(9, 5, 1.5);
+    // Sword tip
+    g.fillStyle(0x333344, 1);
+    g.fillTriangle(3, 0, 1, 5, 6, 5);
+    // Handle
+    g.fillStyle(0x220022, 1);
+    g.fillRect(2, 32, 3, 4);
+    // Pommel (dark gem)
+    g.fillStyle(0x440044, 1);
+    g.fillCircle(3, 37, 2);
+    g.fillStyle(0xaa44ff, 0.5);
+    g.fillCircle(3, 37, 1);
+    // Chain clasp at cape
+    g.fillStyle(0x555566, 0.6);
+    g.fillCircle(13, 16, 1.5);
+    g.fillCircle(29, 16, 1.5);
+    g.fillStyle(0x666677, 0.4);
+    g.fillRect(13, 16, 16, 1);
     g.generateTexture("enemy_dark_knight", S, S);
     g.destroy();
   }
@@ -1247,142 +2274,418 @@ export class BootScene extends Phaser.Scene {
   generateDragonTexture() {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 56;
-    // Shadow
-    g.fillStyle(0x000000, 0.2);
-    g.fillEllipse(28, 52, 40, 6);
-    // Tail
-    g.fillStyle(0xaa1111, 0.8);
-    g.fillEllipse(48, 34, 14, 6);
-    g.fillEllipse(52, 36, 8, 4);
-    g.fillStyle(0xcc3333, 0.5);
-    g.fillEllipse(54, 35, 4, 2);
-    // Tail spikes
+    // Double shadow
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(28, 53, 44, 7);
+    g.fillStyle(0x000000, 0.22);
+    g.fillEllipse(28, 52, 38, 5);
+    // Heat haze beneath
+    g.fillStyle(0xff4400, 0.04);
+    g.fillEllipse(28, 50, 30, 8);
+    // Tail (thick, segmented)
+    g.fillStyle(0xaa1111, 0.85);
+    g.fillEllipse(48, 34, 15, 7);
+    g.fillEllipse(53, 36, 9, 5);
+    // Tail scales
+    g.fillStyle(0x991111, 0.4);
+    g.fillCircle(46, 34, 2);
+    g.fillCircle(50, 35, 1.5);
+    // Tail underside
+    g.fillStyle(0xdd8844, 0.4);
+    g.fillEllipse(48, 36, 10, 3);
+    // Tail spikes (spiked ridge)
     g.fillStyle(0x881111, 1);
-    g.fillTriangle(50, 30, 48, 34, 52, 34);
-    g.fillTriangle(54, 32, 52, 36, 56, 36);
-    // Body
-    g.fillStyle(0xcc2222, 1);
-    g.fillEllipse(26, 32, 38, 22);
-    // Belly scales
-    g.fillStyle(0xdd8844, 0.7);
-    g.fillEllipse(26, 36, 26, 12);
-    g.fillStyle(0xcc7733, 0.4);
-    for (let i = 0; i < 4; i++) {
-      g.fillEllipse(20 + i * 5, 36, 4, 10);
-    }
-    // Dorsal spikes
-    g.fillStyle(0xaa1111, 0.9);
-    for (let i = 0; i < 5; i++) {
-      g.fillTriangle(14 + i * 6, 20, 12 + i * 6, 27, 16 + i * 6, 27);
-    }
-    // Wings
-    g.fillStyle(0x991111, 0.7);
-    g.fillTriangle(10, 14, -4, 30, 22, 30);
-    g.fillTriangle(38, 14, 54, 30, 28, 30);
-    // Wing membrane
-    g.fillStyle(0xcc4444, 0.3);
-    g.fillTriangle(10, 16, -2, 28, 20, 28);
-    g.fillTriangle(38, 16, 50, 28, 30, 28);
-    // Wing bones
-    g.fillStyle(0x881111, 0.5);
-    g.fillRect(6, 18, 1, 10);
-    g.fillRect(14, 18, 1, 10);
-    g.fillRect(36, 18, 1, 10);
-    g.fillRect(44, 18, 1, 10);
-    // Legs (muscular, clawed)
-    g.fillStyle(0xaa2222, 1);
-    g.fillRect(14, 40, 6, 10);
-    g.fillRect(30, 40, 6, 10);
-    g.fillStyle(0x882222, 0.6);
-    g.fillRect(16, 42, 2, 6);
-    g.fillRect(32, 42, 2, 6);
-    // Claws
-    g.fillStyle(0x333333, 1);
-    g.fillTriangle(14, 50, 12, 54, 16, 50);
-    g.fillTriangle(17, 50, 15, 54, 19, 50);
-    g.fillTriangle(30, 50, 28, 54, 32, 50);
-    g.fillTriangle(33, 50, 31, 54, 35, 50);
-    // Head
-    g.fillStyle(0xcc2222, 1);
-    g.fillRoundedRect(6, 6, 20, 18, 5);
-    // Horns
-    g.fillStyle(0x555555, 1);
-    g.fillTriangle(8, 0, 6, 10, 12, 10);
-    g.fillTriangle(24, 0, 18, 10, 26, 10);
-    g.fillStyle(0x777777, 0.4);
-    g.fillRect(9, 2, 1, 6);
-    g.fillRect(23, 2, 1, 6);
-    // Snout
+    g.fillTriangle(46, 29, 44, 34, 48, 34);
+    g.fillTriangle(51, 31, 49, 36, 53, 36);
+    g.fillTriangle(55, 33, 53, 37, 56, 37);
+    // Spike tips
+    g.fillStyle(0x661111, 0.6);
+    g.fillCircle(46, 30, 1);
+    g.fillCircle(51, 32, 0.7);
+    // Body (layered, muscular)
     g.fillStyle(0xbb2222, 1);
-    g.fillRoundedRect(4, 14, 14, 10, 3);
-    // Nostrils with flame
-    g.fillStyle(0xff6600, 0.7);
-    g.fillCircle(7, 17, 2);
-    g.fillCircle(14, 17, 2);
-    g.fillStyle(0xffaa00, 0.4);
-    g.fillCircle(5, 19, 2);
-    g.fillCircle(3, 21, 1.5);
-    // Teeth
-    g.fillStyle(0xffffff, 0.8);
-    g.fillTriangle(6, 22, 5, 25, 7, 25);
-    g.fillTriangle(10, 22, 9, 25, 11, 25);
-    g.fillTriangle(14, 22, 13, 25, 15, 25);
-    // Eyes (bright, fearsome)
-    g.fillStyle(0xffcc00, 1);
-    g.fillEllipse(11, 12, 5, 4);
-    g.fillEllipse(21, 12, 5, 4);
-    g.fillStyle(0x000000, 1);
-    g.fillCircle(11, 12, 1.5);
-    g.fillCircle(21, 12, 1.5);
-    g.fillStyle(0xffffff, 0.6);
-    g.fillCircle(10, 11, 0.5);
-    g.fillCircle(20, 11, 0.5);
-    // Scale texture on body
-    g.fillStyle(0xbb1111, 0.3);
-    for (let i = 0; i < 6; i++) {
+    g.fillEllipse(26, 32, 40, 24);
+    g.fillStyle(0xcc2222, 0.8);
+    g.fillEllipse(26, 30, 36, 20);
+    // Body scale texture
+    g.fillStyle(0xaa1111, 0.3);
+    for (let i = 0; i < 7; i++) {
       for (let j = 0; j < 3; j++) {
-        g.fillCircle(14 + i * 5, 28 + j * 4, 2);
+        g.fillCircle(12 + i * 5, 26 + j * 5, 2.5);
       }
     }
+    // Individual larger scales
+    g.fillStyle(0x991111, 0.25);
+    for (let i = 0; i < 5; i++) {
+      g.fillEllipse(14 + i * 6, 30, 3, 4);
+    }
+    // Belly plates (segmented, golden)
+    g.fillStyle(0xdd8844, 0.75);
+    g.fillEllipse(26, 37, 28, 13);
+    // Belly segments
+    g.fillStyle(0xcc7733, 0.45);
+    for (let i = 0; i < 5; i++) {
+      g.fillEllipse(18 + i * 4, 37, 3.5, 11);
+    }
+    // Belly highlight
+    g.fillStyle(0xeeaa55, 0.25);
+    g.fillEllipse(26, 35, 16, 6);
+    // Dorsal spikes (larger, more defined)
+    g.fillStyle(0x991111, 0.92);
+    for (let i = 0; i < 6; i++) {
+      const sz = i === 2 || i === 3 ? 8 : 6;
+      g.fillTriangle(12 + i * 5, 18 - (sz - 6), 10 + i * 5, 26, 14 + i * 5, 26);
+    }
+    // Spike highlights
+    g.fillStyle(0xcc4444, 0.3);
+    for (let i = 0; i < 6; i++) {
+      g.fillRect(12 + i * 5, 21, 1, 4);
+    }
+    // Wings (larger, membrane visible)
+    g.fillStyle(0x991111, 0.75);
+    g.fillTriangle(8, 12, -6, 32, 22, 32);
+    g.fillTriangle(40, 12, 56, 32, 28, 32);
+    // Wing membrane (translucent)
+    g.fillStyle(0xcc4444, 0.3);
+    g.fillTriangle(8, 14, -4, 30, 20, 30);
+    g.fillTriangle(40, 14, 52, 30, 30, 30);
+    // Wing veins/bones
+    g.fillStyle(0x881111, 0.55);
+    g.fillRect(4, 16, 1, 14);
+    g.fillRect(10, 16, 1, 14);
+    g.fillRect(16, 18, 1, 12);
+    g.fillRect(34, 16, 1, 14);
+    g.fillRect(40, 16, 1, 14);
+    g.fillRect(46, 18, 1, 12);
+    // Wing vein tips
+    g.fillStyle(0xcc3333, 0.4);
+    g.fillCircle(4, 15, 1);
+    g.fillCircle(10, 15, 1);
+    g.fillCircle(40, 15, 1);
+    g.fillCircle(46, 15, 1);
+    // Wing claws at joints
+    g.fillStyle(0x333333, 0.8);
+    g.fillTriangle(8, 10, 6, 14, 10, 14);
+    g.fillTriangle(40, 10, 38, 14, 42, 14);
+    // Legs (thick, muscular, clawed)
+    g.fillStyle(0xaa2222, 1);
+    g.fillRect(13, 40, 7, 11);
+    g.fillRect(30, 40, 7, 11);
+    // Leg muscle definition
+    g.fillStyle(0xbb3333, 0.4);
+    g.fillRect(15, 41, 3, 6);
+    g.fillRect(32, 41, 3, 6);
+    g.fillStyle(0x882222, 0.35);
+    g.fillRect(14, 43, 2, 5);
+    g.fillRect(31, 43, 2, 5);
+    // Leg scales
+    g.fillStyle(0x991111, 0.3);
+    g.fillCircle(16, 43, 1.5);
+    g.fillCircle(16, 46, 1.5);
+    g.fillCircle(33, 43, 1.5);
+    g.fillCircle(33, 46, 1.5);
+    // Claws (sharp, multiple, detailed)
+    g.fillStyle(0x222222, 1);
+    g.fillTriangle(13, 50, 11, 55, 15, 51);
+    g.fillTriangle(16, 50, 14, 55, 18, 51);
+    g.fillTriangle(19, 50, 17, 55, 21, 51);
+    g.fillTriangle(30, 50, 28, 55, 32, 51);
+    g.fillTriangle(33, 50, 31, 55, 35, 51);
+    g.fillTriangle(36, 50, 34, 55, 38, 51);
+    // Claw tips
+    g.fillStyle(0x444444, 0.6);
+    g.fillCircle(12, 54, 0.5);
+    g.fillCircle(15, 54, 0.5);
+    g.fillCircle(18, 54, 0.5);
+    g.fillCircle(29, 54, 0.5);
+    g.fillCircle(32, 54, 0.5);
+    g.fillCircle(35, 54, 0.5);
+    // Head (fearsome, with snout)
+    g.fillStyle(0xcc2222, 1);
+    g.fillRoundedRect(5, 5, 22, 20, 5);
+    // Head scale texture
+    g.fillStyle(0xbb1111, 0.3);
+    g.fillCircle(10, 10, 2);
+    g.fillCircle(20, 10, 2);
+    g.fillCircle(15, 8, 2);
+    // Horns (ridged, prominent)
+    g.fillStyle(0x444444, 1);
+    g.fillTriangle(7, -2, 5, 10, 12, 10);
+    g.fillTriangle(25, -2, 18, 10, 27, 10);
+    // Horn ridges
+    g.fillStyle(0x666666, 0.45);
+    g.fillRect(8, 1, 1, 7);
+    g.fillRect(24, 1, 1, 7);
+    g.fillStyle(0x555555, 0.3);
+    g.fillRect(9, 3, 1, 5);
+    g.fillRect(23, 3, 1, 5);
+    // Horn tips
+    g.fillStyle(0x777777, 0.5);
+    g.fillCircle(7, -1, 1);
+    g.fillCircle(25, -1, 1);
+    // Brow ridges (armored head plates)
+    g.fillStyle(0xaa1111, 0.8);
+    g.fillRect(6, 8, 8, 3);
+    g.fillRect(18, 8, 8, 3);
+    // Snout (detailed, armored)
+    g.fillStyle(0xbb2222, 1);
+    g.fillRoundedRect(3, 14, 16, 12, 3);
+    // Snout plates
+    g.fillStyle(0xaa1111, 0.4);
+    g.fillRect(5, 15, 12, 2);
+    g.fillRect(5, 19, 12, 2);
+    // Nostrils (flaming)
+    g.fillStyle(0xff6600, 0.8);
+    g.fillCircle(6, 17, 2.5);
+    g.fillCircle(14, 17, 2.5);
+    g.fillStyle(0xffaa00, 0.6);
+    g.fillCircle(6, 17, 1.5);
+    g.fillCircle(14, 17, 1.5);
+    // Fire breath particles
+    g.fillStyle(0xff4400, 0.5);
+    g.fillCircle(4, 20, 2);
+    g.fillCircle(2, 22, 1.5);
+    g.fillStyle(0xffaa00, 0.35);
+    g.fillCircle(3, 24, 2);
+    g.fillCircle(1, 21, 1);
+    g.fillStyle(0xffcc00, 0.2);
+    g.fillCircle(5, 25, 1.5);
+    g.fillCircle(0, 23, 1);
+    // Teeth (sharp, visible rows)
+    g.fillStyle(0xffffff, 0.85);
+    g.fillTriangle(5, 23, 4, 27, 6, 27);
+    g.fillTriangle(8, 23, 7, 27, 9, 27);
+    g.fillTriangle(11, 23, 10, 27, 12, 27);
+    g.fillTriangle(14, 23, 13, 27, 15, 27);
+    // Lower teeth
+    g.fillStyle(0xeeeeee, 0.6);
+    g.fillTriangle(6, 27, 5, 24, 7, 24);
+    g.fillTriangle(10, 27, 9, 24, 11, 24);
+    g.fillTriangle(13, 27, 12, 24, 14, 24);
+    // Eyes (bright, fearsome, cat-pupil)
+    g.fillStyle(0x000000, 1);
+    g.fillEllipse(10, 12, 6, 5);
+    g.fillEllipse(22, 12, 6, 5);
+    g.fillStyle(0xffcc00, 1);
+    g.fillEllipse(10, 12, 5, 4);
+    g.fillEllipse(22, 12, 5, 4);
+    // Slit pupils
+    g.fillStyle(0x000000, 1);
+    g.fillEllipse(10, 12, 1.5, 3.5);
+    g.fillEllipse(22, 12, 1.5, 3.5);
+    // Eye inner glow
+    g.fillStyle(0xffee44, 0.4);
+    g.fillCircle(10, 12, 3);
+    g.fillCircle(22, 12, 3);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.65);
+    g.fillCircle(9, 11, 0.7);
+    g.fillCircle(21, 11, 0.7);
+    // Back arm/foreleg visible
+    g.fillStyle(0xbb2222, 0.7);
+    g.fillRect(7, 26, 5, 8);
+    g.fillRect(22, 26, 5, 8);
     g.generateTexture("enemy_dragon", S, S);
     g.destroy();
   }
 
   // ========================
-  // NPC GENERATOR
+  // NPC GENERATOR — Ultra-detailed robed figure
   // ========================
   generateNpcTexture(key: string, baseColor: number) {
     const g = this.make.graphics({ x: 0, y: 0 });
     const S = 48;
+    // Shadow
+    g.fillStyle(0x000000, 0.12);
+    g.fillEllipse(24, 45, 20, 5);
+    g.fillStyle(0x000000, 0.08);
+    g.fillEllipse(24, 46, 16, 4);
+
+    // Robe (full-length, layered)
     g.fillStyle(baseColor, 1);
-    g.fillRoundedRect(14, 16, 20, 26, 4);
-    g.fillStyle(this.darken(baseColor, 30), 0.6);
-    g.fillRect(16, 30, 16, 10);
+    g.fillRoundedRect(13, 16, 22, 28, 5);
+    // Robe inner fold
+    g.fillStyle(this.darken(baseColor, 20), 0.5);
+    g.fillRect(22, 20, 2, 22);
+    // Robe outer fold right
+    g.fillStyle(this.darken(baseColor, 15), 0.35);
+    g.fillRect(30, 22, 2, 18);
+    // Robe shading (lower)
+    g.fillStyle(this.darken(baseColor, 30), 0.4);
+    g.fillRect(15, 32, 18, 10);
+    // Robe hem
+    g.fillStyle(this.darken(baseColor, 10), 0.6);
+    g.fillRect(13, 42, 22, 2);
+    // Robe embroidered edge
+    g.fillStyle(0xddaa22, 0.5);
+    g.fillRect(13, 43, 22, 1);
+    // Robe collar
+    g.fillStyle(this.darken(baseColor, 12), 0.7);
+    g.fillRect(17, 16, 14, 3);
+    g.fillStyle(0xddaa22, 0.4);
+    g.fillRect(17, 16, 14, 1);
+
+    // Sash/belt
     g.fillStyle(0x8b2252, 1);
-    g.fillRect(16, 28, 16, 2);
+    g.fillRect(15, 28, 18, 3);
+    g.fillStyle(0x9b3262, 0.5);
+    g.fillRect(16, 29, 16, 1);
+    // Sash knot
+    g.fillStyle(0x8b2252, 0.8);
+    g.fillCircle(24, 30, 2);
+    g.fillStyle(0x7b1242, 0.4);
+    g.fillCircle(24, 30, 1);
+    // Sash tassels
+    g.fillStyle(0x8b2252, 0.6);
+    g.fillRect(22, 31, 2, 5);
+    g.fillRect(25, 31, 2, 4);
+
+    // Sleeves/arms
+    g.fillStyle(baseColor, 1);
+    g.fillRect(10, 18, 5, 14);
+    g.fillRect(33, 18, 5, 14);
+    // Sleeve fold lines
+    g.fillStyle(this.darken(baseColor, 18), 0.35);
+    g.fillRect(11, 22, 3, 1);
+    g.fillRect(11, 26, 3, 1);
+    g.fillRect(34, 22, 3, 1);
+    g.fillRect(34, 26, 3, 1);
+    // Sleeves cuffs
+    g.fillStyle(this.darken(baseColor, 8), 0.6);
+    g.fillRect(10, 30, 5, 2);
+    g.fillRect(33, 30, 5, 2);
+    g.fillStyle(0xddaa22, 0.35);
+    g.fillRect(10, 30, 5, 1);
+    g.fillRect(33, 30, 5, 1);
+
+    // Hands
     g.fillStyle(0xffe0bd, 1);
-    g.fillRoundedRect(17, 4, 14, 14, 4);
-    g.fillStyle(0xaaaaaa, 1);
-    g.fillRoundedRect(17, 3, 14, 5, 3);
-    g.fillRect(17, 14, 4, 6);
-    g.fillRect(27, 14, 4, 6);
-    g.fillRect(20, 16, 8, 4);
-    g.fillStyle(0x4466aa, 1);
-    g.fillCircle(21, 9, 2);
-    g.fillCircle(27, 9, 2);
-    g.fillStyle(0x000000, 1);
-    g.fillCircle(21, 9, 1);
-    g.fillCircle(27, 9, 1);
-    g.fillStyle(this.darken(0xffe0bd, 50), 1);
-    g.fillRect(22, 12, 4, 1);
-    g.fillStyle(0xffff00, 0.3);
-    g.fillCircle(24, 0, 6);
-    g.fillStyle(0xffff00, 1);
-    g.fillRect(23, -3, 2, 4);
-    g.fillRect(23, 2, 2, 2);
+    g.fillRect(11, 31, 3, 3);
+    g.fillRect(34, 31, 3, 3);
+    // Finger detail
+    g.fillStyle(0xffd5aa, 0.5);
+    g.fillRect(11, 33, 1, 1);
+    g.fillRect(13, 33, 1, 1);
+    g.fillRect(34, 33, 1, 1);
+    g.fillRect(36, 33, 1, 1);
+
+    // Feet/sandals
     g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(16, 40, 7, 4);
-    g.fillRect(25, 40, 7, 4);
+    g.fillRect(15, 42, 7, 4);
+    g.fillRect(26, 42, 7, 4);
+    // Sandal straps
+    g.fillStyle(0x6b4a1b, 0.6);
+    g.fillRect(16, 43, 5, 1);
+    g.fillRect(27, 43, 5, 1);
+
+    // Neck
+    g.fillStyle(0xffe0bd, 1);
+    g.fillRect(20, 13, 8, 5);
+    // Neck shadow
+    g.fillStyle(0xeec9a8, 0.4);
+    g.fillRect(20, 16, 8, 2);
+
+    // Head (detailed face)
+    g.fillStyle(0xffe0bd, 1);
+    g.fillRoundedRect(16, 2, 16, 14, 5);
+    // Cheeks
+    g.fillStyle(0xff9999, 0.08);
+    g.fillCircle(19, 10, 2);
+    g.fillCircle(29, 10, 2);
+    // Jaw shadow
+    g.fillStyle(0xeec9a8, 0.3);
+    g.fillRect(17, 13, 14, 2);
+
+    // Hair (silver/gray — wise)
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillRoundedRect(16, 1, 16, 6, 3);
+    g.fillRect(16, 4, 3, 8);
+    g.fillRect(29, 4, 3, 8);
+    // Hair highlights
+    g.fillStyle(0xcccccc, 0.4);
+    g.fillRect(18, 2, 4, 2);
+    g.fillRect(26, 2, 4, 2);
+    // Hair strand lines
+    g.fillStyle(0x888888, 0.3);
+    g.fillRect(20, 3, 1, 3);
+    g.fillRect(27, 3, 1, 3);
+
+    // Eyes (kind, wise — blue)
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(19, 7, 4, 3, 1);
+    g.fillRoundedRect(25, 7, 4, 3, 1);
+    // Iris
+    g.fillStyle(0x4466aa, 1);
+    g.fillCircle(21, 8, 1.2);
+    g.fillCircle(27, 8, 1.2);
+    // Pupil
+    g.fillStyle(0x111111, 1);
+    g.fillCircle(21, 8, 0.6);
+    g.fillCircle(27, 8, 0.6);
+    // Eye shine
+    g.fillStyle(0xffffff, 0.8);
+    g.fillCircle(20, 7, 0.5);
+    g.fillCircle(26, 7, 0.5);
+    // Eyelids
+    g.fillStyle(0xeec9a8, 0.5);
+    g.fillRect(19, 7, 4, 1);
+    g.fillRect(25, 7, 4, 1);
+    // Eyebrows (kind)
+    g.fillStyle(0x999999, 0.8);
+    g.fillRect(19, 6, 4, 1);
+    g.fillRect(25, 6, 4, 1);
+
+    // Nose
+    g.fillStyle(0xeec9a8, 0.7);
+    g.fillRect(23, 9, 2, 3);
+    g.fillStyle(0xddb99a, 0.5);
+    g.fillRect(23, 11, 2, 1);
+
+    // Mouth (gentle smile)
+    g.fillStyle(this.darken(0xffe0bd, 40), 0.8);
+    g.fillRect(21, 12, 6, 1);
+    // Smile curve
+    g.fillStyle(this.darken(0xffe0bd, 30), 0.4);
+    g.fillRect(20, 12, 1, 1);
+    g.fillRect(27, 12, 1, 1);
+
+    // Halo glow (layered, ethereal)
+    g.fillStyle(0xffff88, 0.12);
+    g.fillCircle(24, 0, 9);
+    g.fillStyle(0xffff44, 0.18);
+    g.fillCircle(24, 0, 6);
+    g.fillStyle(0xffff00, 0.35);
+    g.fillEllipse(24, 0, 10, 4);
+    // Halo ring
+    g.fillStyle(0xffff00, 0.7);
+    g.fillRect(19, -2, 10, 2);
+    g.fillStyle(0xffffaa, 0.9);
+    g.fillRect(20, -1, 8, 1);
+
+    // Staff in back hand
+    g.fillStyle(0x7a5a3b, 1);
+    g.fillRect(36, 6, 2, 36);
+    g.fillStyle(0x6a4a2b, 0.3);
+    g.fillRect(37, 10, 1, 28);
+    // Staff crystal
+    g.fillStyle(0x44ddff, 0.5);
+    g.fillCircle(37, 5, 3);
+    g.fillStyle(0x88eeff, 0.7);
+    g.fillCircle(37, 5, 2);
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(36, 4, 0.7);
+
+    // Book/scroll held in left hand
+    g.fillStyle(0x664422, 0.8);
+    g.fillRect(8, 28, 5, 7);
+    g.fillStyle(0xeeddbb, 0.6);
+    g.fillRect(9, 29, 3, 5);
+    // Page lines
+    g.fillStyle(0x664422, 0.2);
+    g.fillRect(9, 30, 3, 0.5);
+    g.fillRect(9, 31, 3, 0.5);
+    g.fillRect(9, 32, 3, 0.5);
+
     g.generateTexture(key, S, S);
     g.destroy();
   }
