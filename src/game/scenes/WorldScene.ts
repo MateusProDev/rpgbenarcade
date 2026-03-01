@@ -314,10 +314,10 @@ export class WorldScene extends Phaser.Scene {
     }
     // Secondary path network
     const secPaths = [
-      [300, 700, 1200, 700], [3200, 700, 4500, 700],
-      [300, 2800, 1200, 2800], [3200, 2800, 4500, 2800],
-      [1000, 300, 1000, 1200], [3600, 300, 3600, 1200],
-      [1000, 2400, 1000, 3200], [3600, 2400, 3600, 3200],
+      [900, 2100, 3600, 2100], [9600, 2100, 13500, 2100],
+      [900, 8400, 3600, 8400], [9600, 8400, 13500, 8400],
+      [3000, 900, 3000, 3600], [10800, 900, 10800, 3600],
+      [3000, 7200, 3000, 9600], [10800, 7200, 10800, 9600],
     ];
     secPaths.forEach(([x1, y1, x2, y2]) => {
       if (y1 === y2) {
@@ -363,9 +363,9 @@ export class WorldScene extends Phaser.Scene {
 
     // === SMALL HOUSES scattered ===
     const housePositions = [
-      [600, 1000], [1200, 600], [1800, 1200], [2800, 600],
-      [800, 2400], [1600, 2600], [3200, 1800], [4200, 1600],
-      [2000, 2200], [3400, 2400], [4400, 800], [1400, 1800],
+      [1800, 3000], [3600, 1800], [5400, 3600], [8400, 1800],
+      [2400, 7200], [4800, 7800], [9600, 5400], [12600, 4800],
+      [6000, 6600], [10200, 7200], [13200, 2400], [4200, 5400],
     ];
     housePositions.forEach(([hx, hy]) => {
       const house = this.addDeco(hx, hy, "deco_house_small", true);
@@ -382,7 +382,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // === WELLS ===
-    const wellPositions = [[800, 800], [3600, 800], [800, 2600], [3600, 2600], [cx, cy + 400]];
+    const wellPositions = [[2400, 2400], [10800, 2400], [2400, 7800], [10800, 7800], [cx, cy + 1200]];
     wellPositions.forEach(([wx, wy]) => {
       const well = this.addDeco(wx, wy, "deco_well", true);
       if (well) { well.body.setSize(28, 14); well.body.setOffset(2, 22); well.refreshBody(); }
@@ -390,8 +390,8 @@ export class WorldScene extends Phaser.Scene {
 
     // === GARDENS WITH FENCES AND FLOWERS ===
     const gardenAreas = [
-      [300, 1000], [1600, 400], [3000, 1200], [4200, 2200],
-      [1200, 2400], [3400, 1600], [2200, 800], [2600, 2600],
+      [900, 3000], [4800, 1200], [9000, 3600], [12600, 6600],
+      [3600, 7200], [10200, 4800], [6600, 2400], [7800, 7800],
     ];
     gardenAreas.forEach(([gx, gy]) => {
       for (let i = 0; i < 5; i++) this.addDeco(gx + i * 32, gy, "deco_fence", false);
@@ -465,9 +465,9 @@ export class WorldScene extends Phaser.Scene {
 
     // === BARRELS & CRATES near buildings ===
     const barrelSpots = [
-      [700, 500], [1300, 500], [3500, 500], [4300, 500],
-      [600, 1600], [600, 2400], [4100, 1400], [4100, 2400],
-      [700, 3000], [1500, 3000], [3900, 3000], [4500, 3000],
+      [2100, 1500], [3900, 1500], [10500, 1500], [12900, 1500],
+      [1800, 4800], [1800, 7200], [12300, 4200], [12300, 7200],
+      [2100, 9000], [4500, 9000], [11700, 9000], [13500, 9000],
     ];
     barrelSpots.forEach(([bx, by]) => {
       this.addDeco(bx, by, "deco_barrel", false);
@@ -567,24 +567,46 @@ export class WorldScene extends Phaser.Scene {
       this.addDeco(rx, ry, Math.random() > 0.5 ? "deco_bush" : "deco_flower_blue", false);
     }
 
-    // === RIVER flowing south ===
-    const riverX = 2 * w / 3;
-    for (let y = 200; y < h - 200; y += 32) {
-      const wobble = Math.sin(y * 0.01) * 40;
-      this.add.image(riverX + wobble, y, "tile_water").setDepth(0);
-      this.add.image(riverX + wobble + 32, y, "tile_water").setDepth(0);
+    // === RIVER flowing south (wider, impassável — só pelas pontes) ===
+    const riverX = Math.floor(2 * w / 3);
+    const riverTiles = 4; // 128 px de largura
+    const bridgeYArr = [Math.floor(h / 3), Math.floor(h / 2), Math.floor(2 * h / 3)];
+    const bridgeHalfGap = 80; // zona passável ao redor de cada ponte
+
+    for (let ry = 200; ry < h - 200; ry += 32) {
+      const wobble = Math.round(Math.sin(ry * 0.01) * 40);
+      const rx = riverX + wobble;
+      // Tiles visuais de água
+      for (let tx = 0; tx < riverTiles; tx++) {
+        const tKey = (tx === 1 || tx === 2) ? "tile_water_deep" : "tile_water";
+        this.add.image(rx + tx * 32, ry, tKey).setDepth(0);
+      }
+      // Barreira de colisão invisível — removida onde há ponte
+      const nearBridge = bridgeYArr.some(by => Math.abs(ry - by) < bridgeHalfGap);
+      if (!nearBridge) {
+        const barrier = this.decoColliders.create(rx + 64, ry, "tile_wall");
+        barrier.setAlpha(0);
+        barrier.setDepth(0);
+        barrier.body.setSize(riverTiles * 32, 32);
+        barrier.refreshBody();
+      }
     }
-    // Bridges over river
-    const bridgeY = [h / 3, h / 2, 2 * h / 3];
-    bridgeY.forEach((by) => {
-      const wobble = Math.sin(by * 0.01) * 40;
-      this.addDeco(riverX + wobble + 16, by, "deco_bridge", false);
+    // Pontes sobre o rio — grandes pontes de pedra
+    bridgeYArr.forEach((by) => {
+      const wobble = Math.round(Math.sin(by * 0.01) * 40);
+      const rx = riverX + wobble;
+      // Calçamento debaixo da ponte
+      for (let bx = 0; bx < riverTiles; bx++) {
+        this.add.image(rx + bx * 32, by, "tile_cobble").setDepth(1);
+      }
+      this.addDeco(rx + 64, by, "deco_bridge", false);
     });
 
     // === SECOND POND (east) ===
-    for (let dx = 0; dx < 5; dx++) {
-      for (let dy = 0; dy < 4; dy++) {
-        this.add.image(5200 + dx * 32, 1600 + dy * 32, "tile_water").setDepth(0);
+    for (let dx = 0; dx < 8; dx++) {
+      for (let dy = 0; dy < 7; dy++) {
+        const tKey = (dx > 1 && dx < 6 && dy > 1 && dy < 5) ? "tile_water_deep" : "tile_water";
+        this.add.image(15600 + dx * 32, 4800 + dy * 32, tKey).setDepth(0);
       }
     }
 
@@ -645,7 +667,7 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(w / 4 + 40, h / 2 - 40, "deco_signpost", false);
 
     // === CAMPFIRES (bandit camps) ===
-    const campfirePos = [[4400, 1400], [4800, 1800], [5200, 2200], [3200, 3400]];
+    const campfirePos = [[13200, 4200], [14400, 5400], [15600, 6600], [9600, 10200]];
     campfirePos.forEach(([cfx, cfy]) => {
       this.addDeco(cfx, cfy, "deco_campfire", false);
       this.addDeco(cfx - 40, cfy + 20, "deco_tent", true);
@@ -703,34 +725,56 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // === WILLOW GROVE (center-east, near water) ===
-    const willowPos = [[3800, 1800], [3900, 2000], [4000, 1700], [4100, 1900], [3700, 2100]];
+    const willowPos = [[11400, 5400], [11700, 6000], [12000, 5100], [12300, 5700], [11100, 6300]];
     willowPos.forEach(([wx, wy]) => {
       const tree = this.addDeco(wx, wy, "deco_tree_willow", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     });
 
-    // === ENCHANTED STREAM ===
-    for (let y = 400; y < h - 400; y += 32) {
-      const wobble = Math.sin(y * 0.015) * 60;
-      this.add.image(2 * w / 3 + wobble, y, "tile_water").setDepth(0);
-      this.add.image(2 * w / 3 + wobble + 32, y, "tile_water_deep").setDepth(0);
+    // === ENCHANTED STREAM (impassável — só pelas pontes) ===
+    const streamX = Math.floor(2 * w / 3);
+    const streamTiles = 4; // 128px de largura
+    const streamBridgeY = [Math.floor(h / 3), Math.floor(h / 2)];
+    const streamBridgeGap = 80;
+
+    for (let sy = 400; sy < h - 400; sy += 32) {
+      const wobble = Math.round(Math.sin(sy * 0.015) * 60);
+      const sx = streamX + wobble;
+      for (let tx = 0; tx < streamTiles; tx++) {
+        const tKey = (tx === 1 || tx === 2) ? "tile_water_deep" : "tile_water";
+        this.add.image(sx + tx * 32, sy, tKey).setDepth(0);
+      }
+      const nearBridge = streamBridgeY.some(by => Math.abs(sy - by) < streamBridgeGap);
+      if (!nearBridge) {
+        const barrier = this.decoColliders.create(sx + 64, sy, "tile_wall");
+        barrier.setAlpha(0);
+        barrier.setDepth(0);
+        barrier.body.setSize(streamTiles * 32, 32);
+        barrier.refreshBody();
+      }
     }
-    // Bridge over stream
-    this.addDeco(2 * w / 3 + 16, h / 2, "deco_bridge", false);
-    this.addDeco(2 * w / 3 + 16, h / 3, "deco_bridge", false);
+    // Pontes sobre o riacho encantado
+    streamBridgeY.forEach((by) => {
+      const wobble = Math.round(Math.sin(by * 0.015) * 60);
+      const sx = streamX + wobble;
+      for (let bx = 0; bx < streamTiles; bx++) {
+        this.add.image(sx + bx * 32, by, "tile_cobble").setDepth(1);
+      }
+      this.addDeco(sx + 64, by, "deco_bridge", false);
+    });
 
     // === WATERFALL (north, stream source) ===
     this.addDeco(2 * w / 3 + Math.sin(400 * 0.015) * 60, 380, "deco_waterfall", true);
 
     // === SWAMP ZONE (south-east) ===
-    for (let x = 3600; x < 4800; x += 32) {
-      for (let y = 3200; y < 4000; y += 32) {
+    for (let x = 10800; x < 14400; x += 32) {
+      for (let y = 9600; y < 12000; y += 32) {
         if (Math.random() > 0.4) this.add.image(x, y, "tile_swamp").setDepth(0);
       }
     }
     // Dead trees in swamp
-    for (let i = 0; i < 10; i++) {
-      const tree = this.addDeco(3600 + Math.random() * 1200, 3200 + Math.random() * 800, "deco_tree_dead", true);
+    for (let i = 0; i < 18; i++) {
+      const tree = this.addDeco(10800 + Math.random() * 3600, 9600 + Math.random() * 2400, "deco_tree_dead", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
 
@@ -742,8 +786,8 @@ export class WorldScene extends Phaser.Scene {
       this.addDeco(mx + 15, my + 10, "deco_mushroom", false);
     }
     // Glowing mushrooms (deeper forest, north)
-    for (let i = 0; i < 15; i++) {
-      this.addDeco(1500 + Math.random() * 2000, 500 + Math.random() * 1200, "deco_mushroom_glow", false);
+    for (let i = 0; i < 25; i++) {
+      this.addDeco(4500 + Math.random() * 6000, 1500 + Math.random() * 3600, "deco_mushroom_glow", false);
     }
 
     // === ANCIENT RUINS (center-north) ===
@@ -791,8 +835,8 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(fairyX, fairyY, "deco_lantern", false);
 
     // === SPIDER DEN (east) ===
-    for (let i = 0; i < 12; i++) {
-      this.addDeco(4400 + Math.random() * 800, 1000 + Math.random() * 1000, "deco_web", false);
+    for (let i = 0; i < 20; i++) {
+      this.addDeco(13200 + Math.random() * 2400, 3000 + Math.random() * 3000, "deco_web", false);
     }
 
     // === VINES on trees ===
@@ -857,7 +901,7 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(w / 3 + 40, h / 2 - 40, "deco_signpost", false);
   }
 
-  // --- DUNGEON DECORATION --- (4800×3600)
+  // --- DUNGEON DECORATION --- (14400×10800)
   decorateDungeon(w: number, h: number, _ts: number) {
     // === MAIN CORRIDORS ===
     // Horizontal main hall
@@ -878,14 +922,14 @@ export class WorldScene extends Phaser.Scene {
     // === ROOM DEFINITIONS ===
     const rooms = [
       // [x, y, tw, th, name, floorTile]
-      { x: 100, y: 100, tw: 8, th: 6, name: "Entrance Hall", tile: "tile_stone" },
-      { x: 100, y: h - 700, tw: 8, th: 6, name: "Prison Block", tile: "tile_stone" },
-      { x: w / 2 - 160, y: 100, tw: 10, th: 7, name: "Ritual Chamber", tile: "tile_stone_mossy" },
-      { x: w - 900, y: 100, tw: 9, th: 6, name: "Armory", tile: "tile_stone" },
-      { x: w - 900, y: h - 700, tw: 10, th: 8, name: "Boss Throne", tile: "tile_stone" },
-      { x: 100, y: h / 2 - 300, tw: 7, th: 5, name: "Treasure Vault", tile: "tile_stone" },
-      { x: w / 2 - 128, y: h - 700, tw: 8, th: 6, name: "Crypt", tile: "tile_stone_mossy" },
-      { x: w - 500, y: h / 2 - 250, tw: 7, th: 5, name: "Library", tile: "tile_stone" },
+      { x: 300, y: 300, tw: 24, th: 18, name: "Entrance Hall", tile: "tile_stone" },
+      { x: 300, y: h - 2100, tw: 24, th: 18, name: "Prison Block", tile: "tile_stone" },
+      { x: w / 2 - 480, y: 300, tw: 30, th: 21, name: "Ritual Chamber", tile: "tile_stone_mossy" },
+      { x: w - 2700, y: 300, tw: 27, th: 18, name: "Armory", tile: "tile_stone" },
+      { x: w - 2700, y: h - 2100, tw: 30, th: 24, name: "Boss Throne", tile: "tile_stone" },
+      { x: 300, y: h / 2 - 900, tw: 21, th: 15, name: "Treasure Vault", tile: "tile_stone" },
+      { x: w / 2 - 384, y: h - 2100, tw: 24, th: 18, name: "Crypt", tile: "tile_stone_mossy" },
+      { x: w - 1500, y: h / 2 - 750, tw: 21, th: 15, name: "Library", tile: "tile_stone" },
     ];
 
     rooms.forEach(room => {
@@ -958,23 +1002,23 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // === ENTRANCE HALL decorations ===
-    this.addDeco(200, 200, "deco_barrel", false);
-    this.addDeco(230, 200, "deco_barrel", false);
-    this.addDeco(260, 200, "deco_crate", false);
-    this.addDeco(200, 250, "deco_crate", false);
+    this.addDeco(600, 600, "deco_barrel", false);
+    this.addDeco(690, 600, "deco_barrel", false);
+    this.addDeco(780, 600, "deco_crate", false);
+    this.addDeco(600, 750, "deco_crate", false);
 
     // === PRISON BLOCK ===
     for (let i = 0; i < 4; i++) {
-      const cellX = 150 + i * 60;
-      const cellY = h - 600;
+      const cellX = 450 + i * 180;
+      const cellY = h - 1800;
       this.addDeco(cellX, cellY, "deco_bones", false);
       // Iron fences (use stone fence as bars)
-      this.addDeco(cellX, cellY - 30, "deco_fence_stone", false);
+      this.addDeco(cellX, cellY - 90, "deco_fence_stone", false);
     }
 
     // === RITUAL CHAMBER ===
     const ritualCX = w / 2;
-    const ritualCY = 300;
+    const ritualCY = 900;
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
       this.addDeco(ritualCX + Math.cos(a) * 70, ritualCY + Math.sin(a) * 70, "deco_crystal", false);
@@ -983,29 +1027,29 @@ export class WorldScene extends Phaser.Scene {
 
     // === ARMORY room ===
     for (let i = 0; i < 5; i++) {
-      this.addDeco(w - 850 + i * 50, 200, "deco_barrel", false);
-      this.addDeco(w - 850 + i * 50, 250, "deco_crate", false);
+      this.addDeco(w - 2550 + i * 150, 600, "deco_barrel", false);
+      this.addDeco(w - 2550 + i * 150, 750, "deco_crate", false);
     }
-    this.addDeco(w - 600, 350, "deco_statue", true);
+    this.addDeco(w - 1800, 1050, "deco_statue", true);
 
     // === TREASURE VAULT ===
     for (let i = 0; i < 6; i++) {
-      this.addDeco(200 + i * 40, h / 2 - 220, "deco_chest", false);
+      this.addDeco(600 + i * 120, h / 2 - 660, "deco_chest", false);
     }
-    this.addDeco(300, h / 2 - 150, "deco_barrel", false);
-    this.addDeco(350, h / 2 - 150, "deco_barrel", false);
+    this.addDeco(900, h / 2 - 450, "deco_barrel", false);
+    this.addDeco(1050, h / 2 - 450, "deco_barrel", false);
 
     // === CRYPT ===
     for (let i = 0; i < 6; i++) {
-      this.addDeco(w / 2 - 80 + i * 40, h - 600, "deco_tombstone", false);
+      this.addDeco(w / 2 - 240 + i * 120, h - 1800, "deco_tombstone", false);
     }
     for (let i = 0; i < 4; i++) {
-      this.addDeco(w / 2 - 60 + i * 50, h - 500, "deco_bones", false);
+      this.addDeco(w / 2 - 180 + i * 150, h - 1500, "deco_bones", false);
     }
 
     // === BOSS THRONE ROOM ===
-    const bossRX = w - 500;
-    const bossRY = h - 400;
+    const bossRX = w - 1500;
+    const bossRY = h - 1200;
     this.addDeco(bossRX, bossRY - 100, "deco_statue", true);
     this.addDeco(bossRX - 80, bossRY - 60, "deco_banner_red", false);
     this.addDeco(bossRX + 80, bossRY - 60, "deco_banner_red", false);
@@ -1020,10 +1064,10 @@ export class WorldScene extends Phaser.Scene {
 
     // === LIBRARY ROOM ===
     for (let i = 0; i < 4; i++) {
-      this.addDeco(w - 450 + i * 50, h / 2 - 200, "deco_crate", false);
-      this.addDeco(w - 450 + i * 50, h / 2 - 150, "deco_crate", false);
+      this.addDeco(w - 1350 + i * 150, h / 2 - 600, "deco_crate", false);
+      this.addDeco(w - 1350 + i * 150, h / 2 - 450, "deco_crate", false);
     }
-    this.addDeco(w - 350, h / 2 - 100, "deco_lantern", false);
+    this.addDeco(w - 1050, h / 2 - 300, "deco_lantern", false);
 
     // === SCATTERED BONES throughout ===
     for (let i = 0; i < 15; i++) {
@@ -1041,13 +1085,13 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  // --- ARENA DECORATION --- (2400×2400)
+  // --- ARENA DECORATION --- (7200×7200)
   decorateArena(w: number, h: number, _ts: number) {
     const cx = w / 2;
     const cy = h / 2;
 
     // === GRAND ARENA PIT ===
-    const pitR = 500;
+    const pitR = 1500;
     for (let x = cx - pitR; x < cx + pitR; x += 32) {
       for (let y = cy - pitR; y < cy + pitR; y += 32) {
         const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
@@ -1096,31 +1140,31 @@ export class WorldScene extends Phaser.Scene {
     // === SPECTATOR STANDS (stone on all 4 sides) ===
     // North stands
     for (let x = 64; x < w - 64; x += 32) {
-      for (let y = 40; y < 220; y += 32) {
+      for (let y = 40; y < 660; y += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
     // South stands
     for (let x = 64; x < w - 64; x += 32) {
-      for (let y = h - 220; y < h - 40; y += 32) {
+      for (let y = h - 660; y < h - 40; y += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
     // West stands
-    for (let y = 220; y < h - 220; y += 32) {
-      for (let x = 40; x < 180; x += 32) {
+    for (let y = 660; y < h - 660; y += 32) {
+      for (let x = 40; x < 540; x += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
     // East stands
-    for (let y = 220; y < h - 220; y += 32) {
-      for (let x = w - 180; x < w - 40; x += 32) {
+    for (let y = 660; y < h - 660; y += 32) {
+      for (let x = w - 540; x < w - 40; x += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
 
     // === 4 STATUES at cardinal points ===
-    const statuePos = [[cx, 200], [cx, h - 200], [180, cy], [w - 180, cy]];
+    const statuePos = [[cx, 600], [cx, h - 600], [540, cy], [w - 540, cy]];
     statuePos.forEach(([sx, sy]) => {
       const s = this.addDeco(sx, sy, "deco_statue", true);
       if (s) { s.body.setSize(12, 8); s.body.setOffset(4, 30); s.refreshBody(); }

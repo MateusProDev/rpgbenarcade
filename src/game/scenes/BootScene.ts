@@ -3275,29 +3275,97 @@ export class BootScene extends Phaser.Scene {
 
   genDecoMountain() {
     const g = this.make.graphics({ x: 0, y: 0 });
-    const W = 64, H = 56;
+    const W = 128, H = 112;
     // Base shadow
-    g.fillStyle(0x000000, 0.1);
-    g.fillEllipse(W / 2, H - 2, W - 4, 6);
-    // Mountain body
-    g.fillStyle(0x666655, 1);
-    g.fillTriangle(W / 2, 4, 2, H - 4, W - 2, H - 4);
-    // Darker left face
-    g.fillStyle(0x555544, 0.7);
-    g.fillTriangle(W / 2, 4, 2, H - 4, W / 2, H - 4);
-    // Mid highlight
-    g.fillStyle(0x777766, 0.5);
-    g.fillTriangle(W / 2, 12, W / 2 + 6, H - 10, W - 8, H - 4);
-    // Snow cap
-    g.fillStyle(0xeeeeff, 0.9);
-    g.fillTriangle(W / 2, 4, W / 2 - 8, 18, W / 2 + 8, 18);
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(W / 2, H - 2, W - 6, 10);
+
+    // === MAIN PEAK (center-tall) ===
+    // Base snow field
+    g.fillStyle(0x9999aa, 1);
+    g.fillTriangle(W / 2, 0, 4, H - 6, W - 4, H - 6);
+    // Right side (bright)
+    g.fillStyle(0x888899, 0.9);
+    g.fillTriangle(W / 2, 0, W / 2, H - 6, W - 4, H - 6);
+    // Left shadow face
+    g.fillStyle(0x4a4a55, 0.85);
+    g.fillTriangle(W / 2, 0, 4, H - 6, W / 2, H - 6);
+
+    // === ROCKY TEXTURE LAYERS ===
+    // Horizontal strata lines (light)
+    g.fillStyle(0xaaaaaa, 0.25);
+    g.fillRect(W / 2 - 20, 55, 40, 2);
+    g.fillRect(W / 2 - 28, 68, 56, 2);
+    g.fillRect(W / 2 - 35, 80, 70, 2);
+    g.fillRect(W / 2 - 42, 90, 84, 2);
+    // Dark crevices
+    g.fillStyle(0x222222, 0.35);
+    g.fillRect(W / 2 - 14, 42, 3, 8);
+    g.fillRect(W / 2 + 6, 52, 2, 10);
+    g.fillRect(W / 2 - 22, 62, 3, 7);
+    g.fillRect(W / 2 + 16, 70, 2, 9);
+    g.fillRect(W / 2 - 30, 75, 4, 6);
+    g.fillRect(W / 2 + 24, 80, 3, 6);
+    // Rock ledge highlights
+    g.fillStyle(0xcccccc, 0.3);
+    g.fillRect(W / 2 + 8, 60, 18, 3);
+    g.fillRect(W / 2 - 26, 72, 14, 3);
+    g.fillRect(W / 2 + 14, 85, 22, 3);
+    g.fillRect(W / 2 - 34, 88, 16, 3);
+
+    // === LEFT SHOULDER PEAK ===
+    g.fillStyle(0x7a7a88, 1);
+    g.fillTriangle(18, 24, 4, H - 6, W / 2 - 4, H - 6);
+    g.fillStyle(0x333340, 0.7);
+    g.fillTriangle(18, 24, 4, H - 6, 18, H - 6);
+    g.fillStyle(0x999999, 0.3);
+    g.fillRect(8, 70, 18, 2);
+    g.fillRect(6, 82, 24, 2);
+
+    // === RIGHT SHOULDER PEAK ===
+    g.fillStyle(0x7a7a88, 1);
+    g.fillTriangle(W - 18, 28, W / 2 + 4, H - 6, W - 4, H - 6);
+    g.fillStyle(0x555560, 0.6);
+    g.fillTriangle(W - 18, 28, W / 2 + 4, H - 6, W - 18, H - 6);
+    g.fillStyle(0xbbbbbb, 0.25);
+    g.fillRect(W - 36, 74, 20, 2);
+    g.fillRect(W - 42, 86, 28, 2);
+
+    // === SNOW CAPS ===
+    // Main peak: layered snow
+    g.fillStyle(0xddeeff, 1);
+    g.fillTriangle(W / 2, 0, W / 2 - 18, 30, W / 2 + 18, 30);
+    g.fillStyle(0xeef6ff, 0.85);
+    g.fillTriangle(W / 2, 0, W / 2 - 12, 22, W / 2 + 12, 22);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillTriangle(W / 2, 0, W / 2 - 7, 14, W / 2 + 7, 14);
+    // Snow drip highlights along right side
+    g.fillStyle(0xddeeff, 0.7);
+    g.fillTriangle(W / 2 + 4, 22, W / 2 + 18, 30, W / 2 + 10, 36);
+    g.fillTriangle(W / 2 + 6, 38, W / 2 + 20, 45, W / 2 + 14, 52);
+
+    // Left shoulder snow
+    g.fillStyle(0xddeeff, 0.9);
+    g.fillTriangle(18, 24, 12, 38, 26, 36);
     g.fillStyle(0xffffff, 0.7);
-    g.fillTriangle(W / 2, 2, W / 2 - 5, 14, W / 2 + 5, 14);
-    // Rock detail
-    g.fillStyle(0x444433, 0.3);
-    g.fillRect(20, 30, 3, 2);
-    g.fillRect(35, 35, 4, 2);
-    g.fillRect(18, 42, 5, 2);
+    g.fillTriangle(18, 24, 14, 32, 22, 31);
+
+    // Right shoulder snow
+    g.fillStyle(0xddeeff, 0.9);
+    g.fillTriangle(W - 18, 28, W - 12, 42, W - 26, 40);
+    g.fillStyle(0xffffff, 0.7);
+    g.fillTriangle(W - 18, 28, W - 14, 36, W - 22, 35);
+
+    // === BASE ROCKS & SCREE ===
+    g.fillStyle(0x555544, 0.8);
+    g.fillRect(8, H - 12, 20, 6);
+    g.fillRect(W - 34, H - 10, 18, 5);
+    g.fillRect(W / 2 - 8, H - 10, 16, 5);
+    g.fillStyle(0x444433, 0.5);
+    g.fillRect(12, H - 8, 8, 4);
+    g.fillRect(W - 26, H - 7, 10, 4);
+    g.fillRect(W / 2 - 4, H - 7, 8, 4);
+
     g.generateTexture("deco_mountain", W, H);
     g.destroy();
   }
@@ -3543,23 +3611,101 @@ export class BootScene extends Phaser.Scene {
 
   genDecoBridge() {
     const g = this.make.graphics({ x: 0, y: 0 });
-    const W = 48, H = 20;
-    // Planks
-    g.fillStyle(0x8b5a2b, 1);
-    g.fillRect(0, 4, W, H - 8);
-    // Individual plank lines
-    g.fillStyle(0x7a4a1b, 0.5);
-    for (let i = 0; i < 8; i++) {
-      g.fillRect(i * 6, 4, 1, H - 8);
+    const W = 128, H = 56;
+
+    // === STONE ARCH SUPPORTS (LEFT) ===
+    g.fillStyle(0x888880, 1);
+    g.fillRect(0, 22, 20, H - 22);
+    g.fillStyle(0x777770, 0.7);
+    g.fillRect(0, 24, 18, H - 26);
+    // Arch cutout (left)
+    g.fillStyle(0x4488cc, 0.7);
+    g.fillEllipse(10, 38, 12, 16);
+
+    // === STONE ARCH SUPPORTS (RIGHT) ===
+    g.fillStyle(0x888880, 1);
+    g.fillRect(W - 20, 22, 20, H - 22);
+    g.fillStyle(0x777770, 0.7);
+    g.fillRect(W - 18, 24, 18, H - 26);
+    // Arch cutout (right)
+    g.fillStyle(0x4488cc, 0.7);
+    g.fillEllipse(W - 10, 38, 12, 16);
+
+    // === CENTRAL PIER ===
+    g.fillStyle(0x888880, 1);
+    g.fillRect(W / 2 - 9, 26, 18, H - 26);
+    g.fillStyle(0x777770, 0.6);
+    g.fillRect(W / 2 - 7, 28, 14, H - 30);
+
+    // === BRIDGE DECK (main walkable surface) ===
+    g.fillStyle(0x9b7540, 1);
+    g.fillRect(0, 18, W, 20);
+    // Plank lines (horizontal boards)
+    g.fillStyle(0x7a5520, 0.55);
+    for (let i = 0; i < 20; i++) {
+      g.fillRect(i * 6 + 1, 18, 1, 20);
     }
-    // Railings
-    g.fillStyle(0x664422, 1);
-    g.fillRect(0, 2, W, 3);
-    g.fillRect(0, H - 5, W, 3);
-    // Posts
-    g.fillRect(2, 0, 3, H);
-    g.fillRect(W - 5, 0, 3, H);
-    g.fillRect(W / 2 - 1, 0, 3, H);
+    // Center board worn darker
+    g.fillStyle(0x6a4810, 0.3);
+    g.fillRect(0, 25, W, 6);
+    // Light grain highlight
+    g.fillStyle(0xccaa66, 0.25);
+    g.fillRect(0, 19, W, 3);
+
+    // === LEFT STONE PARAPET ===
+    g.fillStyle(0x999988, 1);
+    g.fillRect(0, 10, W, 9);
+    g.fillStyle(0x777766, 0.5);
+    g.fillRect(0, 13, W, 4);
+    // Parapet stone block divisions
+    g.fillStyle(0x666655, 0.6);
+    for (let i = 0; i < 9; i++) {
+      g.fillRect(i * 14 + 1, 10, 1, 9);
+    }
+    // === RIGHT STONE PARAPET ===
+    g.fillStyle(0x999988, 1);
+    g.fillRect(0, 37, W, 9);
+    g.fillStyle(0x777766, 0.5);
+    g.fillRect(0, 37, W, 4);
+    g.fillStyle(0x666655, 0.6);
+    for (let i = 0; i < 9; i++) {
+      g.fillRect(i * 14 + 1, 37, 1, 9);
+    }
+
+    // === CORNER POSTS (stone pillars) ===
+    // Left corners
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillRect(0, 8, 10, 38);
+    g.fillStyle(0x888888, 0.6);
+    g.fillRect(2, 8, 6, 38);
+    g.fillStyle(0xcccccc, 0.4);
+    g.fillRect(1, 8, 2, 38);
+    // Right corners
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillRect(W - 10, 8, 10, 38);
+    g.fillStyle(0x888888, 0.6);
+    g.fillRect(W - 8, 8, 6, 38);
+    // Center posts
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillRect(W / 2 - 5, 8, 10, 38);
+    g.fillStyle(0x888888, 0.5);
+    g.fillRect(W / 2 - 3, 8, 6, 38);
+
+    // === TOP CAPS on pillar posts ===
+    g.fillStyle(0xbbbbbb, 1);
+    g.fillRect(0, 6, 10, 4);
+    g.fillRect(W - 10, 6, 10, 4);
+    g.fillRect(W / 2 - 5, 6, 10, 4);
+
+    // === MOSS & WEATHERING ===
+    g.fillStyle(0x446644, 0.35);
+    g.fillRect(4, 30, 6, 8);
+    g.fillRect(W - 14, 28, 8, 7);
+    g.fillRect(W / 2 - 4, 34, 8, 6);
+    g.fillStyle(0x335533, 0.2);
+    g.fillEllipse(8, 48, 14, 6);
+    g.fillEllipse(W - 8, 48, 14, 6);
+
     g.generateTexture("deco_bridge", W, H);
     g.destroy();
   }
@@ -3764,37 +3910,170 @@ export class BootScene extends Phaser.Scene {
 
   genDecoHouseSmall() {
     const g = this.make.graphics({ x: 0, y: 0 });
-    const W = 36, H = 32;
-    // Walls
-    g.fillStyle(0xbb9966, 1);
-    g.fillRect(2, 12, W - 4, H - 14);
-    g.fillStyle(0xaa8855, 0.5);
-    g.fillRect(4, 14, W - 8, H - 18);
-    // Roof
-    g.fillStyle(0x883322, 1);
-    g.fillTriangle(W / 2, 2, 0, 14, W, 14);
-    g.fillStyle(0x772211, 0.5);
-    g.fillTriangle(W / 2, 2, 0, 14, W / 2, 14);
-    // Door
-    g.fillStyle(0x664422, 1);
-    g.fillRect(14, 20, 8, 10);
-    g.fillStyle(0xddaa22, 0.8);
-    g.fillCircle(20, 25, 1);
-    // Windows
-    g.fillStyle(0x88aacc, 0.7);
-    g.fillRect(5, 18, 6, 5);
-    g.fillRect(25, 18, 6, 5);
-    g.fillStyle(0x664422, 0.8);
-    g.fillRect(7.5, 18, 1, 5);
-    g.fillRect(27.5, 18, 1, 5);
-    // Chimney
+    const W = 96, H = 88;
+
+    // === GROUND SHADOW ===
+    g.fillStyle(0x000000, 0.12);
+    g.fillEllipse(W / 2, H - 1, W - 10, 8);
+
+    // === FOUNDATION (stone base) ===
+    g.fillStyle(0x888877, 1);
+    g.fillRect(4, H - 16, W - 8, 16);
+    g.fillStyle(0x777766, 0.6);
+    // Foundation stone blocks
+    for (let i = 0; i < 6; i++) {
+      g.fillRect(4 + i * 15, H - 15, 1, 14);
+    }
+    g.fillRect(4, H - 8, W - 8, 1);
+
+    // === WALLS (main body) ===
+    g.fillStyle(0xd4a96a, 1);
+    g.fillRect(4, 36, W - 8, H - 52);
+    // Wall plaster texture (subtle vertical lines)
+    g.fillStyle(0xc49a5a, 0.3);
+    for (let i = 0; i < 8; i++) {
+      g.fillRect(4 + i * 11, 36, 1, H - 52);
+    }
+    // Horizontal mortar lines
+    g.fillStyle(0xbb8844, 0.25);
+    g.fillRect(4, 50, W - 8, 1);
+    g.fillRect(4, 62, W - 8, 1);
+    g.fillRect(4, 74, W - 8, 1);
+
+    // === HALF-TIMBER FRAMING (dark wood beams) ===
+    g.fillStyle(0x553311, 0.85);
+    // Corner posts
+    g.fillRect(4, 36, 4, H - 52);
+    g.fillRect(W - 8, 36, 4, H - 52);
+    // Horizontal cross-beam at mid wall
+    g.fillRect(4, 56, W - 8, 4);
+    // Diagonal brace (left)
+    for (let d = 0; d < 28; d++) {
+      g.fillRect(4 + d, 36 + d, 1, 3);
+    }
+    // Diagonal brace (right)
+    for (let d = 0; d < 28; d++) {
+      g.fillRect(W - 8 - d, 36 + d, 1, 3);
+    }
+
+    // === ROOF (broad gabled) ===
+    // Roof main face
+    g.fillStyle(0x882222, 1);
+    g.fillTriangle(W / 2, 2, 0, 38, W, 38);
+    // Roof right (lit face)
+    g.fillStyle(0x993333, 0.5);
+    g.fillTriangle(W / 2, 2, W / 2, 38, W, 38);
+    // Roof shingles (horizontal rows)
+    g.fillStyle(0x661111, 0.45);
+    for (let row = 0; row < 8; row++) {
+      const y = 10 + row * 3.5;
+      const halfW = (row / 8) * W / 2 + 4;
+      g.fillRect(W / 2 - halfW, y, halfW * 2, 1.5);
+    }
+    // Roof ridge (top cap)
+    g.fillStyle(0x553333, 1);
+    g.fillRect(W / 2 - 4, 1, 8, 6);
+    g.fillStyle(0x775555, 0.8);
+    g.fillRect(W / 2 - 3, 0, 6, 3);
+    // Eave boards (bottom edge of roof)
+    g.fillStyle(0x553311, 1);
+    g.fillRect(0, 36, W, 5);
+    g.fillStyle(0x442200, 0.4);
+    g.fillRect(0, 38, W, 2);
+
+    // === CHIMNEY (left side) ===
     g.fillStyle(0x666655, 1);
-    g.fillRect(26, 2, 5, 10);
-    g.fillStyle(0x777766, 0.5);
-    g.fillRect(27, 0, 3, 4);
-    // Shadow
-    g.fillStyle(0x000000, 0.08);
-    g.fillEllipse(W / 2, H - 1, W - 4, 3);
+    g.fillRect(W - 26, 0, 14, 28);
+    g.fillStyle(0x555544, 0.7);
+    g.fillRect(W - 24, 2, 10, 22);
+    // Chimney cap
+    g.fillStyle(0x444433, 1);
+    g.fillRect(W - 28, 12, 18, 4);
+    // Smoke puff
+    g.fillStyle(0xaaaaaa, 0.2);
+    g.fillCircle(W - 19, 6, 5);
+    g.fillStyle(0xbbbbbb, 0.15);
+    g.fillCircle(W - 16, 2, 3);
+    // Chimney brick lines
+    g.fillStyle(0x7a7a66, 0.4);
+    g.fillRect(W - 26, 6, 14, 1);
+    g.fillRect(W - 26, 10, 14, 1);
+
+    // === DOOR (arched) ===
+    g.fillStyle(0x5a2d0c, 1);
+    g.fillRect(W / 2 - 9, H - 30, 18, 30);
+    // Door top arch
+    g.fillStyle(0x5a2d0c, 1);
+    g.fillEllipse(W / 2, H - 30, 18, 10);
+    // Door panels
+    g.fillStyle(0x4a1e00, 0.6);
+    g.fillRect(W / 2 - 8, H - 28, 7, 10);
+    g.fillRect(W / 2 + 1, H - 28, 7, 10);
+    g.fillRect(W / 2 - 8, H - 16, 7, 10);
+    g.fillRect(W / 2 + 1, H - 16, 7, 10);
+    // Door knob / iron ring
+    g.fillStyle(0xddaa33, 1);
+    g.fillCircle(W / 2 + 6, H - 18, 2);
+    g.fillStyle(0xffcc44, 0.7);
+    g.fillCircle(W / 2 + 6, H - 18, 1);
+    // Door frame
+    g.fillStyle(0x331500, 0.8);
+    g.fillRect(W / 2 - 10, H - 30, 2, 30);
+    g.fillRect(W / 2 + 8, H - 30, 2, 30);
+    g.fillRect(W / 2 - 10, H - 32, 20, 2);
+
+    // === LEFT WINDOW ===
+    g.fillStyle(0x88aadd, 0.85);
+    g.fillRect(10, H - 50, 18, 16);
+    // Window panes (cross dividers)
+    g.fillStyle(0x553311, 0.9);
+    g.fillRect(18, H - 50, 2, 16);
+    g.fillRect(10, H - 43, 18, 2);
+    // Frame
+    g.fillStyle(0x553311, 1);
+    g.fillRect(8, H - 52, 22, 2);
+    g.fillRect(8, H - 34, 22, 2);
+    g.fillRect(8, H - 52, 2, 20);
+    g.fillRect(28, H - 52, 2, 20);
+    // Window light reflection
+    g.fillStyle(0xffffff, 0.25);
+    g.fillRect(11, H - 49, 5, 6);
+
+    // === RIGHT WINDOW ===
+    g.fillStyle(0x88aadd, 0.85);
+    g.fillRect(W - 28, H - 50, 18, 16);
+    g.fillStyle(0x553311, 0.9);
+    g.fillRect(W - 20, H - 50, 2, 16);
+    g.fillRect(W - 28, H - 43, 18, 2);
+    g.fillStyle(0x553311, 1);
+    g.fillRect(W - 30, H - 52, 22, 2);
+    g.fillRect(W - 30, H - 34, 22, 2);
+    g.fillRect(W - 30, H - 52, 2, 20);
+    g.fillRect(W - 10, H - 52, 2, 20);
+    g.fillStyle(0xffffff, 0.25);
+    g.fillRect(W - 27, H - 49, 5, 6);
+
+    // === WINDOW FLOWER BOXES ===
+    g.fillStyle(0x7a4a1b, 1);
+    g.fillRect(8, H - 34, 22, 5);
+    g.fillRect(W - 30, H - 34, 22, 5);
+    // Flowers
+    g.fillStyle(0xff4444, 0.9);
+    g.fillCircle(13, H - 32, 2);
+    g.fillCircle(19, H - 33, 2);
+    g.fillCircle(25, H - 32, 2);
+    g.fillStyle(0xff8800, 0.9);
+    g.fillCircle(W - 25, H - 32, 2);
+    g.fillCircle(W - 19, H - 33, 2);
+    g.fillStyle(0xffee00, 0.9);
+    g.fillCircle(W - 13, H - 32, 2);
+
+    // === STEPS at door ===
+    g.fillStyle(0x999988, 1);
+    g.fillRect(W / 2 - 12, H - 4, 24, 4);
+    g.fillStyle(0x888877, 0.7);
+    g.fillRect(W / 2 - 10, H - 6, 20, 3);
+
     g.generateTexture("deco_house_small", W, H);
     g.destroy();
   }
