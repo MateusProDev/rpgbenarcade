@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========== Players ==========
+    match /players/{playerId} {
+      // Anyone authenticated can read player data (for multiplayer)
+      allow read: if request.auth != null;
+      
+      // Only the owner can write their own data
+      allow create: if request.auth != null && request.auth.uid == playerId;
+      allow update: if request.auth != null && request.auth.uid == playerId
+        // Prevent client from directly setting arbitrary XP/gold values
+        // Level must be between 1 and 100
+        && request.resource.data.level >= 1
+        && request.resource.data.level <= 100
+        // Gold cannot be negative
+        && request.resource.data.gold >= 0
+        // HP cannot exceed maxHp (basic sanity check)
+        && request.resource.data.hp >= 0;
+      allow delete: if request.auth != null && request.auth.uid == playerId;
+    }
+    
+    // ========== Player Presence (online status) ==========
+    match /presence/{playerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == playerId;
+    }
+    
+    // ========== Chat Messages ==========
+    match /chat/{messageId} {
+      // Any authenticated user can read chat
+      allow read: if request.auth != null;
+      
+      // Users can only create messages as themselves
+      allow create: if request.auth != null 
+        && request.resource.data.playerId == request.auth.uid
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.timestamp == request.time;
+      
+      // Nobody can update or delete chat messages
+      allow update, delete: if false;
+    }
+    
+    // ========== Guilds ==========
+    match /guilds/{guildId} {
+      allow read: if request.auth != null;
+      
+      // Any authenticated user can create a guild
+      allow create: if request.auth != null
+        && request.resource.data.leaderId == request.auth.uid;
+      
+      // Only the guild leader can update
+      allow update: if request.auth != null
+        && resource.data.leaderId == request.auth.uid;
+      
+      // Only the guild leader can delete
+      allow delete: if request.auth != null
+        && resource.data.leaderId == request.auth.uid;
+    }
+    
+    // ========== PvP Results ==========
+    match /pvp_results/{resultId} {
+      allow read: if request.auth != null;
+      
+      // Only authenticated users involved in the match can create
+      allow create: if request.auth != null
+        && (request.resource.data.winnerId == request.auth.uid 
+            || request.resource.data.loserId == request.auth.uid);
+      
+      allow update, delete: if false;
+    }
+    
+    // ========== Leaderboard ==========
+    match /leaderboard/{playerId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == playerId;
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
