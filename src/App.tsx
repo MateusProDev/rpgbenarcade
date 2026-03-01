@@ -1,8 +1,8 @@
 // ========================
 // App — Main Application
-// Landing page, cinematic loading, smooth transitions
+// Landing page, pause menu, fullscreen, smooth transitions
 // ========================
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useGameStore } from "./store/gameStore";
 import { useAuth } from "./hooks/useAuth";
 import { useAutoSave } from "./hooks/useAutoSave";
@@ -18,6 +18,7 @@ import { QuestPanel } from "./ui/QuestPanel";
 import { ChatPanel } from "./ui/ChatPanel";
 import { ShopPanel } from "./ui/ShopPanel";
 import { DialoguePanel } from "./ui/DialoguePanel";
+import { PauseMenu } from "./ui/PauseMenu";
 import "./ui/styles.css";
 
 const LOADING_TIPS = [
@@ -33,9 +34,55 @@ function App() {
   const isLoading = useGameStore((s) => s.isLoading);
   const player = useGameStore((s) => s.player);
   const [showLanding, setShowLanding] = useState(true);
+  const [showPause, setShowPause] = useState(false);
+  const [enteredGame, setEnteredGame] = useState(false);
 
   useAuth();
   useAutoSave();
+
+  // Request fullscreen when entering the game for the first time
+  useEffect(() => {
+    if (isAuthenticated && player && !enteredGame) {
+      setEnteredGame(true);
+      // Small delay to let the DOM render the game wrapper first
+      setTimeout(() => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {
+            // Silently fail — some browsers require user gesture
+          });
+        }
+      }, 300);
+    }
+  }, [isAuthenticated, player, enteredGame]);
+
+  // ESC key handler for pause menu (only when in game)
+  const handleEsc = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isAuthenticated && player) {
+        // Don't toggle if user is in an input field
+        if (
+          document.activeElement?.tagName === "INPUT" ||
+          document.activeElement?.tagName === "TEXTAREA"
+        ) {
+          return;
+        }
+        setShowPause((prev) => !prev);
+      }
+    },
+    [isAuthenticated, player]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [handleEsc]);
+
+  // Exit to landing page handler
+  const handleExitToHome = useCallback(() => {
+    setShowPause(false);
+    setShowLanding(true);
+    setEnteredGame(false);
+  }, []);
 
   // Landing page (home)
   if (showLanding && !isAuthenticated) {
@@ -88,6 +135,12 @@ function App() {
       <ChatPanel />
       <ShopPanel />
       <DialoguePanel />
+      {showPause && (
+        <PauseMenu
+          onResume={() => setShowPause(false)}
+          onExitToHome={handleExitToHome}
+        />
+      )}
     </div>
   );
 }
