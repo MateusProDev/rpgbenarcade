@@ -82,6 +82,14 @@ export class WorldScene extends Phaser.Scene {
   // Blocking decoration colliders
   private decoColliders!: Phaser.Physics.Arcade.StaticGroup;
 
+  // === TILE CHUNK SYSTEM ===
+  // Each chunk is a 512×512 RenderTexture (1 GPU draw call).
+  // Only chunks inside/near the camera viewport are kept alive.
+  private mapChunks: Map<string, Phaser.GameObjects.RenderTexture> = new Map();
+  private decoTilesByChunk: Map<string, Array<[string, number, number]>> = new Map();
+  private readonly CHUNK_PX = 512;
+  private chunkUpdateTimer = 0;
+
   // Throttled position update
   private throttledUpdatePosition = throttle(
     (uid: string, x: number, y: number, dir: string, map: MapId) => {
@@ -269,22 +277,18 @@ export class WorldScene extends Phaser.Scene {
     const mapConfig = getMapConfig(this.currentMap);
     const { width, height, tileSize } = mapConfig;
 
-    // Base tiles
-    for (let y = 0; y < height; y += tileSize) {
-      for (let x = 0; x < width; x += tileSize) {
-        if (x === 0 || y === 0 || x >= width - tileSize || y >= height - tileSize) {
-          const wall = this.decoColliders.create(x + tileSize / 2, y + tileSize / 2, "tile_wall");
-          wall.setDepth(1);
-          wall.body.setSize(tileSize, tileSize);
-          wall.refreshBody();
-        } else {
-          const tileKey = this.getMapTile();
-          this.add.image(x + tileSize / 2, y + tileSize / 2, tileKey).setDepth(0);
-        }
-      }
-    }
+    // Clear any existing chunks
+    this.mapChunks.forEach(rt => rt.destroy());
+    this.mapChunks.clear();
+    this.decoTilesByChunk.clear();
 
-    // Area-specific decoration
+    // 4 invisible border walls instead of per-tile sprites
+    this.addInvisibleWall(width / 2, tileSize / 2, width, tileSize);
+    this.addInvisibleWall(width / 2, height - tileSize / 2, width, tileSize);
+    this.addInvisibleWall(tileSize / 2, height / 2, tileSize, height);
+    this.addInvisibleWall(width - tileSize / 2, height / 2, tileSize, height);
+
+    // Area-specific decoration (queues tiles via drawTile)
     switch (this.currentMap) {
       case "village": this.decorateVillage(width, height, tileSize); break;
       case "fields": this.decorateFields(width, height, tileSize); break;
@@ -292,6 +296,9 @@ export class WorldScene extends Phaser.Scene {
       case "dungeon": this.decorateDungeon(width, height, tileSize); break;
       case "arena": this.decorateArena(width, height, tileSize); break;
     }
+
+    // Build initial visible chunks
+    this.updateMapChunks();
   }
 
   // --- VILLAGE DECORATION --- (4800×3600)
@@ -302,15 +309,15 @@ export class WorldScene extends Phaser.Scene {
     // === COBBLESTONE MAIN ROADS ===
     // Main east-west road
     for (let x = 80; x < w - 80; x += 32) {
-      this.add.image(x, cy, "tile_cobble").setDepth(0);
-      this.add.image(x, cy + 32, "tile_cobble").setDepth(0);
-      this.add.image(x, cy - 32, "tile_cobble").setDepth(0);
+      this.drawTile("tile_cobble", x, cy);
+      this.drawTile("tile_cobble", x, cy + 32);
+      this.drawTile("tile_cobble", x, cy - 32);
     }
     // Main north-south road
     for (let y = 80; y < h - 80; y += 32) {
-      this.add.image(cx, y, "tile_cobble").setDepth(0);
-      this.add.image(cx + 32, y, "tile_cobble").setDepth(0);
-      this.add.image(cx - 32, y, "tile_cobble").setDepth(0);
+      this.drawTile("tile_cobble", cx, y);
+      this.drawTile("tile_cobble", cx + 32, y);
+      this.drawTile("tile_cobble", cx - 32, y);
     }
     // Secondary path network
     const secPaths = [
@@ -321,9 +328,9 @@ export class WorldScene extends Phaser.Scene {
     ];
     secPaths.forEach(([x1, y1, x2, y2]) => {
       if (y1 === y2) {
-        for (let x = x1; x < x2; x += 32) this.add.image(x, y1, "tile_path").setDepth(0);
+        for (let x = x1; x < x2; x += 32) this.drawTile("tile_path", x, y1);
       } else {
-        for (let y = y1; y < y2; y += 32) this.add.image(x1, y, "tile_path").setDepth(0);
+        for (let y = y1; y < y2; y += 32) this.drawTile("tile_path", x1, y);
       }
     });
 
@@ -332,7 +339,7 @@ export class WorldScene extends Phaser.Scene {
     for (let dx = -3; dx <= 3; dx++) {
       for (let dy = -3; dy <= 3; dy++) {
         if (Math.sqrt(dx * dx + dy * dy) <= 3) {
-          this.add.image(cx + dx * 32, cy + dy * 32, "tile_cobble").setDepth(0);
+          this.drawTile("tile_cobble", cx + dx * 32, cy + dy * 32);
         }
       }
     }
@@ -493,21 +500,21 @@ export class WorldScene extends Phaser.Scene {
     // === MAIN DIRT ROAD NETWORK ===
     // Central east-west highway
     for (let x = 80; x < w - 80; x += 32) {
-      this.add.image(x, h / 3, "tile_dirt").setDepth(0);
-      this.add.image(x, h / 3 + 32, "tile_dirt").setDepth(0);
+      this.drawTile("tile_dirt", x, h / 3);
+      this.drawTile("tile_dirt", x, h / 3 + 32);
     }
     // North-south crossroads
     for (let y = 200; y < h - 200; y += 32) {
-      this.add.image(w / 4, y, "tile_dirt").setDepth(0);
-      this.add.image(3 * w / 4, y, "tile_dirt").setDepth(0);
+      this.drawTile("tile_dirt", w / 4, y);
+      this.drawTile("tile_dirt", 3 * w / 4, y);
     }
     // Central cross
     for (let x = w / 4; x < 3 * w / 4; x += 32) {
-      this.add.image(x, h / 2, "tile_dirt").setDepth(0);
+      this.drawTile("tile_dirt", x, h / 2);
     }
     // Southern road
     for (let x = 200; x < w - 200; x += 32) {
-      this.add.image(x, 2 * h / 3, "tile_dirt_dark").setDepth(0);
+      this.drawTile("tile_dirt_dark", x, 2 * h / 3);
     }
 
     // === FARM PLOTS — 12 farms spread across the map ===
@@ -522,7 +529,7 @@ export class WorldScene extends Phaser.Scene {
         for (let col = 0; col < 7; col++) {
           const px = fx + col * 40;
           const py = fy + row * 50;
-          this.add.image(px, py, "tile_dirt").setDepth(0);
+          this.drawTile("tile_dirt", px, py);
           if (Math.random() > 0.2) {
             this.addDeco(px, py - 8, "deco_wheat", false);
           }
@@ -556,7 +563,7 @@ export class WorldScene extends Phaser.Scene {
       for (let dy = -3; dy <= 3; dy++) {
         if (Math.sqrt(dx * dx + dy * dy) <= 3.5) {
           const tileKey = Math.sqrt(dx * dx + dy * dy) <= 2 ? "tile_water_deep" : "tile_water";
-          this.add.image(lakeX + dx * 32, lakeY + dy * 32, tileKey).setDepth(0);
+          this.drawTile(tileKey, lakeX + dx * 32, lakeY + dy * 32);
         }
       }
     }
@@ -579,25 +586,27 @@ export class WorldScene extends Phaser.Scene {
       // Tiles visuais de água
       for (let tx = 0; tx < riverTiles; tx++) {
         const tKey = (tx === 1 || tx === 2) ? "tile_water_deep" : "tile_water";
-        this.add.image(rx + tx * 32, ry, tKey).setDepth(0);
-      }
-      // Barreira de colisão invisível — removida onde há ponte
-      const nearBridge = bridgeYArr.some(by => Math.abs(ry - by) < bridgeHalfGap);
-      if (!nearBridge) {
-        const barrier = this.decoColliders.create(rx + 64, ry, "tile_wall");
-        barrier.setAlpha(0);
-        barrier.setDepth(0);
-        barrier.body.setSize(riverTiles * 32, 32);
-        barrier.refreshBody();
+        this.drawTile(tKey, rx + tx * 32, ry);
       }
     }
+    // Collision: 4 solid sections around the 3 bridge gaps
+    const riverSections: [number, number][] = [
+      [200, bridgeYArr[0] - bridgeHalfGap],
+      [bridgeYArr[0] + bridgeHalfGap, bridgeYArr[1] - bridgeHalfGap],
+      [bridgeYArr[1] + bridgeHalfGap, bridgeYArr[2] - bridgeHalfGap],
+      [bridgeYArr[2] + bridgeHalfGap, h - 200],
+    ];
+    riverSections.forEach(([y1, y2]) => {
+      const midY = (y1 + y2) / 2;
+      this.addInvisibleWall(riverX + 64, midY, riverTiles * 32 + 80, y2 - y1);
+    });
     // Pontes sobre o rio — grandes pontes de pedra
     bridgeYArr.forEach((by) => {
       const wobble = Math.round(Math.sin(by * 0.01) * 40);
       const rx = riverX + wobble;
       // Calçamento debaixo da ponte
       for (let bx = 0; bx < riverTiles; bx++) {
-        this.add.image(rx + bx * 32, by, "tile_cobble").setDepth(1);
+        this.drawTile("tile_cobble", rx + bx * 32, by);
       }
       this.addDeco(rx + 64, by, "deco_bridge", false);
     });
@@ -606,7 +615,7 @@ export class WorldScene extends Phaser.Scene {
     for (let dx = 0; dx < 8; dx++) {
       for (let dy = 0; dy < 7; dy++) {
         const tKey = (dx > 1 && dx < 6 && dy > 1 && dy < 5) ? "tile_water_deep" : "tile_water";
-        this.add.image(15600 + dx * 32, 4800 + dy * 32, tKey).setDepth(0);
+        this.drawTile(tKey, 15600 + dx * 32, 4800 + dy * 32);
       }
     }
 
@@ -695,13 +704,13 @@ export class WorldScene extends Phaser.Scene {
     // Winding east-west forest trail
     for (let x = 80; x < w - 80; x += 32) {
       const wobble = Math.sin(x * 0.008) * 50;
-      this.add.image(x, h / 2 + wobble, "tile_dirt").setDepth(0);
-      this.add.image(x, h / 2 + wobble + 32, "tile_dirt").setDepth(0);
+      this.drawTile("tile_dirt", x, h / 2 + wobble);
+      this.drawTile("tile_dirt", x, h / 2 + wobble + 32);
     }
     // North-south deer trail
     for (let y = 200; y < h - 200; y += 32) {
       const wobble = Math.sin(y * 0.01) * 30;
-      this.add.image(w / 3 + wobble, y, "tile_dirt").setDepth(0);
+      this.drawTile("tile_dirt", w / 3 + wobble, y);
     }
 
     // === DENSE TREE COVERAGE ===
@@ -742,23 +751,25 @@ export class WorldScene extends Phaser.Scene {
       const sx = streamX + wobble;
       for (let tx = 0; tx < streamTiles; tx++) {
         const tKey = (tx === 1 || tx === 2) ? "tile_water_deep" : "tile_water";
-        this.add.image(sx + tx * 32, sy, tKey).setDepth(0);
-      }
-      const nearBridge = streamBridgeY.some(by => Math.abs(sy - by) < streamBridgeGap);
-      if (!nearBridge) {
-        const barrier = this.decoColliders.create(sx + 64, sy, "tile_wall");
-        barrier.setAlpha(0);
-        barrier.setDepth(0);
-        barrier.body.setSize(streamTiles * 32, 32);
-        barrier.refreshBody();
+        this.drawTile(tKey, sx + tx * 32, sy);
       }
     }
+    // Stream collision: 3 solid sections around the 2 bridge gaps
+    const streamSections: [number, number][] = [
+      [400, streamBridgeY[0] - streamBridgeGap],
+      [streamBridgeY[0] + streamBridgeGap, streamBridgeY[1] - streamBridgeGap],
+      [streamBridgeY[1] + streamBridgeGap, h - 400],
+    ];
+    streamSections.forEach(([y1, y2]) => {
+      const midY = (y1 + y2) / 2;
+      this.addInvisibleWall(streamX + 64, midY, streamTiles * 32 + 120, y2 - y1);
+    });
     // Pontes sobre o riacho encantado
     streamBridgeY.forEach((by) => {
       const wobble = Math.round(Math.sin(by * 0.015) * 60);
       const sx = streamX + wobble;
       for (let bx = 0; bx < streamTiles; bx++) {
-        this.add.image(sx + bx * 32, by, "tile_cobble").setDepth(1);
+        this.drawTile("tile_cobble", sx + bx * 32, by);
       }
       this.addDeco(sx + 64, by, "deco_bridge", false);
     });
@@ -769,7 +780,7 @@ export class WorldScene extends Phaser.Scene {
     // === SWAMP ZONE (south-east) ===
     for (let x = 10800; x < 14400; x += 32) {
       for (let y = 9600; y < 12000; y += 32) {
-        if (Math.random() > 0.4) this.add.image(x, y, "tile_swamp").setDepth(0);
+        if (Math.random() > 0.4) this.drawTile("tile_swamp", x, y);
       }
     }
     // Dead trees in swamp
@@ -796,7 +807,7 @@ export class WorldScene extends Phaser.Scene {
     // Stone platform
     for (let x = -3; x <= 3; x++) {
       for (let y = -2; y <= 2; y++) {
-        this.add.image(ruinX + x * 32, ruinY + y * 32, "tile_stone_mossy").setDepth(0);
+        this.drawTile("tile_stone_mossy", ruinX + x * 32, ruinY + y * 32);
       }
     }
     // Ruined walls and pillars
@@ -819,7 +830,7 @@ export class WorldScene extends Phaser.Scene {
     for (let dx = -3; dx <= 3; dx++) {
       for (let dy = -3; dy <= 3; dy++) {
         if (Math.sqrt(dx * dx + dy * dy) <= 3) {
-          this.add.image(fairyX + dx * 32, fairyY + dy * 32, "tile_grass_lush").setDepth(0);
+          this.drawTile("tile_grass_lush", fairyX + dx * 32, fairyY + dy * 32);
         }
       }
     }
@@ -892,7 +903,7 @@ export class WorldScene extends Phaser.Scene {
       const dy = 200 + Math.random() * (h - 400);
       for (let px = 0; px < 2; px++) {
         for (let py = 0; py < 2; py++) {
-          this.add.image(dx + px * 32, dy + py * 32, "tile_dark").setDepth(0).setAlpha(0.3);
+          this.drawTile("tile_dark", dx + px * 32, dy + py * 32);
         }
       }
     }
@@ -907,15 +918,15 @@ export class WorldScene extends Phaser.Scene {
     // Horizontal main hall
     for (let x = 64; x < w - 64; x += 32) {
       for (let dy = -1; dy <= 1; dy++) {
-        this.add.image(x, h / 2 + dy * 32, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", x, h / 2 + dy * 32);
       }
     }
     // Vertical corridors (4)
     const vCorrX = [w / 5, 2 * w / 5, 3 * w / 5, 4 * w / 5];
     vCorrX.forEach(cx => {
       for (let y = 64; y < h - 64; y += 32) {
-        this.add.image(cx, y, "tile_stone").setDepth(0);
-        this.add.image(cx + 32, y, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", cx, y);
+        this.drawTile("tile_stone", cx + 32, y);
       }
     });
 
@@ -936,7 +947,7 @@ export class WorldScene extends Phaser.Scene {
       // Floor
       for (let bx = 0; bx < room.tw; bx++) {
         for (let by = 0; by < room.th; by++) {
-          this.add.image(room.x + bx * 32 + 16, room.y + by * 32 + 16, room.tile).setDepth(0);
+          this.drawTile(room.tile, room.x + bx * 32 + 16, room.y + by * 32 + 16);
         }
       }
       // Walls (border)
@@ -996,7 +1007,7 @@ export class WorldScene extends Phaser.Scene {
     for (let dx = -4; dx <= 4; dx++) {
       for (let dy = -2; dy <= 2; dy++) {
         if (Math.sqrt(dx * dx + dy * dy) <= 3.5) {
-          this.add.image(lavaX + dx * 32, lavaY + dy * 32, "tile_lava").setDepth(0);
+          this.drawTile("tile_lava", lavaX + dx * 32, lavaY + dy * 32);
         }
       }
     }
@@ -1096,7 +1107,7 @@ export class WorldScene extends Phaser.Scene {
       for (let y = cy - pitR; y < cy + pitR; y += 32) {
         const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
         if (dist < pitR) {
-          this.add.image(x, y, "tile_arena").setDepth(0);
+          this.drawTile("tile_arena", x, y);
         }
       }
     }
@@ -1105,12 +1116,12 @@ export class WorldScene extends Phaser.Scene {
     for (let angle = 0; angle < Math.PI * 2; angle += 0.06) {
       const bx = cx + Math.cos(angle) * (pitR + 16);
       const by = cy + Math.sin(angle) * (pitR + 16);
-      this.add.image(bx, by, "tile_sand").setDepth(0);
+      this.drawTile("tile_sand", bx, by);
     }
 
     // Inner decorative circle
     for (let angle = 0; angle < Math.PI * 2; angle += 0.08) {
-      this.add.image(cx + Math.cos(angle) * (pitR - 40), cy + Math.sin(angle) * (pitR - 40), "tile_sand").setDepth(0).setAlpha(0.4);
+      this.drawTile("tile_sand", cx + Math.cos(angle) * (pitR - 40), cy + Math.sin(angle) * (pitR - 40));
     }
 
     // === 16 BANNERS around arena perimeter ===
@@ -1141,25 +1152,25 @@ export class WorldScene extends Phaser.Scene {
     // North stands
     for (let x = 64; x < w - 64; x += 32) {
       for (let y = 40; y < 660; y += 32) {
-        this.add.image(x, y, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", x, y);
       }
     }
     // South stands
     for (let x = 64; x < w - 64; x += 32) {
       for (let y = h - 660; y < h - 40; y += 32) {
-        this.add.image(x, y, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", x, y);
       }
     }
     // West stands
     for (let y = 660; y < h - 660; y += 32) {
       for (let x = 40; x < 540; x += 32) {
-        this.add.image(x, y, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", x, y);
       }
     }
     // East stands
     for (let y = 660; y < h - 660; y += 32) {
       for (let x = w - 540; x < w - 40; x += 32) {
-        this.add.image(x, y, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", x, y);
       }
     }
 
@@ -1214,7 +1225,7 @@ export class WorldScene extends Phaser.Scene {
     // NW room
     for (let rx = 60; rx < 280; rx += 32) {
       for (let ry = 60; ry < 200; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", rx, ry);
       }
     }
     this.addDeco(100, 100, "deco_chest", false);
@@ -1222,7 +1233,7 @@ export class WorldScene extends Phaser.Scene {
     // NE room
     for (let rx = w - 280; rx < w - 60; rx += 32) {
       for (let ry = 60; ry < 200; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
+        this.drawTile("tile_stone", rx, ry);
       }
     }
     this.addDeco(w - 200, 100, "deco_chest", false);
@@ -1250,6 +1261,106 @@ export class WorldScene extends Phaser.Scene {
     wall.refreshBody();
   }
 
+  addInvisibleWall(x: number, y: number, sw: number, sh: number) {
+    const wall = this.decoColliders.create(x, y, "tile_wall");
+    wall.setVisible(false);
+    wall.body.setSize(sw, sh);
+    wall.refreshBody();
+  }
+
+  // Queue a floor/deco tile into the appropriate render-texture chunk
+  drawTile(key: string, wx: number, wy: number) {
+    const cx = Math.floor(wx / this.CHUNK_PX);
+    const cy = Math.floor(wy / this.CHUNK_PX);
+    const ck = `${cx},${cy}`;
+    if (!this.decoTilesByChunk.has(ck)) this.decoTilesByChunk.set(ck, []);
+    this.decoTilesByChunk.get(ck)!.push([key, wx, wy]);
+  }
+
+  // Deterministic base-tile selector (reproducible — chunk can be re-built identically)
+  getBaseTileKeyAt(wx: number, wy: number): string {
+    const n = (Math.abs(Math.sin(wx * 3.7 + wy * 6.1) * 99999) | 0) % 100;
+    switch (this.currentMap) {
+      case "village": return n < 60 ? "tile_grass" : n < 85 ? "tile_grass_lush" : "tile_grass_dark";
+      case "fields":  return n < 45 ? "tile_grass" : n < 70 ? "tile_grass_lush" : n < 85 ? "tile_dirt" : "tile_dirt_dark";
+      case "forest":  return n < 35 ? "tile_grass_dark" : n < 60 ? "tile_grass" : n < 85 ? "tile_dark" : "tile_grass_lush";
+      case "dungeon": return n < 50 ? "tile_dark" : n < 80 ? "tile_stone" : "tile_stone_mossy";
+      case "arena":   return n < 70 ? "tile_sand" : n < 90 ? "tile_arena" : "tile_stone";
+      default: return "tile_grass";
+    }
+  }
+
+  // Build one CHUNK_PX×CHUNK_PX RenderTexture (base tiles + queued deco tiles baked in)
+  private buildChunk(chunkX: number, chunkY: number): Phaser.GameObjects.RenderTexture | null {
+    const cp = this.CHUNK_PX;
+    const ts = 32;
+    const wx0 = chunkX * cp;
+    const wy0 = chunkY * cp;
+    const mapConfig = getMapConfig(this.currentMap);
+    const chW = Math.min(cp, mapConfig.width - wx0);
+    const chH = Math.min(cp, mapConfig.height - wy0);
+    if (chW <= 0 || chH <= 0) return null;
+
+    const rt = this.add.renderTexture(wx0, wy0, chW, chH);
+    rt.setOrigin(0, 0).setDepth(0);
+
+    // Stamp base tiles
+    for (let ty = 0; ty < chH; ty += ts) {
+      for (let tx = 0; tx < chW; tx += ts) {
+        const wx = wx0 + tx;
+        const wy = wy0 + ty;
+        const isBorder = wx < ts || wy < ts ||
+                         wx >= mapConfig.width - ts || wy >= mapConfig.height - ts;
+        const key = isBorder ? "tile_wall" : this.getBaseTileKeyAt(wx, wy);
+        rt.stamp(key, undefined, tx + ts / 2, ty + ts / 2);
+      }
+    }
+
+    // Stamp deco tiles queued for this chunk
+    const decos = this.decoTilesByChunk.get(`${chunkX},${chunkY}`);
+    if (decos) {
+      for (const [key, wx, wy] of decos) {
+        rt.stamp(key, undefined, wx - wx0, wy - wy0);
+      }
+    }
+    return rt;
+  }
+
+  // Lazy chunk streaming — called throttled every 400 ms from update()
+  updateMapChunks() {
+    const cam = this.cameras.main;
+    const cp = this.CHUNK_PX;
+    const margin = 1;
+    const cxMin = Math.floor(cam.scrollX / cp) - margin;
+    const cxMax = Math.ceil((cam.scrollX + cam.width) / cp) + margin;
+    const cyMin = Math.floor(cam.scrollY / cp) - margin;
+    const cyMax = Math.ceil((cam.scrollY + cam.height) / cp) + margin;
+    const mapConfig = getMapConfig(this.currentMap);
+    const maxCx = Math.ceil(mapConfig.width / cp);
+    const maxCy = Math.ceil(mapConfig.height / cp);
+
+    for (let cy = Math.max(0, cyMin); cy < Math.min(maxCy, cyMax); cy++) {
+      for (let cx = Math.max(0, cxMin); cx < Math.min(maxCx, cxMax); cx++) {
+        const key = `${cx},${cy}`;
+        if (!this.mapChunks.has(key)) {
+          const rt = this.buildChunk(cx, cy);
+          if (rt) this.mapChunks.set(key, rt);
+        }
+      }
+    }
+
+    // Destroy chunks far from camera
+    const destroyMargin = margin + 2;
+    for (const [key, rt] of this.mapChunks) {
+      const [kcx, kcy] = key.split(",").map(Number);
+      if (kcx < cxMin - destroyMargin || kcx > cxMax + destroyMargin ||
+          kcy < cyMin - destroyMargin || kcy > cyMax + destroyMargin) {
+        rt.destroy();
+        this.mapChunks.delete(key);
+      }
+    }
+  }
+
   addRichBuilding(x: number, y: number, tw: number, th: number, roofColor: number, label: string) {
     const tileSize = 32;
     const bw = tw * tileSize;
@@ -1259,7 +1370,7 @@ export class WorldScene extends Phaser.Scene {
       for (let by = 0; by < th; by++) {
         const wx = x + bx * tileSize;
         const wy = y + by * tileSize;
-        this.add.image(wx + tileSize / 2, wy + tileSize / 2, "tile_wood").setDepth(0);
+        this.drawTile("tile_wood", wx + tileSize / 2, wy + tileSize / 2);
 
         // Walls (border of building)
         if (bx === 0 || by === 0 || bx === tw - 1 || by === th - 1) {
@@ -1923,6 +2034,13 @@ export class WorldScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     if (!this.player || !this.player.active) return;
 
+    // Chunk streaming throttle
+    this.chunkUpdateTimer += delta;
+    if (this.chunkUpdateTimer > 400) {
+      this.chunkUpdateTimer = 0;
+      this.updateMapChunks();
+    }
+
     const store = useGameStore.getState();
     const playerData = store.player;
     if (!playerData) return;
@@ -2226,6 +2344,11 @@ export class WorldScene extends Phaser.Scene {
     if (this.input.keyboard) {
       this.input.keyboard.removeAllKeys(true);
     }
+
+    // Clean up map chunks
+    this.mapChunks.forEach(rt => rt.destroy());
+    this.mapChunks.clear();
+    this.decoTilesByChunk.clear();
 
     // Remove event listeners from canvas
     this.input.removeAllListeners();
