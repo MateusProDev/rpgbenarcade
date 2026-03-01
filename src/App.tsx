@@ -1,5 +1,6 @@
 // ========================
-// App - Main Application
+// App — Main Application
+// Cinematic loading, smooth transitions
 // ========================
 import { useGameStore } from "./store/gameStore";
 import { useAuth } from "./hooks/useAuth";
@@ -17,26 +18,42 @@ import { ShopPanel } from "./ui/ShopPanel";
 import { DialoguePanel } from "./ui/DialoguePanel";
 import "./ui/styles.css";
 
+const LOADING_TIPS = [
+  "💡 Use WASD ou clique no mapa para mover seu herói",
+  "💡 Pressione E perto de NPCs para interagir",
+  "💡 Distribua atributos ao subir de nível (I para inventário)",
+  "💡 O mundo muda entre dia e noite — esteja preparado",
+  "💡 Explore masmorras para encontrar loot raro",
+];
+
 function App() {
   const isAuthenticated = useGameStore((s) => s.isAuthenticated);
   const isLoading = useGameStore((s) => s.isLoading);
   const player = useGameStore((s) => s.player);
 
-  // Initialize auth listener
   useAuth();
-
-  // Auto-save
   useAutoSave();
 
-  // Loading screen
+  // Cinematic loading screen
   if (isLoading) {
+    const tip = LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)];
     return (
       <div className="loading-screen">
-        <h1>⚔️ RPG Ben Arcade ⚔️</h1>
-        <p style={{ color: "#888899", fontFamily: "Georgia, serif" }}>
-          Carregando o mundo...
-        </p>
-        <div className="loading-spinner" />
+        <div className="loading-bg-anim" />
+        <div className="loading-content">
+          <div className="loading-logo-frame">
+            <span className="loading-logo-icon">⚔️</span>
+          </div>
+          <h1 className="loading-title">RPG Ben Arcade</h1>
+          <p className="loading-subtitle">Era das Sombras</p>
+          <div className="loading-bar-container">
+            <div className="loading-bar">
+              <div className="loading-bar-fill" />
+            </div>
+            <p className="loading-status">Preparando o mundo medieval...</p>
+          </div>
+          <div className="loading-tips">{tip}</div>
+        </div>
       </div>
     );
   }
