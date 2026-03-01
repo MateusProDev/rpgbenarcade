@@ -1,5 +1,6 @@
 // ========================
 // World Scene - Main Game Scene
+// Click-to-move + WASD + full gameplay
 // ========================
 import Phaser from "phaser";
 import { throttle } from "lodash";
@@ -15,6 +16,7 @@ import type { MapId, RemotePlayer, Direction, EnemyType, Item } from "../../type
 const PLAYER_SPEED = 160;
 const ATTACK_RANGE = 60;
 const ATTACK_COOLDOWN = 600;
+const CLICK_STOP_DIST = 6;
 
 interface EnemySprite extends Phaser.Physics.Arcade.Sprite {
   enemyType: EnemyType;
@@ -68,6 +70,14 @@ export class WorldScene extends Phaser.Scene {
   private dayNightOverlay!: Phaser.GameObjects.Rectangle;
   private dayNightTime = 0;
 
+  // Click-to-move state
+  private moveTarget: { x: number; y: number } | null = null;
+  private clickMarker?: Phaser.GameObjects.Sprite;
+  private clickMarkerTween?: Phaser.Tweens.Tween;
+
+  // Shadow
+  private playerShadow!: Phaser.GameObjects.Ellipse;
+
   // Throttled position update
   private throttledUpdatePosition = throttle(
     (uid: string, x: number, y: number, dir: string, map: MapId) => {
@@ -95,6 +105,10 @@ export class WorldScene extends Phaser.Scene {
     // Generate map tiles
     this.generateMap(mapConfig.width, mapConfig.height);
 
+    // Create player shadow
+    this.playerShadow = this.add.ellipse(0, 0, 24, 8, 0x000000, 0.3);
+    this.playerShadow.setDepth(9);
+
     // Create player
     const textureKey = `player_${playerData.classType}`;
     this.player = this.physics.add.sprite(
@@ -104,15 +118,15 @@ export class WorldScene extends Phaser.Scene {
     );
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
-    this.player.setScale(1.2);
+    this.player.setScale(1);
 
     // Player name
-    this.nameText = this.add.text(this.player.x, this.player.y - 28, playerData.name, {
+    this.nameText = this.add.text(this.player.x, this.player.y - 30, playerData.name, {
       fontSize: "11px",
       color: "#ffffff",
-      fontFamily: "serif",
+      fontFamily: "Georgia, serif",
       stroke: "#000000",
-      strokeThickness: 2,
+      strokeThickness: 3,
     });
     this.nameText.setOrigin(0.5, 1);
     this.nameText.setDepth(11);
@@ -125,24 +139,58 @@ export class WorldScene extends Phaser.Scene {
 
     // Camera
     this.cameras.main.setBounds(0, 0, mapConfig.width, mapConfig.height);
-    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-    this.cameras.main.setZoom(1.5);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.setZoom(1.8);
 
-    // Input
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = {
-      W: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      A: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      S: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
-    this.attackKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.skillKeys = [
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
-      this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
-    ];
+    // === KEYBOARD INPUT ===
+    if (this.input.keyboard) {
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.wasd = {
+        W: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        A: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+        S: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+        D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      };
+      this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+      this.skillKeys = [
+        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE),
+        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
+        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
+        this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR),
+      ];
+
+      // Interact & pickup keys
+      this.input.keyboard.on("keydown-E", () => this.interact());
+      this.input.keyboard.on("keydown-P", () => this.pickupItem());
+    }
+
+    // === CLICK-TO-MOVE (mouse & touch) ===
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      // Only left click; ignore if over UI
+      if (pointer.leftButtonDown()) {
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        this.moveTarget = { x: worldPoint.x, y: worldPoint.y };
+        this.showClickMarker(worldPoint.x, worldPoint.y);
+      }
+    });
+
+    // Right-click = attack towards mouse
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown()) {
+        this.handleAttack();
+      }
+    });
+
+    // Disable context menu on canvas
+    this.game.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // Re-focus canvas on click so keyboard works
+    this.game.canvas.setAttribute("tabindex", "1");
+    this.game.canvas.addEventListener("mousedown", () => {
+      this.game.canvas.focus();
+    });
+    // Focus on start
+    this.game.canvas.focus();
 
     // Spawn enemies
     this.spawnEnemies();
@@ -172,20 +220,58 @@ export class WorldScene extends Phaser.Scene {
       loop: true,
     });
 
-    // Interact key
-    this.input.keyboard!.on("keydown-E", () => this.interact());
-    this.input.keyboard!.on("keydown-P", () => this.pickupItem());
-
-    // Map display text
+    // Map display text + minimap coordinates
     const mapLabel = this.add.text(10, 10, mapConfig.name, {
-      fontSize: "16px",
+      fontSize: "14px",
       color: "#c4a35a",
-      fontFamily: "serif",
+      fontFamily: "Georgia, serif",
       stroke: "#000000",
       strokeThickness: 3,
     });
     mapLabel.setScrollFactor(0);
     mapLabel.setDepth(200);
+
+    // Controls hint
+    const hint = this.add.text(10, 28, "WASD/Setas: mover | Click: ir até | Espaço: atacar | E: interagir | P: pegar", {
+      fontSize: "9px",
+      color: "#888899",
+      fontFamily: "Georgia, serif",
+      stroke: "#000000",
+      strokeThickness: 2,
+    });
+    hint.setScrollFactor(0);
+    hint.setDepth(200);
+
+    // Fade hint after 6s
+    this.time.delayedCall(6000, () => {
+      this.tweens.add({ targets: hint, alpha: 0, duration: 1000, onComplete: () => hint.destroy() });
+    });
+  }
+
+  showClickMarker(x: number, y: number) {
+    // Remove old marker
+    if (this.clickMarkerTween) this.clickMarkerTween.stop();
+    if (this.clickMarker) this.clickMarker.destroy();
+
+    this.clickMarker = this.add.sprite(x, y, "click_target");
+    this.clickMarker.setDepth(101);
+    this.clickMarker.setAlpha(0.8);
+    this.clickMarker.setScale(0.6);
+
+    this.clickMarkerTween = this.tweens.add({
+      targets: this.clickMarker,
+      alpha: 0,
+      scaleX: 0.2,
+      scaleY: 0.2,
+      duration: 600,
+      ease: "Power2",
+      onComplete: () => {
+        if (this.clickMarker) {
+          this.clickMarker.destroy();
+          this.clickMarker = undefined;
+        }
+      },
+    });
   }
 
   generateMap(width: number, height: number) {
@@ -889,71 +975,135 @@ export class WorldScene extends Phaser.Scene {
     if (playerData.hp <= 0) {
       this.player.setVelocity(0, 0);
       this.player.setTint(0x333333);
-      // Auto respawn after 3 seconds
+      this.moveTarget = null;
       if (!this.player.getData("respawnScheduled")) {
         this.player.setData("respawnScheduled", true);
-        store.addNotification("Você morreu! Respawnando...");
+        store.addNotification("Você morreu! Respawnando em 3s...");
         this.time.delayedCall(3000, () => {
           store.respawn();
           this.player.setData("respawnScheduled", false);
+          this.player.clearTint();
           this.changeMap("village", 400, 300);
         });
       }
       return;
     }
 
-    // Movement
+    // ============================
+    // MOVEMENT: Keyboard + Click
+    // ============================
     let vx = 0;
     let vy = 0;
-    if (this.cursors.left.isDown || this.wasd.A.isDown) { vx = -PLAYER_SPEED; this.direction = "left"; }
-    else if (this.cursors.right.isDown || this.wasd.D.isDown) { vx = PLAYER_SPEED; this.direction = "right"; }
-    if (this.cursors.up.isDown || this.wasd.W.isDown) { vy = -PLAYER_SPEED; this.direction = "up"; }
-    else if (this.cursors.down.isDown || this.wasd.S.isDown) { vy = PLAYER_SPEED; this.direction = "down"; }
+    let keyboardMoving = false;
+
+    // Keyboard input (only if keys exist and canvas has focus)
+    if (this.cursors && this.wasd) {
+      if (this.cursors.left?.isDown || this.wasd.A?.isDown) { vx = -PLAYER_SPEED; this.direction = "left"; keyboardMoving = true; }
+      else if (this.cursors.right?.isDown || this.wasd.D?.isDown) { vx = PLAYER_SPEED; this.direction = "right"; keyboardMoving = true; }
+      if (this.cursors.up?.isDown || this.wasd.W?.isDown) { vy = -PLAYER_SPEED; this.direction = "up"; keyboardMoving = true; }
+      else if (this.cursors.down?.isDown || this.wasd.S?.isDown) { vy = PLAYER_SPEED; this.direction = "down"; keyboardMoving = true; }
+    }
+
+    // Keyboard cancels click-to-move
+    if (keyboardMoving) {
+      this.moveTarget = null;
+    }
+
+    // Click-to-move pathfinding
+    if (!keyboardMoving && this.moveTarget) {
+      const dx = this.moveTarget.x - this.player.x;
+      const dy = this.moveTarget.y - this.player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < CLICK_STOP_DIST) {
+        // Arrived at destination
+        this.moveTarget = null;
+        vx = 0;
+        vy = 0;
+      } else {
+        // Move towards target
+        const angle = Math.atan2(dy, dx);
+        vx = Math.cos(angle) * PLAYER_SPEED;
+        vy = Math.sin(angle) * PLAYER_SPEED;
+
+        // Determine direction for sprite facing
+        if (Math.abs(dx) > Math.abs(dy)) {
+          this.direction = dx > 0 ? "right" : "left";
+        } else {
+          this.direction = dy > 0 ? "down" : "up";
+        }
+      }
+    }
 
     // Normalize diagonal
-    if (vx !== 0 && vy !== 0) {
+    if (vx !== 0 && vy !== 0 && keyboardMoving) {
       vx *= 0.707;
       vy *= 0.707;
     }
 
     this.player.setVelocity(vx, vy);
+    const isMoving = vx !== 0 || vy !== 0;
 
-    // Attack
-    if (Phaser.Input.Keyboard.JustDown(this.attackKey)) {
+    // Subtle bobbing animation when moving
+    if (isMoving) {
+      this.player.setY(this.player.y + Math.sin(_time * 0.01) * 0.15);
+    }
+
+    // ============================
+    // ATTACK (keyboard)
+    // ============================
+    if (this.attackKey && Phaser.Input.Keyboard.JustDown(this.attackKey)) {
       this.handleAttack();
     }
 
-    // Skills
-    this.skillKeys.forEach((key, index) => {
-      if (Phaser.Input.Keyboard.JustDown(key)) {
-        this.handleSkill(index);
-      }
-    });
+    // Skills (keyboard)
+    if (this.skillKeys) {
+      this.skillKeys.forEach((key, index) => {
+        if (key && Phaser.Input.Keyboard.JustDown(key)) {
+          this.handleSkill(index);
+        }
+      });
+    }
 
-    // Update UI elements
-    this.nameText.setPosition(this.player.x, this.player.y - 28);
+    // ============================
+    // UPDATE VISUALS
+    // ============================
+    // Shadow
+    this.playerShadow.setPosition(this.player.x, this.player.y + 20);
+
+    // Player name
+    this.nameText.setPosition(this.player.x, this.player.y - 30);
 
     // HP Bar
     this.hpBarBg.clear();
     this.hpBarFg.clear();
-    this.hpBarBg.fillStyle(0x333333, 1);
-    this.hpBarBg.fillRect(this.player.x - 16, this.player.y - 22, 32, 3);
-    const hpPercent = playerData.hp / playerData.maxHp;
-    this.hpBarFg.fillStyle(hpPercent > 0.3 ? 0x44cc44 : 0xcc4444, 1);
-    this.hpBarFg.fillRect(this.player.x - 16, this.player.y - 22, 32 * hpPercent, 3);
+    const barW = 36;
+    const barH = 4;
+    const barX = this.player.x - barW / 2;
+    const barY = this.player.y - 24;
+    this.hpBarBg.fillStyle(0x111111, 0.8);
+    this.hpBarBg.fillRoundedRect(barX - 1, barY - 1, barW + 2, barH + 2, 2);
+    const hpPercent = Math.max(0, playerData.hp / playerData.maxHp);
+    const hpColor = hpPercent > 0.6 ? 0x44cc44 : hpPercent > 0.3 ? 0xddaa22 : 0xcc4444;
+    this.hpBarFg.fillStyle(hpColor, 1);
+    this.hpBarFg.fillRoundedRect(barX, barY, barW * hpPercent, barH, 1);
 
-    // Update enemy positions and HP bars
+    // ============================
+    // ENEMIES AI + BARS
+    // ============================
     this.enemies.forEach((enemy) => {
       if (enemy.isDead) return;
 
       // HP bar
       enemy.hpBar.clear();
-      enemy.hpBar.fillStyle(0x333333, 1);
-      enemy.hpBar.fillRect(enemy.x - 16, enemy.y - 18, 32, 3);
+      const eBarX = enemy.x - 16;
+      const eBarY = enemy.y - 20;
+      enemy.hpBar.fillStyle(0x111111, 0.7);
+      enemy.hpBar.fillRoundedRect(eBarX - 1, eBarY - 1, 34, 5, 2);
       const eHpPercent = enemy.hp / enemy.maxHp;
       enemy.hpBar.fillStyle(eHpPercent > 0.3 ? 0xcc4444 : 0xff0000, 1);
-      enemy.hpBar.fillRect(enemy.x - 16, enemy.y - 18, 32 * eHpPercent, 3);
-      enemy.nameText.setPosition(enemy.x, enemy.y - 20);
+      enemy.hpBar.fillRoundedRect(eBarX, eBarY, 32 * eHpPercent, 3, 1);
+      enemy.nameText.setPosition(enemy.x, enemy.y - 22);
 
       // AI - chase player if in range
       const dist = Phaser.Math.Distance.Between(
@@ -961,12 +1111,11 @@ export class WorldScene extends Phaser.Scene {
       );
 
       if (dist < enemy.aggroRange) {
-        // Move towards player
         const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
         const speed = getEnemyConfig(enemy.enemyType).speed;
         enemy.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
 
-        // Attack player
+        // Attack player in melee
         const now = Date.now();
         if (dist < 40 && now - enemy.lastAttack > 1000) {
           enemy.lastAttack = now;
@@ -974,22 +1123,28 @@ export class WorldScene extends Phaser.Scene {
           const dmg = Math.max(1, Math.floor(enemy.damage - defense * 0.3));
           store.takeDamage(dmg);
 
-          // Damage number on player
-          const dmgText = this.add.text(this.player.x, this.player.y - 30, `-${dmg}`, {
-            fontSize: "11px",
+          const dmgText = this.add.text(this.player.x + (Math.random() - 0.5) * 20, this.player.y - 30, `-${dmg}`, {
+            fontSize: "12px",
             color: "#ff6666",
-            fontFamily: "serif",
+            fontFamily: "Georgia, serif",
+            fontStyle: "bold",
             stroke: "#000000",
-            strokeThickness: 2,
+            strokeThickness: 3,
           });
           dmgText.setOrigin(0.5);
           dmgText.setDepth(30);
           this.tweens.add({
             targets: dmgText,
-            y: dmgText.y - 25,
+            y: dmgText.y - 30,
             alpha: 0,
-            duration: 700,
+            duration: 800,
             onComplete: () => dmgText.destroy(),
+          });
+
+          // Player hurt flash
+          this.player.setTint(0xff4444);
+          this.time.delayedCall(100, () => {
+            if (playerData.hp > 0) this.player.clearTint();
           });
         }
       } else {
@@ -1006,7 +1161,9 @@ export class WorldScene extends Phaser.Scene {
       }
     });
 
-    // Auto portal check
+    // ============================
+    // PORTAL CHECK
+    // ============================
     this.portals.forEach((portal) => {
       const dist = Phaser.Math.Distance.Between(
         this.player.x, this.player.y, portal.x, portal.y
@@ -1017,8 +1174,10 @@ export class WorldScene extends Phaser.Scene {
       }
     });
 
-    // Update position to Firebase (throttled)
-    if (vx !== 0 || vy !== 0) {
+    // ============================
+    // FIREBASE SYNC
+    // ============================
+    if (isMoving) {
       this.throttledUpdatePosition(
         playerData.uid,
         this.player.x,
@@ -1032,7 +1191,9 @@ export class WorldScene extends Phaser.Scene {
       });
     }
 
-    // Day/Night cycle
+    // ============================
+    // DAY/NIGHT CYCLE
+    // ============================
     this.dayNightTime += delta * 0.00005;
     const nightAlpha = Math.max(0, Math.sin(this.dayNightTime) * 0.4);
     this.dayNightOverlay.setAlpha(nightAlpha);
@@ -1041,18 +1202,14 @@ export class WorldScene extends Phaser.Scene {
     else if (nightAlpha < 0.15) store.setTimeOfDay(Math.sin(this.dayNightTime) > 0 ? "dusk" : "dawn");
     else store.setTimeOfDay("night");
 
-    // Mana regeneration
+    // ============================
+    // REGEN
+    // ============================
     if (playerData.mana < playerData.maxMana) {
-      if (Math.random() < 0.02) {
-        store.restoreMana(1);
-      }
+      if (Math.random() < 0.02) store.restoreMana(1);
     }
-
-    // HP regeneration (out of combat)
     if (playerData.hp < playerData.maxHp && playerData.hp > 0) {
-      if (Math.random() < 0.005) {
-        store.heal(1);
-      }
+      if (Math.random() < 0.005) store.heal(1);
     }
   }
 
