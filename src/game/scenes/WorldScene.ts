@@ -99,6 +99,16 @@ export class WorldScene extends Phaser.Scene {
     const playerData = store.player;
     if (!playerData) return;
 
+    // Reset all arrays/maps to prevent stale references on scene restart
+    this.enemies = [];
+    this.remotePlayers = new Map();
+    this.itemDrops = [];
+    this.npcs = [];
+    this.portals = [];
+    this.moveTarget = null;
+    this.lastAttackTime = 0;
+    this.direction = "down";
+
     this.currentMap = playerData.currentMap || "village";
     store.setCurrentMap(this.currentMap);
     const mapConfig = getMapConfig(this.currentMap);
@@ -131,7 +141,7 @@ export class WorldScene extends Phaser.Scene {
     // Camera
     this.cameras.main.setBounds(0, 0, mapConfig.width, mapConfig.height);
     this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
-    this.cameras.main.setZoom(1.8);
+    this.cameras.main.setZoom(1.3);
 
     // Keyboard input
     if (this.input.keyboard) {
@@ -286,147 +296,176 @@ export class WorldScene extends Phaser.Scene {
 
   // --- VILLAGE DECORATION ---
   decorateVillage(w: number, h: number, _ts: number) {
-    // Cobblestone paths (cross pattern through center)
     const cx = w / 2;
     const cy = h / 2;
 
-    // Horizontal path
+    // Cobblestone paths (cross pattern)
     for (let x = 80; x < w - 80; x += 32) {
       this.add.image(x, cy, "tile_path").setDepth(0);
       this.add.image(x, cy + 32, "tile_path").setDepth(0);
     }
-    // Vertical path
     for (let y = 80; y < h - 80; y += 32) {
       this.add.image(cx, y, "tile_path").setDepth(0);
       this.add.image(cx + 32, y, "tile_path").setDepth(0);
+    }
+    // Secondary paths connecting buildings
+    for (let x = 150; x < 500; x += 32) {
+      this.add.image(x, 350, "tile_path").setDepth(0);
+    }
+    for (let x = w - 500; x < w - 150; x += 32) {
+      this.add.image(x, 550, "tile_path").setDepth(0);
     }
 
     // Fountain in center
     const fountain = this.add.image(cx, cy, "deco_fountain");
     fountain.setDepth(3);
-    // Fountain collision
     const fBlock = this.decoColliders.create(cx, cy + 6, "deco_fountain");
     fBlock.setVisible(false);
     fBlock.body.setSize(40, 20);
     fBlock.body.setOffset(4, 28);
     fBlock.refreshBody();
 
-    // Building 1 - Elder's House (top-left)
-    this.addRichBuilding(200, 120, 8, 5, 0xaa6633, "Ancião");
-    // Building 2 - Blacksmith (top-right)
-    this.addRichBuilding(600, 130, 7, 5, 0x666666, "Ferreiro");
-    // Building 3 - Healer cottage (bottom-left)
-    this.addRichBuilding(150, 450, 6, 4, 0x88aa55, "Curandeira");
-    // Building 4 - Guild hall (center-right)
-    this.addRichBuilding(550, 420, 8, 6, 0x8855aa, "Guilda");
-    // Building 5 - Tavern (top-center)
-    this.addRichBuilding(400, 100, 7, 4, 0xcc8844, "Taverna");
+    // Buildings spread across 2400×1800
+    this.addRichBuilding(200, 150, 8, 5, 0xaa6633, "Ancião");
+    this.addRichBuilding(900, 150, 7, 5, 0x666666, "Ferreiro");
+    this.addRichBuilding(1600, 150, 7, 4, 0xcc8844, "Taverna");
+    this.addRichBuilding(200, 700, 6, 4, 0x88aa55, "Curandeira");
+    this.addRichBuilding(900, 700, 8, 6, 0x8855aa, "Guilda");
+    this.addRichBuilding(1600, 700, 7, 5, 0x886644, "Loja");
+    this.addRichBuilding(200, 1200, 7, 4, 0xaa5533, "Armeiro");
+    this.addRichBuilding(1600, 1200, 6, 4, 0x557788, "Biblioteca");
 
-    // Market stalls near blacksmith
-    this.addDeco(680, 280, "deco_barrel", false);
-    this.addDeco(700, 280, "deco_crate", false);
-    this.addDeco(720, 280, "deco_barrel", false);
-
-    // Well near healer
-    const well = this.addDeco(280, 480, "deco_well", true);
-    if (well) { well.body.setSize(28, 14); well.body.setOffset(2, 22); well.refreshBody(); }
-
-    // Gardens with flowers and fences
-    this.addDeco(100, 340, "deco_fence", false);
-    this.addDeco(132, 340, "deco_fence", false);
-    this.addDeco(164, 340, "deco_fence", false);
-    for (let i = 0; i < 8; i++) {
-      const fx = 100 + Math.random() * 100;
-      const fy = 310 + Math.random() * 25;
-      const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue"];
-      this.addDeco(fx, fy, flowers[Math.floor(Math.random() * 3)], false);
+    // Market area (center-right)
+    for (let i = 0; i < 5; i++) {
+      this.addDeco(1400 + i * 30, 500, "deco_barrel", false);
+      if (i % 2 === 0) this.addDeco(1400 + i * 30, 530, "deco_crate", false);
     }
 
-    // Trees along edges
+    // Wells
+    const well1 = this.addDeco(450, 500, "deco_well", true);
+    if (well1) { well1.body.setSize(28, 14); well1.body.setOffset(2, 22); well1.refreshBody(); }
+    const well2 = this.addDeco(1800, 1000, "deco_well", true);
+    if (well2) { well2.body.setSize(28, 14); well2.body.setOffset(2, 22); well2.refreshBody(); }
+
+    // Multiple garden areas with fences and flowers
+    const gardenAreas = [[150, 500], [800, 1100], [1500, 1400], [2000, 600]];
+    gardenAreas.forEach(([gx, gy]) => {
+      for (let i = 0; i < 4; i++) this.addDeco(gx + i * 32, gy, "deco_fence", false);
+      for (let i = 0; i < 10; i++) {
+        const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue"];
+        this.addDeco(gx + Math.random() * 120, gy - 20 - Math.random() * 30, flowers[Math.floor(Math.random() * 3)], false);
+      }
+    });
+
+    // Trees along all edges and scattered
     const treePositions = [
-      [80, 80], [160, 60], [240, 70], [w - 120, 80], [w - 200, 60],
-      [80, h - 120], [160, h - 100], [w - 120, h - 120], [w - 200, h - 100],
-      [80, 200], [80, 400], [80, 600], [w - 80, 200], [w - 80, 400],
+      [80, 80], [200, 60], [350, 70], [500, 60], [700, 80], [900, 60],
+      [w - 120, 80], [w - 250, 60], [w - 400, 70], [w - 550, 80],
+      [80, h - 120], [200, h - 100], [400, h - 120], [600, h - 100],
+      [w - 120, h - 120], [w - 250, h - 100], [w - 400, h - 110],
+      [80, 250], [80, 450], [80, 650], [80, 850], [80, 1050], [80, 1250],
+      [w - 80, 250], [w - 80, 450], [w - 80, 650], [w - 80, 850], [w - 80, 1050],
+      [600, 400], [1400, 300], [1100, 1100], [500, 1400], [1900, 1400],
     ];
     treePositions.forEach(([tx, ty]) => {
       const tree = this.addDeco(tx, ty, "deco_tree", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     });
 
-    // Bushes
-    this.addDeco(320, 200, "deco_bush", false);
-    this.addDeco(500, 350, "deco_bush", false);
-    this.addDeco(700, 400, "deco_bush", false);
-    this.addDeco(350, 550, "deco_bush", false);
+    // Bushes scattered
+    const bushSpots = [[400, 300], [700, 550], [1100, 400], [500, 800], [1300, 1000], [1800, 500], [300, 1400], [2100, 800], [1000, 1500], [2000, 1200]];
+    bushSpots.forEach(([bx, by]) => this.addDeco(bx, by, "deco_bush", false));
 
     // Rocks
-    this.addDeco(450, 500, "deco_rock", false);
-    this.addDeco(650, 150, "deco_rock", false);
+    this.addDeco(650, 250, "deco_rock", false);
+    this.addDeco(1300, 600, "deco_rock", false);
+    this.addDeco(2100, 400, "deco_rock", false);
+    this.addDeco(500, 1300, "deco_rock", false);
 
     // Barrels & crates near buildings
-    this.addDeco(260, 180, "deco_barrel", false);
-    this.addDeco(280, 180, "deco_crate", false);
-    this.addDeco(660, 180, "deco_barrel", false);
+    this.addDeco(460, 200, "deco_barrel", false);
+    this.addDeco(480, 200, "deco_crate", false);
+    this.addDeco(1160, 200, "deco_barrel", false);
+    this.addDeco(1860, 200, "deco_crate", false);
+    this.addDeco(460, 750, "deco_barrel", false);
+    this.addDeco(1160, 900, "deco_crate", false);
+    this.addDeco(460, 1250, "deco_barrel", false);
+    this.addDeco(1860, 1250, "deco_barrel", false);
   }
 
   // --- FIELDS DECORATION ---
   decorateFields(w: number, h: number, _ts: number) {
-    // Dirt paths
-    for (let x = 80; x < 400; x += 32) {
+    // Main dirt paths connecting areas
+    for (let x = 80; x < 600; x += 32) {
       this.add.image(x, h / 3, "tile_dirt").setDepth(0);
       this.add.image(x, h / 3 + 32, "tile_dirt").setDepth(0);
     }
     for (let y = 200; y < h - 200; y += 32) {
-      this.add.image(w / 3, y, "tile_dirt").setDepth(0);
+      this.add.image(w / 4, y, "tile_dirt").setDepth(0);
+      this.add.image(3 * w / 4, y, "tile_dirt").setDepth(0);
+    }
+    // Cross path
+    for (let x = w / 4; x < 3 * w / 4; x += 32) {
+      this.add.image(x, h / 2, "tile_dirt").setDepth(0);
     }
 
-    // Farm plots (green crop rows)
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 6; col++) {
-        const px = 500 + col * 40;
-        const py = 200 + row * 50;
-        // Dark soil
-        this.add.image(px, py, "tile_dirt").setDepth(0);
-        // Crop sprouts (using flowers)
-        if (Math.random() > 0.3) {
-          this.addDeco(px, py - 8, "deco_flower_yellow", false);
+    // Multiple farm plots spread across 3200×2400
+    const farmPlots = [[600, 300], [1200, 250], [2000, 400], [600, 1200], [1800, 1400], [2500, 800]];
+    farmPlots.forEach(([fx, fy]) => {
+      for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 6; col++) {
+          const px = fx + col * 40;
+          const py = fy + row * 50;
+          this.add.image(px, py, "tile_dirt").setDepth(0);
+          if (Math.random() > 0.25) {
+            this.addDeco(px, py - 8, "deco_flower_yellow", false);
+          }
         }
       }
-    }
+      // Fences around each plot
+      for (let x = fx - 20; x < fx + 260; x += 32) {
+        this.addDeco(x, fy - 30, "deco_fence", false);
+        this.addDeco(x, fy + 220, "deco_fence", false);
+      }
+    });
 
-    // Haystacks
+    // Haystacks in clusters
     const haystackPos = [
-      [350, 500], [400, 520], [380, 540],
-      [900, 300], [940, 310],
-      [1400, 600], [1440, 630],
+      [400, 700], [440, 730], [420, 760],
+      [1100, 500], [1150, 520], [1130, 550],
+      [1800, 700], [1840, 730],
+      [2500, 1200], [2540, 1230], [2520, 1260],
+      [700, 1800], [740, 1830],
+      [2200, 1700], [2240, 1730], [2260, 1700],
     ];
     haystackPos.forEach(([hx, hy]) => this.addDeco(hx, hy, "deco_haystack", false));
 
-    // Scattered trees
+    // Trees scattered across large map
     const fieldTrees = [
-      [200, 250], [350, 150], [800, 700], [1000, 200],
-      [1200, 500], [1500, 300], [1700, 800], [1800, 200],
-      [300, 900], [600, 1100], [900, 1000], [1400, 1200],
+      [250, 350], [500, 200], [1000, 400], [1500, 250],
+      [1800, 600], [2200, 350], [2800, 500], [3000, 300],
+      [300, 1000], [800, 1300], [1200, 1600], [1600, 1000],
+      [2000, 1200], [2400, 1500], [2800, 1100], [3000, 1400],
+      [400, 1800], [900, 2000], [1400, 2100], [2000, 2000],
+      [2500, 1900], [3000, 1800], [150, 1500], [2800, 1800],
     ];
     fieldTrees.forEach(([tx, ty]) => {
       const tree = this.addDeco(tx, ty, "deco_tree", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     });
 
-    // Fences bordering farm area
-    for (let x = 460; x < 760; x += 32) {
-      this.addDeco(x, 170, "deco_fence", false);
-      this.addDeco(x, 430, "deco_fence", false);
-    }
-
-    // Rocks and boulders
-    this.addDeco(700, 800, "deco_boulder", true);
-    this.addDeco(1100, 400, "deco_rock", false);
-    this.addDeco(1300, 700, "deco_rock", false);
-    this.addDeco(200, 700, "deco_boulder", true);
+    // Boulders and rocks
+    this.addDeco(900, 1100, "deco_boulder", true);
+    this.addDeco(1600, 600, "deco_boulder", true);
+    this.addDeco(2300, 1000, "deco_boulder", true);
+    this.addDeco(500, 1600, "deco_rock", false);
+    this.addDeco(1300, 900, "deco_rock", false);
+    this.addDeco(2100, 1500, "deco_rock", false);
+    this.addDeco(2900, 700, "deco_rock", false);
+    this.addDeco(300, 2100, "deco_rock", false);
 
     // Bushes
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 20; i++) {
       this.addDeco(
         150 + Math.random() * (w - 300),
         150 + Math.random() * (h - 300),
@@ -434,15 +473,18 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
-    // Small pond (water tiles)
-    for (let px = 0; px < 4; px++) {
-      for (let py = 0; py < 3; py++) {
-        this.add.image(1100 + px * 32, 900 + py * 32, "tile_water").setDepth(0);
+    // Ponds (water)
+    const ponds = [[1500, 1300], [2600, 600]];
+    ponds.forEach(([px, py]) => {
+      for (let ix = 0; ix < 4; ix++) {
+        for (let iy = 0; iy < 3; iy++) {
+          this.add.image(px + ix * 32, py + iy * 32, "tile_water").setDepth(0);
+        }
       }
-    }
+    });
 
-    // Flowers near path
-    for (let i = 0; i < 15; i++) {
+    // Flowers everywhere
+    for (let i = 0; i < 30; i++) {
       const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue"];
       this.addDeco(
         100 + Math.random() * (w - 200),
@@ -451,18 +493,19 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
-    // Tree stumps
-    this.addDeco(600, 350, "deco_stump", false);
-    this.addDeco(1600, 500, "deco_stump", false);
+    // Stumps
+    this.addDeco(800, 500, "deco_stump", false);
+    this.addDeco(2200, 900, "deco_stump", false);
+    this.addDeco(1400, 1800, "deco_stump", false);
+    this.addDeco(600, 2100, "deco_stump", false);
   }
 
   // --- FOREST DECORATION ---
   decorateForest(w: number, h: number, _ts: number) {
-    // Dense tree coverage
-    const numTrees = 60;
+    // Dense tree coverage for 2800×2200
+    const numTrees = 100;
     const placed: { x: number; y: number }[] = [];
 
-    // Clear paths for player movement (thin corridors)
     const pathY = h / 2;
     const pathX = w / 2;
 
@@ -470,12 +513,10 @@ export class WorldScene extends Phaser.Scene {
       const tx = 80 + Math.random() * (w - 160);
       const ty = 80 + Math.random() * (h - 160);
 
-      // Keep corridors clear
       const nearPathH = Math.abs(ty - pathY) < 60;
       const nearPathV = Math.abs(tx - pathX) < 60;
       if (nearPathH || nearPathV) continue;
 
-      // Min distance between trees
       const tooClose = placed.some(
         (p) => Math.abs(p.x - tx) < 40 && Math.abs(p.y - ty) < 40
       );
@@ -491,19 +532,20 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Mushroom clusters
+    // Mushroom clusters spread across large forest
     const mushClusters = [
-      [300, 500], [700, 300], [500, 900], [1200, 600],
-      [1000, 1000], [400, 1200], [1500, 400],
+      [400, 600], [900, 400], [600, 1200], [1600, 700],
+      [1300, 1400], [500, 1700], [2000, 500], [2200, 1000],
+      [1800, 1600], [700, 2000], [2400, 400], [1000, 1800],
     ];
     mushClusters.forEach(([mx, my]) => {
-      for (let j = 0; j < 3; j++) {
-        this.addDeco(mx + (Math.random() - 0.5) * 30, my + (Math.random() - 0.5) * 20, "deco_mushroom", false);
+      for (let j = 0; j < 4; j++) {
+        this.addDeco(mx + (Math.random() - 0.5) * 40, my + (Math.random() - 0.5) * 30, "deco_mushroom", false);
       }
     });
 
     // Bushes (lots)
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 35; i++) {
       this.addDeco(
         100 + Math.random() * (w - 200),
         100 + Math.random() * (h - 200),
@@ -511,8 +553,8 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
-    // Rocks
-    for (let i = 0; i < 8; i++) {
+    // Rocks and boulders
+    for (let i = 0; i < 14; i++) {
       this.addDeco(
         150 + Math.random() * (w - 300),
         150 + Math.random() * (h - 300),
@@ -522,12 +564,11 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Stumps (fallen trees)
-    this.addDeco(600, 700, "deco_stump", false);
-    this.addDeco(1100, 500, "deco_stump", false);
-    this.addDeco(400, 400, "deco_stump", false);
+    const stumpPos = [[800, 900], [1400, 700], [500, 500], [2000, 800], [1200, 1600], [600, 1900], [2200, 1300]];
+    stumpPos.forEach(([sx, sy]) => this.addDeco(sx, sy, "deco_stump", false));
 
-    // Flowers (sparse, forest floor)
-    for (let i = 0; i < 10; i++) {
+    // Blue flowers (sparse, mystical forest floor)
+    for (let i = 0; i < 20; i++) {
       this.addDeco(
         100 + Math.random() * (w - 200),
         100 + Math.random() * (h - 200),
@@ -535,8 +576,8 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
-    // Mossy dark patches using dark tiles
-    for (let i = 0; i < 5; i++) {
+    // Mossy dark patches
+    for (let i = 0; i < 10; i++) {
       const dx = 200 + Math.random() * (w - 400);
       const dy = 200 + Math.random() * (h - 400);
       for (let px = 0; px < 2; px++) {
@@ -545,44 +586,78 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     }
+
+    // Small clearings with dirt
+    const clearings = [[w / 4, h / 4], [3 * w / 4, 3 * h / 4], [w / 2, h / 4 * 3]];
+    clearings.forEach(([clx, cly]) => {
+      for (let px = -2; px <= 2; px++) {
+        for (let py = -2; py <= 2; py++) {
+          if (Math.sqrt(px * px + py * py) <= 2) {
+            this.add.image(clx + px * 32, cly + py * 32, "tile_dirt").setDepth(0).setAlpha(0.5);
+          }
+        }
+      }
+    });
   }
 
   // --- DUNGEON DECORATION ---
   decorateDungeon(w: number, h: number, _ts: number) {
-    // Replace floor tiles in corridors with stone  
+    // Stone corridors for 2400×1800
     // Main corridor (horizontal)
     for (let x = 64; x < w - 64; x += 32) {
       this.add.image(x, h / 2, "tile_stone").setDepth(0);
       this.add.image(x, h / 2 + 32, "tile_stone").setDepth(0);
       this.add.image(x, h / 2 - 32, "tile_stone").setDepth(0);
     }
-    // Vertical corridor
+    // Vertical corridors
     for (let y = 64; y < h - 64; y += 32) {
-      this.add.image(w / 3, y, "tile_stone").setDepth(0);
-      this.add.image(w / 3 + 32, y, "tile_stone").setDepth(0);
-      this.add.image(2 * w / 3, y, "tile_stone").setDepth(0);
-      this.add.image(2 * w / 3 + 32, y, "tile_stone").setDepth(0);
+      this.add.image(w / 4, y, "tile_stone").setDepth(0);
+      this.add.image(w / 4 + 32, y, "tile_stone").setDepth(0);
+      this.add.image(w / 2, y, "tile_stone").setDepth(0);
+      this.add.image(w / 2 + 32, y, "tile_stone").setDepth(0);
+      this.add.image(3 * w / 4, y, "tile_stone").setDepth(0);
+      this.add.image(3 * w / 4 + 32, y, "tile_stone").setDepth(0);
     }
 
     // Room 1 (top-left) - Entry room
-    for (let rx = 100; rx < 450; rx += 32) {
-      for (let ry = 100; ry < 350; ry += 32) {
+    for (let rx = 100; rx < 650; rx += 32) {
+      for (let ry = 100; ry < 450; ry += 32) {
         this.add.image(rx, ry, "tile_stone").setDepth(0);
       }
     }
 
-    // Room 2 (bottom-right) - Boss room
-    for (let rx = w - 500; rx < w - 100; rx += 32) {
-      for (let ry = h - 450; ry < h - 100; ry += 32) {
+    // Room 2 (top-right) - Treasure room
+    for (let rx = w - 700; rx < w - 100; rx += 32) {
+      for (let ry = 100; ry < 450; ry += 32) {
         this.add.image(rx, ry, "tile_stone").setDepth(0);
       }
     }
 
-    // Pillars in rooms
+    // Room 3 (bottom-left) - Armory
+    for (let rx = 100; rx < 650; rx += 32) {
+      for (let ry = h - 500; ry < h - 100; ry += 32) {
+        this.add.image(rx, ry, "tile_stone").setDepth(0);
+      }
+    }
+
+    // Room 4 (bottom-right) - Boss room
+    for (let rx = w - 700; rx < w - 100; rx += 32) {
+      for (let ry = h - 550; ry < h - 100; ry += 32) {
+        this.add.image(rx, ry, "tile_stone").setDepth(0);
+      }
+    }
+
+    // Pillars in all rooms
     const pillarPositions = [
-      [200, 200], [350, 200], [200, 300], [350, 300],
-      [w - 400, h - 350], [w - 250, h - 350],
-      [w - 400, h - 200], [w - 250, h - 200],
+      // Entry room
+      [200, 200], [500, 200], [200, 350], [500, 350],
+      // Treasure room
+      [w - 600, 200], [w - 250, 200], [w - 600, 350], [w - 250, 350],
+      // Armory
+      [200, h - 400], [500, h - 400], [200, h - 200], [500, h - 200],
+      // Boss room
+      [w - 600, h - 450], [w - 250, h - 450],
+      [w - 600, h - 200], [w - 250, h - 200],
     ];
     pillarPositions.forEach(([px, py]) => {
       const pillar = this.addDeco(px, py, "deco_pillar", true);
@@ -590,20 +665,24 @@ export class WorldScene extends Phaser.Scene {
     });
 
     // Torches along corridors
-    for (let x = 128; x < w - 128; x += 160) {
-      this.addDeco(x, h / 2 - 60, "deco_torch", false);
-      this.addDeco(x, h / 2 + 70, "deco_torch", false);
+    for (let x = 128; x < w - 128; x += 120) {
+      this.addDeco(x, h / 2 - 70, "deco_torch", false);
+      this.addDeco(x, h / 2 + 80, "deco_torch", false);
     }
     // Torches in rooms
-    this.addDeco(130, 130, "deco_torch", false);
-    this.addDeco(420, 130, "deco_torch", false);
-    this.addDeco(130, 320, "deco_torch", false);
-    this.addDeco(420, 320, "deco_torch", false);
+    const torchRoomPos = [
+      [130, 130], [600, 130], [130, 400], [600, 400],
+      [w - 660, 130], [w - 140, 130], [w - 660, 400], [w - 140, 400],
+      [130, h - 460], [600, h - 460], [130, h - 140], [600, h - 140],
+      [w - 660, h - 500], [w - 140, h - 500], [w - 660, h - 140], [w - 140, h - 140],
+    ];
+    torchRoomPos.forEach(([tx, ty]) => this.addDeco(tx, ty, "deco_torch", false));
 
     // Bone piles
     const bonePos = [
-      [250, 250], [300, 180], [w - 350, h - 300],
-      [w - 200, h - 250], [w / 2, h / 2 + 60],
+      [300, 300], [450, 220], [w - 400, h - 350],
+      [w - 250, h - 300], [w / 2, h / 2 + 60],
+      [350, h - 350], [w - 500, 300], [w / 2 - 100, h / 2 - 50],
     ];
     bonePos.forEach(([bx, by]) => this.addDeco(bx, by, "deco_bones", false));
 
@@ -611,13 +690,20 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(140, 140, "deco_barrel", false);
     this.addDeco(160, 140, "deco_crate", false);
     this.addDeco(140, 160, "deco_crate", false);
+    this.addDeco(180, 140, "deco_barrel", false);
 
-    // Boss room features
-    this.addDeco(w - 300, h - 300, "deco_barrel", false);
-    this.addDeco(w - 280, h - 300, "deco_barrel", false);
+    // Treasure room crates
+    this.addDeco(w - 660, 140, "deco_crate", false);
+    this.addDeco(w - 640, 140, "deco_barrel", false);
+    this.addDeco(w - 660, 160, "deco_barrel", false);
+
+    // Boss room decorations
+    this.addDeco(w - 400, h - 300, "deco_barrel", false);
+    this.addDeco(w - 380, h - 300, "deco_barrel", false);
+    this.addDeco(w - 420, h - 300, "deco_crate", false);
 
     // Scattered rocks
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 10; i++) {
       this.addDeco(
         100 + Math.random() * (w - 200),
         100 + Math.random() * (h - 200),
@@ -625,18 +711,20 @@ export class WorldScene extends Phaser.Scene {
       );
     }
 
-    // Inner walls (create corridors)
-    // Top wall segment
-    for (let x = 64; x < w / 3 - 48; x += 32) {
+    // Inner walls
+    for (let x = 64; x < w / 4 - 48; x += 32) {
       this.addWallBlock(x, h / 2 - 80);
       this.addWallBlock(x, h / 2 + 80);
     }
-    // Bottom wall segment  
-    for (let x = w / 3 + 80; x < 2 * w / 3 - 48; x += 32) {
+    for (let x = w / 4 + 80; x < w / 2 - 48; x += 32) {
       this.addWallBlock(x, h / 2 - 80);
       this.addWallBlock(x, h / 2 + 80);
     }
-    for (let x = 2 * w / 3 + 80; x < w - 64; x += 32) {
+    for (let x = w / 2 + 80; x < 3 * w / 4 - 48; x += 32) {
+      this.addWallBlock(x, h / 2 - 80);
+      this.addWallBlock(x, h / 2 + 80);
+    }
+    for (let x = 3 * w / 4 + 80; x < w - 64; x += 32) {
       this.addWallBlock(x, h / 2 - 80);
       this.addWallBlock(x, h / 2 + 80);
     }
@@ -647,8 +735,8 @@ export class WorldScene extends Phaser.Scene {
     const cx = w / 2;
     const cy = h / 2;
 
-    // Arena floor (center pit)
-    const pitR = 200;
+    // Arena floor (center pit) - bigger for 1200×1200
+    const pitR = 300;
     for (let x = cx - pitR; x < cx + pitR; x += 32) {
       for (let y = cy - pitR; y < cy + pitR; y += 32) {
         const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
@@ -659,48 +747,75 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Arena border ring (sand)
-    for (let angle = 0; angle < Math.PI * 2; angle += 0.15) {
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
       const bx = cx + Math.cos(angle) * (pitR + 16);
       const by = cy + Math.sin(angle) * (pitR + 16);
       this.add.image(bx, by, "tile_sand").setDepth(0);
     }
 
-    // Banners around perimeter
-    const bannerAngles = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI, 5 * Math.PI / 4, 3 * Math.PI / 2, 7 * Math.PI / 4];
-    bannerAngles.forEach((angle, i) => {
-      const bx = cx + Math.cos(angle) * (pitR + 60);
-      const by = cy + Math.sin(angle) * (pitR + 60);
+    // Inner decorative ring
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.12) {
+      const bx = cx + Math.cos(angle) * (pitR - 30);
+      const by = cy + Math.sin(angle) * (pitR - 30);
+      this.add.image(bx, by, "tile_sand").setDepth(0).setAlpha(0.4);
+    }
+
+    // Banners around perimeter (more)
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const bx = cx + Math.cos(angle) * (pitR + 70);
+      const by = cy + Math.sin(angle) * (pitR + 70);
       this.addDeco(bx, by, i % 2 === 0 ? "deco_banner_red" : "deco_banner_blue", false);
-    });
+    }
 
-    // Torches
-    const torchAngles = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
-    torchAngles.forEach((angle) => {
-      const tx = cx + Math.cos(angle) * (pitR + 40);
-      const ty = cy + Math.sin(angle) * (pitR + 40);
+    // Torches (8 around)
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const tx = cx + Math.cos(angle) * (pitR + 50);
+      const ty = cy + Math.sin(angle) * (pitR + 50);
       this.addDeco(tx, ty, "deco_torch", false);
-    });
+    }
 
-    // Spectator area (raised edge, stone tiles)
+    // Spectator stands (stone tiles on all four sides)
     for (let x = 64; x < w - 64; x += 32) {
-      for (let y = 64; y < 150; y += 32) {
+      for (let y = 64; y < 180; y += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
-      for (let y = h - 150; y < h - 64; y += 32) {
+      for (let y = h - 180; y < h - 64; y += 32) {
+        this.add.image(x, y, "tile_stone").setDepth(0);
+      }
+    }
+    for (let y = 180; y < h - 180; y += 32) {
+      for (let x = 64; x < 160; x += 32) {
+        this.add.image(x, y, "tile_stone").setDepth(0);
+      }
+      for (let x = w - 160; x < w - 64; x += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
 
     // Barrels by entrance
-    this.addDeco(w - 100, cy - 30, "deco_barrel", false);
-    this.addDeco(w - 100, cy + 30, "deco_barrel", false);
-    this.addDeco(w - 120, cy, "deco_crate", false);
+    this.addDeco(w - 120, cy - 40, "deco_barrel", false);
+    this.addDeco(w - 120, cy + 40, "deco_barrel", false);
+    this.addDeco(w - 140, cy, "deco_crate", false);
+    this.addDeco(100, cy - 40, "deco_barrel", false);
+    this.addDeco(100, cy + 40, "deco_barrel", false);
 
-    // Pillars at entrance
-    const entrance = this.addDeco(w - 70, cy - 50, "deco_pillar", true);
+    // Pillars at entrance  
+    const entrance = this.addDeco(w - 90, cy - 60, "deco_pillar", true);
     if (entrance) { entrance.body.setSize(12, 8); entrance.body.setOffset(2, 30); entrance.refreshBody(); }
-    const entrance2 = this.addDeco(w - 70, cy + 50, "deco_pillar", true);
+    const entrance2 = this.addDeco(w - 90, cy + 60, "deco_pillar", true);
     if (entrance2) { entrance2.body.setSize(12, 8); entrance2.body.setOffset(2, 30); entrance2.refreshBody(); }
+    // Pillars at opposite side
+    const e3 = this.addDeco(90, cy - 60, "deco_pillar", true);
+    if (e3) { e3.body.setSize(12, 8); e3.body.setOffset(2, 30); e3.refreshBody(); }
+    const e4 = this.addDeco(90, cy + 60, "deco_pillar", true);
+    if (e4) { e4.body.setSize(12, 8); e4.body.setOffset(2, 30); e4.refreshBody(); }
+
+    // Bones scattered in arena
+    this.addDeco(cx - 100, cy + 80, "deco_bones", false);
+    this.addDeco(cx + 120, cy - 60, "deco_bones", false);
+    this.addDeco(cx - 60, cy - 100, "deco_bones", false);
   }
 
   // --- Decoration helpers ---
@@ -1300,6 +1415,8 @@ export class WorldScene extends Phaser.Scene {
 
   killEnemy(enemy: EnemySprite) {
     enemy.isDead = true;
+    enemy.setVelocity(0, 0);
+    if (enemy.body) (enemy.body as Phaser.Physics.Arcade.Body).enable = false;
     const store = useGameStore.getState();
     const playerData = store.player;
 
@@ -1342,6 +1459,8 @@ export class WorldScene extends Phaser.Scene {
       enemy.hp = enemy.maxHp;
       enemy.isDead = false;
       enemy.setPosition(enemy.spawnX, enemy.spawnY);
+      enemy.setVelocity(0, 0);
+      if (enemy.body) (enemy.body as Phaser.Physics.Arcade.Body).enable = true;
       enemy.setVisible(true);
       enemy.setAlpha(1);
       enemy.setScale(1);
@@ -1656,12 +1775,43 @@ export class WorldScene extends Phaser.Scene {
   }
 
   shutdown() {
-    if (this.unsubPresence) this.unsubPresence();
-    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    // Clean up multiplayer
+    if (this.unsubPresence) {
+      this.unsubPresence();
+      this.unsubPresence = undefined;
+    }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = undefined;
+    }
     const store = useGameStore.getState();
     if (store.player) {
       removePlayerPresence(store.player.uid);
     }
+
+    // Clean up remote players
+    this.remotePlayers.forEach((sprite) => {
+      sprite.nameText?.destroy();
+      sprite.hpBar?.destroy();
+      sprite.titleText?.destroy();
+      sprite.destroy();
+    });
+    this.remotePlayers.clear();
+
+    // Clean up item drops
+    this.itemDrops.forEach((drop) => {
+      drop.despawnTimer?.destroy();
+      drop.destroy();
+    });
+    this.itemDrops = [];
+
+    // Clean up keyboard
+    if (this.input.keyboard) {
+      this.input.keyboard.removeAllKeys(true);
+    }
+
+    // Remove event listeners from canvas
+    this.input.removeAllListeners();
   }
 
   destroy() {

@@ -327,27 +327,42 @@ export function generateLoot(enemyLevel: number): Item[] {
   const allItems = Object.values(ITEMS);
   const eligible = allItems.filter((i) => i.level <= enemyLevel + 3);
 
-  // Chance to drop an item
-  if (Math.random() < 0.35) {
-    const weights = { common: 60, rare: 25, epic: 12, legendary: 3 };
-    const roll = Math.random() * 100;
-    let rarity: Item["rarity"] = "common";
-    if (roll < weights.legendary) rarity = "legendary";
-    else if (roll < weights.legendary + weights.epic) rarity = "epic";
-    else if (roll < weights.legendary + weights.epic + weights.rare) rarity = "rare";
+  // ALWAYS drop at least one item
+  const weights = { common: 55, rare: 28, epic: 13, legendary: 4 };
+  const roll = Math.random() * 100;
+  let rarity: Item["rarity"] = "common";
+  if (roll < weights.legendary) rarity = "legendary";
+  else if (roll < weights.legendary + weights.epic) rarity = "epic";
+  else if (roll < weights.legendary + weights.epic + weights.rare) rarity = "rare";
 
-    const rarityItems = eligible.filter((i) => i.rarity === rarity);
-    if (rarityItems.length > 0) {
-      loot.push(rarityItems[Math.floor(Math.random() * rarityItems.length)]);
-    }
-  }
-
-  // Always drop potions with 20% chance
-  if (Math.random() < 0.2) {
+  const rarityItems = eligible.filter((i) => i.rarity === rarity);
+  if (rarityItems.length > 0) {
+    loot.push(rarityItems[Math.floor(Math.random() * rarityItems.length)]);
+  } else {
+    // Fallback: always give a health potion
     loot.push(ITEMS.health_potion);
   }
-  if (Math.random() < 0.15) {
+
+  // Additional drops
+  if (Math.random() < 0.35) {
+    loot.push(ITEMS.health_potion);
+  }
+  if (Math.random() < 0.25) {
     loot.push(ITEMS.mana_potion);
+  }
+
+  // Extra equipment chance for higher enemies
+  if (enemyLevel >= 3 && Math.random() < 0.25) {
+    const extraRoll = Math.random() * 100;
+    let extraRarity: Item["rarity"] = "common";
+    if (extraRoll < 5) extraRarity = "legendary";
+    else if (extraRoll < 18) extraRarity = "epic";
+    else if (extraRoll < 45) extraRarity = "rare";
+
+    const extraItems = eligible.filter((i) => i.rarity === extraRarity && i.type !== "consumable");
+    if (extraItems.length > 0) {
+      loot.push(extraItems[Math.floor(Math.random() * extraItems.length)]);
+    }
   }
 
   return loot;
