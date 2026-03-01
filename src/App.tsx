@@ -1,10 +1,12 @@
 // ========================
 // App — Main Application
-// Cinematic loading, smooth transitions
+// Landing page, cinematic loading, smooth transitions
 // ========================
+import { useState } from "react";
 import { useGameStore } from "./store/gameStore";
 import { useAuth } from "./hooks/useAuth";
 import { useAutoSave } from "./hooks/useAutoSave";
+import { LandingPage } from "./ui/LandingPage";
 import { LoginScreen } from "./ui/LoginScreen";
 import { CharacterCreation } from "./ui/CharacterCreation";
 import { GameCanvas } from "./ui/GameCanvas";
@@ -30,9 +32,15 @@ function App() {
   const isAuthenticated = useGameStore((s) => s.isAuthenticated);
   const isLoading = useGameStore((s) => s.isLoading);
   const player = useGameStore((s) => s.player);
+  const [showLanding, setShowLanding] = useState(true);
 
   useAuth();
   useAutoSave();
+
+  // Landing page (home)
+  if (showLanding && !isAuthenticated) {
+    return <LandingPage onPlay={() => setShowLanding(false)} />;
+  }
 
   // Cinematic loading screen
   if (isLoading) {

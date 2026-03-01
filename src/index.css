@@ -12,6 +12,7 @@ html, body, #root {
   background: #0d0d12;
   color: #e8dcc8;
   font-family: 'Georgia', 'Times New Roman', serif;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
