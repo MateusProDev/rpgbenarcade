@@ -19,6 +19,7 @@ import { ChatPanel } from "./ui/ChatPanel";
 import { ShopPanel } from "./ui/ShopPanel";
 import { DialoguePanel } from "./ui/DialoguePanel";
 import { PauseMenu } from "./ui/PauseMenu";
+import { TutorialOverlay } from "./ui/TutorialOverlay";
 import "./ui/styles.css";
 
 const LOADING_TIPS = [
@@ -135,6 +136,7 @@ function App() {
       <ChatPanel />
       <ShopPanel />
       <DialoguePanel />
+      <TutorialOverlay />
       {showPause && (
         <PauseMenu
           onResume={() => setShowPause(false)}

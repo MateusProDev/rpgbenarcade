@@ -164,11 +164,20 @@ export class BootScene extends Phaser.Scene {
     // TILES (32x32)
     // ========================
     this.generateDetailedTile("tile_grass", 0x3a7d44, 0x2d6b35, "grass");
+    this.generateDetailedTile("tile_grass_dark", 0x2d6633, 0x1f5525, "grass");
+    this.generateDetailedTile("tile_grass_lush", 0x44994e, 0x338940, "grass");
     this.generateDetailedTile("tile_dirt", 0x8b6914, 0x7a5c12, "dirt");
+    this.generateDetailedTile("tile_dirt_dark", 0x6b4c0e, 0x5a3e08, "dirt");
     this.generateDetailedTile("tile_stone", 0x666666, 0x555555, "stone");
+    this.generateDetailedTile("tile_stone_mossy", 0x556655, 0x445544, "stone");
     this.generateDetailedTile("tile_water", 0x2244aa, 0x1a3388, "water");
+    this.generateDetailedTile("tile_water_deep", 0x112266, 0x0a1a55, "water");
     this.generateDetailedTile("tile_sand", 0xccbb88, 0xbbaa77, "sand");
     this.generateDetailedTile("tile_dark", 0x332233, 0x221122, "dark");
+    this.generateDetailedTile("tile_lava", 0xcc4400, 0xaa2200, "lava");
+    this.generateDetailedTile("tile_swamp", 0x3a5522, 0x2a4418, "swamp");
+    this.generateDetailedTile("tile_cobble", 0x887766, 0x776655, "cobble");
+    this.generateDetailedTile("tile_snow", 0xddddee, 0xccccdd, "snow");
     this.generateDetailedTile("tile_arena", 0x884422, 0x773311, "arena");
     this.generateDetailedTile("tile_wall", 0x555555, 0x444444, "wall");
     this.generateDetailedTile("tile_wood", 0x8b5a2b, 0x7a4a1b, "wood");
@@ -1445,26 +1454,57 @@ export class BootScene extends Phaser.Scene {
   // ========================
   generateDecorations() {
     this.genDecoTree();
+    this.genDecoTreeLarge();
+    this.genDecoTreeWillow();
+    this.genDecoTreeDead();
     this.genDecoPine();
+    this.genDecoPineLarge();
     this.genDecoBush();
+    this.genDecoBushBerry();
     this.genDecoFlower(0xff4444, "deco_flower_red");
     this.genDecoFlower(0xffdd44, "deco_flower_yellow");
     this.genDecoFlower(0x6688ff, "deco_flower_blue");
+    this.genDecoFlower(0xdd44dd, "deco_flower_purple");
     this.genDecoRock();
     this.genDecoBoulder();
+    this.genDecoMountain();
+    this.genDecoCliff();
     this.genDecoFountain();
     this.genDecoWell();
     this.genDecoFence();
+    this.genDecoFenceStone();
     this.genDecoTorch();
+    this.genDecoLantern();
     this.genDecoMushroom();
+    this.genDecoMushroomGlow();
     this.genDecoBones();
     this.genDecoBarrel();
     this.genDecoCrate();
     this.genDecoBanner("deco_banner_red", 0xcc2222);
     this.genDecoBanner("deco_banner_blue", 0x2244cc);
+    this.genDecoBanner("deco_banner_green", 0x22aa44);
     this.genDecoStump();
+    this.genDecoLog();
     this.genDecoHaystack();
     this.genDecoPillar();
+    this.genDecoPillarRuined();
+    this.genDecoCampfire();
+    this.genDecoTent();
+    this.genDecoTombstone();
+    this.genDecoSignpost();
+    this.genDecoStatue();
+    this.genDecoBridge();
+    this.genDecoWaterfall();
+    this.genDecoCart();
+    this.genDecoCrystal();
+    this.genDecoWeb();
+    this.genDecoRuinedWall();
+    this.genDecoVine();
+    this.genDecoWheat();
+    this.genDecoWindmill();
+    this.genDecoHouseSmall();
+    this.genDecoChest();
+    this.genDecoShrineGlow();
   }
 
   genDecoTree() {
@@ -1793,6 +1833,722 @@ export class BootScene extends Phaser.Scene {
     g.destroy();
   }
 
+  genDecoPillarRuined() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x666666, 1);
+    g.fillRect(2, 20, 12, 4);
+    g.fillStyle(0x777777, 1);
+    g.fillRect(4, 8, 8, 16);
+    g.fillStyle(0x888888, 0.4);
+    g.fillRect(5, 9, 3, 14);
+    g.fillStyle(0x555555, 0.5);
+    g.fillRect(8, 6, 3, 3);
+    g.fillRect(3, 8, 2, 2);
+    g.fillStyle(0x446644, 0.4);
+    g.fillCircle(6, 18, 3);
+    g.generateTexture("deco_pillar_ruined", 16, 26);
+    g.destroy();
+  }
+
+  genDecoTreeLarge() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Trunk
+    g.fillStyle(0x5a3a1a, 1);
+    g.fillRect(18, 40, 12, 28);
+    g.fillStyle(0x4a2a0a, 0.6);
+    g.fillRect(22, 42, 3, 24);
+    // Roots
+    g.fillStyle(0x5a3a1a, 0.8);
+    g.fillEllipse(16, 66, 8, 4);
+    g.fillEllipse(32, 66, 8, 4);
+    // Large canopy - layered
+    g.fillStyle(0x1a6622, 1);
+    g.fillCircle(24, 24, 22);
+    g.fillStyle(0x228833, 0.8);
+    g.fillCircle(16, 18, 14);
+    g.fillCircle(32, 20, 14);
+    g.fillCircle(24, 14, 13);
+    g.fillStyle(0x33aa44, 0.6);
+    g.fillCircle(12, 14, 8);
+    g.fillCircle(28, 10, 9);
+    g.fillCircle(36, 18, 7);
+    g.fillStyle(0x44cc55, 0.35);
+    g.fillCircle(14, 10, 5);
+    g.fillCircle(30, 8, 4);
+    // Shadow
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(24, 68, 32, 6);
+    g.generateTexture("deco_tree_large", 48, 72);
+    g.destroy();
+  }
+
+  genDecoTreeWillow() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Trunk
+    g.fillStyle(0x664433, 1);
+    g.fillRect(14, 28, 8, 20);
+    g.fillStyle(0x553322, 0.6);
+    g.fillRect(17, 30, 2, 16);
+    // Canopy
+    g.fillStyle(0x447733, 1);
+    g.fillCircle(18, 18, 16);
+    g.fillStyle(0x559944, 0.7);
+    g.fillCircle(14, 14, 10);
+    g.fillCircle(22, 16, 10);
+    // Hanging branches (willow)
+    g.fillStyle(0x55aa44, 0.5);
+    for (let i = 0; i < 6; i++) {
+      const bx = 6 + i * 5;
+      g.fillRect(bx, 22, 1, 18 + Math.floor(Math.random() * 8));
+    }
+    g.fillStyle(0x66bb55, 0.3);
+    for (let i = 0; i < 4; i++) {
+      const bx = 8 + i * 6;
+      g.fillRect(bx, 26, 1, 14 + Math.floor(Math.random() * 6));
+    }
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(18, 48, 26, 4);
+    g.generateTexture("deco_tree_willow", 36, 52);
+    g.destroy();
+  }
+
+  genDecoTreeDead() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Trunk
+    g.fillStyle(0x554433, 1);
+    g.fillRect(10, 14, 6, 24);
+    g.fillStyle(0x443322, 0.6);
+    g.fillRect(12, 16, 2, 20);
+    // Dead branches
+    g.fillStyle(0x554433, 1);
+    g.fillRect(6, 10, 14, 2);
+    g.fillRect(4, 8, 2, 6);
+    g.fillRect(18, 6, 2, 8);
+    g.fillRect(8, 4, 2, 8);
+    g.fillRect(16, 2, 2, 10);
+    g.fillRect(2, 12, 4, 2);
+    g.fillRect(20, 10, 4, 2);
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(13, 38, 16, 3);
+    g.generateTexture("deco_tree_dead", 26, 40);
+    g.destroy();
+  }
+
+  genDecoPineLarge() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x664422, 1);
+    g.fillRect(14, 50, 6, 18);
+    g.fillStyle(0x0f4422, 1);
+    g.fillTriangle(17, 8, 0, 50, 34, 50);
+    g.fillStyle(0x1a5533, 0.9);
+    g.fillTriangle(17, 2, 4, 34, 30, 34);
+    g.fillStyle(0x227744, 0.8);
+    g.fillTriangle(17, 0, 8, 22, 26, 22);
+    g.fillStyle(0xffffff, 0.15);
+    g.fillRect(14, 0, 6, 3);
+    g.fillStyle(0x000000, 0.12);
+    g.fillEllipse(17, 67, 22, 4);
+    g.generateTexture("deco_pine_large", 34, 70);
+    g.destroy();
+  }
+
+  genDecoBushBerry() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x337733, 1);
+    g.fillEllipse(10, 10, 18, 14);
+    g.fillStyle(0x449944, 0.7);
+    g.fillEllipse(8, 8, 10, 8);
+    g.fillStyle(0x226622, 0.5);
+    g.fillEllipse(13, 12, 8, 6);
+    // Berries
+    g.fillStyle(0xcc2244, 1);
+    g.fillCircle(6, 7, 1.5);
+    g.fillCircle(14, 6, 1.5);
+    g.fillCircle(10, 10, 1.5);
+    g.fillCircle(4, 11, 1);
+    g.generateTexture("deco_bush_berry", 20, 16);
+    g.destroy();
+  }
+
+  genDecoMountain() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 64, H = 56;
+    // Base shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(W / 2, H - 2, W - 4, 6);
+    // Mountain body
+    g.fillStyle(0x666655, 1);
+    g.fillTriangle(W / 2, 4, 2, H - 4, W - 2, H - 4);
+    // Darker left face
+    g.fillStyle(0x555544, 0.7);
+    g.fillTriangle(W / 2, 4, 2, H - 4, W / 2, H - 4);
+    // Mid highlight
+    g.fillStyle(0x777766, 0.5);
+    g.fillTriangle(W / 2, 12, W / 2 + 6, H - 10, W - 8, H - 4);
+    // Snow cap
+    g.fillStyle(0xeeeeff, 0.9);
+    g.fillTriangle(W / 2, 4, W / 2 - 8, 18, W / 2 + 8, 18);
+    g.fillStyle(0xffffff, 0.7);
+    g.fillTriangle(W / 2, 2, W / 2 - 5, 14, W / 2 + 5, 14);
+    // Rock detail
+    g.fillStyle(0x444433, 0.3);
+    g.fillRect(20, 30, 3, 2);
+    g.fillRect(35, 35, 4, 2);
+    g.fillRect(18, 42, 5, 2);
+    g.generateTexture("deco_mountain", W, H);
+    g.destroy();
+  }
+
+  genDecoCliff() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 48, H = 32;
+    // Cliff face
+    g.fillStyle(0x665544, 1);
+    g.fillRect(0, 4, W, H - 4);
+    // Top edge
+    g.fillStyle(0x776655, 1);
+    g.fillRect(0, 0, W, 6);
+    // Grass on top
+    g.fillStyle(0x3a7d44, 0.8);
+    g.fillRect(0, 0, W, 4);
+    g.fillStyle(0x2d6b35, 0.5);
+    for (let i = 0; i < 8; i++) {
+      g.fillRect(i * 6 + 2, 3, 1, 2);
+    }
+    // Rock layers
+    g.fillStyle(0x554433, 0.5);
+    g.fillRect(0, 12, W, 1);
+    g.fillRect(0, 20, W, 1);
+    g.fillStyle(0x887766, 0.3);
+    g.fillRect(4, 8, 12, 3);
+    g.fillRect(24, 16, 14, 3);
+    g.fillRect(8, 24, 16, 3);
+    g.generateTexture("deco_cliff", W, H);
+    g.destroy();
+  }
+
+  genDecoFenceStone() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x666666, 1);
+    g.fillRect(0, 6, 32, 10);
+    g.fillStyle(0x777777, 0.6);
+    g.fillRect(0, 4, 32, 4);
+    g.fillStyle(0x555555, 0.4);
+    g.fillRect(0, 12, 32, 3);
+    // Moss patches
+    g.fillStyle(0x446644, 0.4);
+    g.fillCircle(8, 10, 3);
+    g.fillCircle(24, 8, 2);
+    g.generateTexture("deco_fence_stone", 32, 18);
+    g.destroy();
+  }
+
+  genDecoLantern() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Post
+    g.fillStyle(0x555555, 1);
+    g.fillRect(5, 8, 2, 16);
+    // Arm
+    g.fillRect(5, 8, 5, 2);
+    // Lantern body
+    g.fillStyle(0x333333, 1);
+    g.fillRect(8, 6, 4, 8);
+    // Glass / glow
+    g.fillStyle(0xffaa44, 0.4);
+    g.fillCircle(10, 10, 5);
+    g.fillStyle(0xffcc66, 0.8);
+    g.fillRect(9, 7, 2, 6);
+    g.fillStyle(0xffffaa, 0.6);
+    g.fillCircle(10, 10, 2);
+    g.generateTexture("deco_lantern", 14, 26);
+    g.destroy();
+  }
+
+  genDecoMushroomGlow() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0xddddbb, 1);
+    g.fillRect(5, 8, 4, 6);
+    // Glow
+    g.fillStyle(0x44ddff, 0.15);
+    g.fillCircle(7, 6, 8);
+    // Cap
+    g.fillStyle(0x2288cc, 1);
+    g.fillEllipse(7, 6, 12, 8);
+    g.fillStyle(0x44aaee, 0.6);
+    g.fillEllipse(6, 5, 8, 5);
+    // Spots
+    g.fillStyle(0xaaeeff, 0.8);
+    g.fillCircle(4, 5, 1);
+    g.fillCircle(9, 4, 1);
+    g.fillCircle(7, 7, 0.8);
+    g.generateTexture("deco_mushroom_glow", 14, 16);
+    g.destroy();
+  }
+
+  genDecoLog() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x664422, 1);
+    g.fillRoundedRect(0, 4, 28, 8, 3);
+    g.fillStyle(0x553311, 0.5);
+    g.fillRect(2, 6, 24, 2);
+    // Cut end
+    g.fillStyle(0x997744, 1);
+    g.fillCircle(27, 8, 4);
+    g.fillStyle(0x886633, 0.6);
+    g.fillCircle(27, 8, 2);
+    g.fillStyle(0x775522, 0.4);
+    g.fillCircle(27, 8, 1);
+    g.generateTexture("deco_log", 32, 14);
+    g.destroy();
+  }
+
+  genDecoCampfire() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 24;
+    // Glow
+    g.fillStyle(0xff6600, 0.12);
+    g.fillCircle(S / 2, S / 2, 12);
+    g.fillStyle(0xff8800, 0.08);
+    g.fillCircle(S / 2, S / 2, 16);
+    // Logs
+    g.fillStyle(0x553322, 1);
+    g.fillRect(4, 14, 5, 3);
+    g.fillRect(15, 14, 5, 3);
+    g.fillRect(8, 16, 8, 2);
+    g.fillStyle(0x442211, 0.6);
+    g.fillRect(6, 15, 3, 1);
+    g.fillRect(16, 15, 3, 1);
+    // Rocks ring
+    g.fillStyle(0x666666, 0.7);
+    for (let a = 0; a < 6; a++) {
+      const rx = S / 2 + Math.cos(a * Math.PI / 3) * 8;
+      const ry = S / 2 + 2 + Math.sin(a * Math.PI / 3) * 5;
+      g.fillCircle(rx, ry, 2);
+    }
+    // Fire
+    g.fillStyle(0xff4400, 0.9);
+    g.fillTriangle(12, 6, 8, 16, 16, 16);
+    g.fillStyle(0xff8800, 0.8);
+    g.fillTriangle(12, 8, 9, 14, 15, 14);
+    g.fillStyle(0xffcc00, 0.7);
+    g.fillTriangle(12, 9, 10, 13, 14, 13);
+    g.fillStyle(0xffffaa, 0.5);
+    g.fillCircle(12, 12, 2);
+    g.generateTexture("deco_campfire", S, S);
+    g.destroy();
+  }
+
+  genDecoTent() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 36, H = 28;
+    // Shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(W / 2, H - 1, W - 4, 4);
+    // Tent body
+    g.fillStyle(0x886644, 1);
+    g.fillTriangle(W / 2, 2, 2, H - 4, W - 2, H - 4);
+    // Light face
+    g.fillStyle(0x997755, 0.6);
+    g.fillTriangle(W / 2, 2, W / 2, H - 4, W - 2, H - 4);
+    // Opening
+    g.fillStyle(0x332211, 0.8);
+    g.fillTriangle(W / 2, 8, W / 2 - 6, H - 4, W / 2 + 6, H - 4);
+    // Pole tip
+    g.fillStyle(0x664422, 1);
+    g.fillRect(W / 2 - 1, 0, 2, 4);
+    // Rope lines
+    g.fillStyle(0x554433, 0.3);
+    g.fillRect(W / 2 - 8, H / 2, 1, H / 2 - 2);
+    g.fillRect(W / 2 + 8, H / 2, 1, H / 2 - 2);
+    g.generateTexture("deco_tent", W, H);
+    g.destroy();
+  }
+
+  genDecoTombstone() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(8, 19, 14, 3);
+    // Stone
+    g.fillStyle(0x777777, 1);
+    g.fillRoundedRect(2, 2, 12, 16, { tl: 4, tr: 4, bl: 0, br: 0 });
+    // Shading
+    g.fillStyle(0x666666, 0.5);
+    g.fillRect(3, 8, 10, 8);
+    // Cross engraving
+    g.fillStyle(0x888888, 0.8);
+    g.fillRect(7, 4, 2, 8);
+    g.fillRect(5, 6, 6, 2);
+    // Moss
+    g.fillStyle(0x446644, 0.4);
+    g.fillCircle(4, 16, 2);
+    g.generateTexture("deco_tombstone", 16, 22);
+    g.destroy();
+  }
+
+  genDecoSignpost() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Post
+    g.fillStyle(0x664422, 1);
+    g.fillRect(7, 6, 3, 20);
+    // Sign board
+    g.fillStyle(0x8b6914, 1);
+    g.fillRect(0, 4, 16, 8);
+    g.fillStyle(0x9b7924, 0.6);
+    g.fillRect(1, 5, 14, 6);
+    // Arrow shape at right
+    g.fillStyle(0x8b6914, 1);
+    g.fillTriangle(16, 8, 14, 4, 14, 12);
+    // Text lines
+    g.fillStyle(0x332211, 0.6);
+    g.fillRect(2, 6, 10, 1);
+    g.fillRect(3, 9, 8, 1);
+    g.generateTexture("deco_signpost", 18, 28);
+    g.destroy();
+  }
+
+  genDecoStatue() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 20, H = 40;
+    // Base
+    g.fillStyle(0x666666, 1);
+    g.fillRect(2, H - 6, W - 4, 6);
+    g.fillStyle(0x777777, 0.6);
+    g.fillRect(3, H - 8, W - 6, 4);
+    // Body
+    g.fillStyle(0x888888, 1);
+    g.fillRect(7, 14, 6, 18);
+    // Head
+    g.fillCircle(10, 10, 5);
+    // Arms - sword raised
+    g.fillStyle(0x888888, 1);
+    g.fillRect(4, 16, 3, 8);
+    g.fillRect(13, 16, 3, 8);
+    // Sword
+    g.fillStyle(0xaaaaaa, 1);
+    g.fillRect(14, 4, 2, 14);
+    g.fillStyle(0xbbbbbb, 0.5);
+    g.fillRect(15, 5, 1, 12);
+    g.fillStyle(0x888888, 1);
+    g.fillRect(12, 12, 6, 2);
+    // Shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(W / 2, H - 1, 16, 3);
+    g.generateTexture("deco_statue", W, H);
+    g.destroy();
+  }
+
+  genDecoBridge() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 48, H = 20;
+    // Planks
+    g.fillStyle(0x8b5a2b, 1);
+    g.fillRect(0, 4, W, H - 8);
+    // Individual plank lines
+    g.fillStyle(0x7a4a1b, 0.5);
+    for (let i = 0; i < 8; i++) {
+      g.fillRect(i * 6, 4, 1, H - 8);
+    }
+    // Railings
+    g.fillStyle(0x664422, 1);
+    g.fillRect(0, 2, W, 3);
+    g.fillRect(0, H - 5, W, 3);
+    // Posts
+    g.fillRect(2, 0, 3, H);
+    g.fillRect(W - 5, 0, 3, H);
+    g.fillRect(W / 2 - 1, 0, 3, H);
+    g.generateTexture("deco_bridge", W, H);
+    g.destroy();
+  }
+
+  genDecoWaterfall() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 32, H = 48;
+    // Cliff top
+    g.fillStyle(0x665544, 1);
+    g.fillRect(0, 0, W, 8);
+    g.fillStyle(0x3a7d44, 0.7);
+    g.fillRect(0, 0, W, 4);
+    // Water stream
+    g.fillStyle(0x4488cc, 0.7);
+    g.fillRect(8, 6, 16, H - 12);
+    g.fillStyle(0x66aaee, 0.5);
+    g.fillRect(10, 8, 12, H - 16);
+    g.fillStyle(0x88ccff, 0.4);
+    g.fillRect(12, 10, 8, H - 20);
+    // White foam/spray
+    g.fillStyle(0xffffff, 0.3);
+    for (let i = 0; i < 6; i++) {
+      g.fillRect(10 + Math.floor(Math.random() * 12), 8 + i * 6, 2, 3);
+    }
+    // Splash at bottom
+    g.fillStyle(0x88bbff, 0.4);
+    g.fillEllipse(W / 2, H - 6, 24, 8);
+    g.fillStyle(0xffffff, 0.3);
+    g.fillCircle(W / 2 - 4, H - 8, 2);
+    g.fillCircle(W / 2 + 4, H - 8, 2);
+    g.generateTexture("deco_waterfall", W, H);
+    g.destroy();
+  }
+
+  genDecoCart() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 32, H = 20;
+    // Cart body
+    g.fillStyle(0x8b5a2b, 1);
+    g.fillRect(6, 4, 20, 10);
+    g.fillStyle(0x7a4a1b, 0.5);
+    g.fillRect(8, 6, 16, 6);
+    // Wheels
+    g.fillStyle(0x553322, 1);
+    g.fillCircle(10, 16, 4);
+    g.fillCircle(22, 16, 4);
+    g.fillStyle(0x664433, 0.6);
+    g.fillCircle(10, 16, 2);
+    g.fillCircle(22, 16, 2);
+    // Handle
+    g.fillStyle(0x664422, 1);
+    g.fillRect(0, 8, 7, 2);
+    // Contents
+    g.fillStyle(0xccaa44, 0.7);
+    g.fillEllipse(16, 4, 14, 4);
+    g.generateTexture("deco_cart", W, H);
+    g.destroy();
+  }
+
+  genDecoCrystal() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Glow
+    g.fillStyle(0x8844ff, 0.1);
+    g.fillCircle(8, 10, 8);
+    // Crystal shards
+    g.fillStyle(0x8855cc, 1);
+    g.fillTriangle(8, 0, 4, 16, 12, 16);
+    g.fillStyle(0xaa77ee, 0.7);
+    g.fillTriangle(8, 2, 7, 14, 12, 14);
+    // Second shard
+    g.fillStyle(0x7744bb, 0.8);
+    g.fillTriangle(12, 4, 10, 14, 15, 14);
+    // Sparkle
+    g.fillStyle(0xffffff, 0.5);
+    g.fillCircle(9, 5, 1);
+    g.fillCircle(11, 8, 0.5);
+    g.generateTexture("deco_crystal", 16, 18);
+    g.destroy();
+  }
+
+  genDecoWeb() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 24;
+    g.lineStyle(1, 0xcccccc, 0.3);
+    // Radial lines
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.lineBetween(S / 2, S / 2, S / 2 + Math.cos(a) * 10, S / 2 + Math.sin(a) * 10);
+    }
+    // Concentric arcs
+    g.lineStyle(1, 0xcccccc, 0.2);
+    g.strokeCircle(S / 2, S / 2, 4);
+    g.strokeCircle(S / 2, S / 2, 8);
+    g.fillStyle(0xffffff, 0.3);
+    g.fillCircle(S / 2, S / 2, 1);
+    g.generateTexture("deco_web", S, S);
+    g.destroy();
+  }
+
+  genDecoRuinedWall() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 32, H = 24;
+    // Main wall
+    g.fillStyle(0x666655, 1);
+    g.fillRect(0, 6, W, H - 6);
+    // Damaged top
+    g.fillStyle(0x666655, 1);
+    g.fillRect(0, 4, 10, 4);
+    g.fillRect(14, 2, 8, 6);
+    g.fillRect(26, 6, 6, 4);
+    // Brick lines
+    g.lineStyle(1, 0x555544, 0.4);
+    g.strokeRect(0, 10, 16, 6);
+    g.strokeRect(16, 10, 16, 6);
+    g.strokeRect(8, 16, 16, 6);
+    // Vegetation
+    g.fillStyle(0x447744, 0.5);
+    g.fillCircle(6, 6, 3);
+    g.fillCircle(28, 4, 2);
+    g.fillStyle(0x55aa44, 0.3);
+    g.fillRect(4, 2, 1, 6);
+    g.fillRect(26, 0, 1, 6);
+    g.generateTexture("deco_ruined_wall", W, H);
+    g.destroy();
+  }
+
+  genDecoVine() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x337733, 0.8);
+    g.fillRect(3, 0, 2, 20);
+    g.fillRect(7, 2, 2, 18);
+    g.fillStyle(0x449944, 0.6);
+    g.fillRect(2, 4, 4, 2);
+    g.fillRect(6, 8, 4, 2);
+    g.fillRect(1, 12, 4, 2);
+    g.fillRect(7, 16, 3, 2);
+    // Leaves
+    g.fillStyle(0x55bb55, 0.7);
+    g.fillCircle(1, 5, 2);
+    g.fillCircle(10, 9, 2);
+    g.fillCircle(0, 13, 2);
+    g.fillCircle(9, 17, 1.5);
+    g.generateTexture("deco_vine", 12, 22);
+    g.destroy();
+  }
+
+  genDecoWheat() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    g.fillStyle(0x88773a, 1);
+    g.fillRect(3, 4, 1, 10);
+    g.fillRect(6, 3, 1, 11);
+    g.fillRect(9, 4, 1, 10);
+    g.fillStyle(0xccaa44, 1);
+    g.fillEllipse(3, 3, 3, 4);
+    g.fillEllipse(6, 2, 3, 4);
+    g.fillEllipse(9, 3, 3, 4);
+    g.fillStyle(0xddbb55, 0.5);
+    g.fillCircle(3, 2, 1);
+    g.fillCircle(6, 1, 1);
+    g.fillCircle(9, 2, 1);
+    g.generateTexture("deco_wheat", 12, 16);
+    g.destroy();
+  }
+
+  genDecoWindmill() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 32, H = 48;
+    // Tower
+    g.fillStyle(0x998877, 1);
+    g.fillRect(10, 16, 12, 30);
+    g.fillStyle(0x887766, 0.5);
+    g.fillRect(12, 18, 8, 26);
+    // Roof
+    g.fillStyle(0x664422, 1);
+    g.fillTriangle(W / 2, 10, 8, 20, W - 8, 20);
+    g.fillStyle(0x553311, 0.5);
+    g.fillTriangle(W / 2, 10, 8, 20, W / 2, 20);
+    // Door
+    g.fillStyle(0x553322, 1);
+    g.fillRect(13, 38, 6, 8);
+    // Window
+    g.fillStyle(0x88aacc, 0.6);
+    g.fillRect(14, 26, 4, 4);
+    g.fillStyle(0x664422, 1);
+    g.fillRect(15.5, 26, 1, 4);
+    g.fillRect(14, 27.5, 4, 1);
+    // Blades
+    g.fillStyle(0x886644, 0.8);
+    g.fillRect(W / 2 - 1, 0, 2, 14);
+    g.fillRect(W / 2 - 1, 20, 2, 14);
+    g.fillRect(2, 16, 12, 2);
+    g.fillRect(18, 16, 12, 2);
+    // Center
+    g.fillStyle(0x555555, 1);
+    g.fillCircle(W / 2, 17, 2);
+    // Shadow
+    g.fillStyle(0x000000, 0.1);
+    g.fillEllipse(W / 2, H - 1, 20, 3);
+    g.generateTexture("deco_windmill", W, H);
+    g.destroy();
+  }
+
+  genDecoHouseSmall() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 36, H = 32;
+    // Walls
+    g.fillStyle(0xbb9966, 1);
+    g.fillRect(2, 12, W - 4, H - 14);
+    g.fillStyle(0xaa8855, 0.5);
+    g.fillRect(4, 14, W - 8, H - 18);
+    // Roof
+    g.fillStyle(0x883322, 1);
+    g.fillTriangle(W / 2, 2, 0, 14, W, 14);
+    g.fillStyle(0x772211, 0.5);
+    g.fillTriangle(W / 2, 2, 0, 14, W / 2, 14);
+    // Door
+    g.fillStyle(0x664422, 1);
+    g.fillRect(14, 20, 8, 10);
+    g.fillStyle(0xddaa22, 0.8);
+    g.fillCircle(20, 25, 1);
+    // Windows
+    g.fillStyle(0x88aacc, 0.7);
+    g.fillRect(5, 18, 6, 5);
+    g.fillRect(25, 18, 6, 5);
+    g.fillStyle(0x664422, 0.8);
+    g.fillRect(7.5, 18, 1, 5);
+    g.fillRect(27.5, 18, 1, 5);
+    // Chimney
+    g.fillStyle(0x666655, 1);
+    g.fillRect(26, 2, 5, 10);
+    g.fillStyle(0x777766, 0.5);
+    g.fillRect(27, 0, 3, 4);
+    // Shadow
+    g.fillStyle(0x000000, 0.08);
+    g.fillEllipse(W / 2, H - 1, W - 4, 3);
+    g.generateTexture("deco_house_small", W, H);
+    g.destroy();
+  }
+
+  genDecoChest() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    // Glow
+    g.fillStyle(0xddaa22, 0.1);
+    g.fillCircle(8, 8, 8);
+    // Body
+    g.fillStyle(0x8b5a2b, 1);
+    g.fillRoundedRect(1, 4, 14, 10, 2);
+    // Lid
+    g.fillStyle(0x9b6a3b, 1);
+    g.fillRoundedRect(0, 2, 16, 6, { tl: 3, tr: 3, bl: 0, br: 0 });
+    // Metal bands
+    g.fillStyle(0x888888, 1);
+    g.fillRect(0, 7, 16, 1);
+    g.fillRect(7, 2, 2, 12);
+    // Lock
+    g.fillStyle(0xddaa22, 1);
+    g.fillCircle(8, 7, 2);
+    g.fillStyle(0xcc9922, 0.6);
+    g.fillCircle(8, 7, 1);
+    g.generateTexture("deco_chest", 16, 16);
+    g.destroy();
+  }
+
+  genDecoShrineGlow() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const W = 24, H = 32;
+    // Glow
+    g.fillStyle(0x44aaff, 0.08);
+    g.fillCircle(W / 2, H / 2, 14);
+    g.fillStyle(0x44aaff, 0.05);
+    g.fillCircle(W / 2, H / 2, 18);
+    // Base
+    g.fillStyle(0x777788, 1);
+    g.fillRect(4, H - 6, W - 8, 6);
+    g.fillStyle(0x888899, 0.7);
+    g.fillRect(5, H - 8, W - 10, 4);
+    // Pillar
+    g.fillStyle(0x8888aa, 1);
+    g.fillRect(9, 8, 6, 18);
+    g.fillStyle(0x9999bb, 0.5);
+    g.fillRect(10, 9, 3, 16);
+    // Orb on top
+    g.fillStyle(0x44aaff, 0.6);
+    g.fillCircle(W / 2, 6, 5);
+    g.fillStyle(0x66ccff, 0.5);
+    g.fillCircle(W / 2, 5, 3);
+    g.fillStyle(0xffffff, 0.4);
+    g.fillCircle(W / 2 - 1, 4, 1.5);
+    g.generateTexture("deco_shrine", W, H);
+    g.destroy();
+  }
+
   // ========================
   // TILE GENERATOR (32x32)
   // ========================
@@ -1905,6 +2661,47 @@ export class BootScene extends Phaser.Scene {
         g.fillStyle(this.darken(color1, 25), 0.3);
         g.fillRect(0, 15, 32, 1);
         g.fillRect(15, 0, 1, 32);
+        break;
+      case "lava":
+        g.fillStyle(0xff6600, 0.5);
+        for (let i = 0; i < 3; i++) {
+          g.fillEllipse(8 + i * 8, 10 + i * 5, 10, 6);
+        }
+        g.fillStyle(0xffaa00, 0.4);
+        g.fillCircle(12, 14, 4);
+        g.fillCircle(22, 18, 3);
+        g.fillStyle(0xffcc44, 0.3);
+        g.fillCircle(16, 16, 2);
+        break;
+      case "swamp":
+        g.fillStyle(this.darken(color1, 15), 0.5);
+        for (let i = 0; i < 6; i++) {
+          g.fillCircle(Math.floor(Math.random() * 28) + 2, Math.floor(Math.random() * 28) + 2, 3);
+        }
+        g.fillStyle(0x2a3a11, 0.4);
+        g.fillRect(8, 12, 1, 4);
+        g.fillRect(20, 6, 1, 5);
+        g.fillStyle(0x88aa44, 0.2);
+        g.fillCircle(16, 20, 5);
+        break;
+      case "cobble":
+        g.lineStyle(1, this.darken(color1, 20), 0.4);
+        g.strokeRoundedRect(1, 1, 10, 10, 2);
+        g.strokeRoundedRect(12, 1, 9, 10, 2);
+        g.strokeRoundedRect(22, 1, 9, 10, 2);
+        g.strokeRoundedRect(5, 12, 10, 9, 2);
+        g.strokeRoundedRect(16, 12, 10, 9, 2);
+        g.strokeRoundedRect(1, 22, 9, 9, 2);
+        g.strokeRoundedRect(11, 22, 10, 9, 2);
+        g.strokeRoundedRect(22, 22, 9, 9, 2);
+        break;
+      case "snow":
+        g.fillStyle(0xffffff, 0.3);
+        for (let i = 0; i < 8; i++) {
+          g.fillCircle(Math.floor(Math.random() * 28) + 2, Math.floor(Math.random() * 28) + 2, 1);
+        }
+        g.fillStyle(this.darken(color1, 8), 0.2);
+        g.fillEllipse(16, 20, 18, 6);
         break;
     }
 

@@ -294,290 +294,556 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  // --- VILLAGE DECORATION ---
+  // --- VILLAGE DECORATION --- (4800×3600)
   decorateVillage(w: number, h: number, _ts: number) {
     const cx = w / 2;
     const cy = h / 2;
 
-    // Cobblestone paths (cross pattern)
+    // === COBBLESTONE MAIN ROADS ===
+    // Main east-west road
     for (let x = 80; x < w - 80; x += 32) {
-      this.add.image(x, cy, "tile_path").setDepth(0);
-      this.add.image(x, cy + 32, "tile_path").setDepth(0);
+      this.add.image(x, cy, "tile_cobble").setDepth(0);
+      this.add.image(x, cy + 32, "tile_cobble").setDepth(0);
+      this.add.image(x, cy - 32, "tile_cobble").setDepth(0);
     }
+    // Main north-south road
     for (let y = 80; y < h - 80; y += 32) {
-      this.add.image(cx, y, "tile_path").setDepth(0);
-      this.add.image(cx + 32, y, "tile_path").setDepth(0);
+      this.add.image(cx, y, "tile_cobble").setDepth(0);
+      this.add.image(cx + 32, y, "tile_cobble").setDepth(0);
+      this.add.image(cx - 32, y, "tile_cobble").setDepth(0);
     }
-    // Secondary paths connecting buildings
-    for (let x = 150; x < 500; x += 32) {
-      this.add.image(x, 350, "tile_path").setDepth(0);
-    }
-    for (let x = w - 500; x < w - 150; x += 32) {
-      this.add.image(x, 550, "tile_path").setDepth(0);
-    }
-
-    // Fountain in center
-    const fountain = this.add.image(cx, cy, "deco_fountain");
-    fountain.setDepth(3);
-    const fBlock = this.decoColliders.create(cx, cy + 6, "deco_fountain");
-    fBlock.setVisible(false);
-    fBlock.body.setSize(40, 20);
-    fBlock.body.setOffset(4, 28);
-    fBlock.refreshBody();
-
-    // Buildings spread across 2400×1800
-    this.addRichBuilding(200, 150, 8, 5, 0xaa6633, "Ancião");
-    this.addRichBuilding(900, 150, 7, 5, 0x666666, "Ferreiro");
-    this.addRichBuilding(1600, 150, 7, 4, 0xcc8844, "Taverna");
-    this.addRichBuilding(200, 700, 6, 4, 0x88aa55, "Curandeira");
-    this.addRichBuilding(900, 700, 8, 6, 0x8855aa, "Guilda");
-    this.addRichBuilding(1600, 700, 7, 5, 0x886644, "Loja");
-    this.addRichBuilding(200, 1200, 7, 4, 0xaa5533, "Armeiro");
-    this.addRichBuilding(1600, 1200, 6, 4, 0x557788, "Biblioteca");
-
-    // Market area (center-right)
-    for (let i = 0; i < 5; i++) {
-      this.addDeco(1400 + i * 30, 500, "deco_barrel", false);
-      if (i % 2 === 0) this.addDeco(1400 + i * 30, 530, "deco_crate", false);
-    }
-
-    // Wells
-    const well1 = this.addDeco(450, 500, "deco_well", true);
-    if (well1) { well1.body.setSize(28, 14); well1.body.setOffset(2, 22); well1.refreshBody(); }
-    const well2 = this.addDeco(1800, 1000, "deco_well", true);
-    if (well2) { well2.body.setSize(28, 14); well2.body.setOffset(2, 22); well2.refreshBody(); }
-
-    // Multiple garden areas with fences and flowers
-    const gardenAreas = [[150, 500], [800, 1100], [1500, 1400], [2000, 600]];
-    gardenAreas.forEach(([gx, gy]) => {
-      for (let i = 0; i < 4; i++) this.addDeco(gx + i * 32, gy, "deco_fence", false);
-      for (let i = 0; i < 10; i++) {
-        const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue"];
-        this.addDeco(gx + Math.random() * 120, gy - 20 - Math.random() * 30, flowers[Math.floor(Math.random() * 3)], false);
+    // Secondary path network
+    const secPaths = [
+      [300, 700, 1200, 700], [3200, 700, 4500, 700],
+      [300, 2800, 1200, 2800], [3200, 2800, 4500, 2800],
+      [1000, 300, 1000, 1200], [3600, 300, 3600, 1200],
+      [1000, 2400, 1000, 3200], [3600, 2400, 3600, 3200],
+    ];
+    secPaths.forEach(([x1, y1, x2, y2]) => {
+      if (y1 === y2) {
+        for (let x = x1; x < x2; x += 32) this.add.image(x, y1, "tile_path").setDepth(0);
+      } else {
+        for (let y = y1; y < y2; y += 32) this.add.image(x1, y, "tile_path").setDepth(0);
       }
     });
 
-    // Trees along all edges and scattered
-    const treePositions = [
-      [80, 80], [200, 60], [350, 70], [500, 60], [700, 80], [900, 60],
-      [w - 120, 80], [w - 250, 60], [w - 400, 70], [w - 550, 80],
-      [80, h - 120], [200, h - 100], [400, h - 120], [600, h - 100],
-      [w - 120, h - 120], [w - 250, h - 100], [w - 400, h - 110],
-      [80, 250], [80, 450], [80, 650], [80, 850], [80, 1050], [80, 1250],
-      [w - 80, 250], [w - 80, 450], [w - 80, 650], [w - 80, 850], [w - 80, 1050],
-      [600, 400], [1400, 300], [1100, 1100], [500, 1400], [1900, 1400],
+    // === GRAND CENTRAL FOUNTAIN ===
+    // Stone plaza around fountain
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        if (Math.sqrt(dx * dx + dy * dy) <= 3) {
+          this.add.image(cx + dx * 32, cy + dy * 32, "tile_cobble").setDepth(0);
+        }
+      }
+    }
+    const fountain = this.add.image(cx, cy, "deco_fountain").setScale(1.5);
+    fountain.setDepth(3);
+    const fBlock = this.decoColliders.create(cx, cy + 6, "deco_fountain");
+    fBlock.setVisible(false); fBlock.body.setSize(50, 26); fBlock.body.setOffset(0, 24); fBlock.refreshBody();
+
+    // === BUILDINGS — Spread across the massive 4800×3600 map ===
+    // Northwest district - Administrative
+    this.addRichBuilding(400, 300, 9, 6, 0xaa6633, "Hall do Ancião");
+    this.addRichBuilding(1000, 300, 7, 5, 0x886644, "Taverna do Corvo");
+    // Northeast - Military/Commercial
+    this.addRichBuilding(3200, 300, 8, 6, 0x666666, "Ferreiro Baldur");
+    this.addRichBuilding(4000, 300, 7, 5, 0x557788, "Armaria Real");
+    // Central west - Residential
+    this.addRichBuilding(300, 1400, 7, 5, 0x88aa55, "Curandeira Lyra");
+    this.addRichBuilding(300, 2200, 6, 4, 0xcc8844, "Padaria");
+    // Central east - Guild/Commerce
+    this.addRichBuilding(3800, 1200, 9, 6, 0x8855aa, "Guilda dos Aventureiros");
+    this.addRichBuilding(3800, 2200, 7, 5, 0xaa5533, "Mercado Central");
+    // Southwest - Residential/Farm
+    this.addRichBuilding(400, 2800, 7, 5, 0x886633, "Casa do Fazendeiro");
+    this.addRichBuilding(1200, 2800, 6, 4, 0x667744, "Estábulos");
+    // Southeast - Knowledge
+    this.addRichBuilding(3600, 2800, 8, 5, 0x557788, "Biblioteca Arcana");
+    this.addRichBuilding(4200, 2800, 6, 4, 0x885566, "Torre do Mago");
+
+    // === SMALL HOUSES scattered ===
+    const housePositions = [
+      [600, 1000], [1200, 600], [1800, 1200], [2800, 600],
+      [800, 2400], [1600, 2600], [3200, 1800], [4200, 1600],
+      [2000, 2200], [3400, 2400], [4400, 800], [1400, 1800],
     ];
-    treePositions.forEach(([tx, ty]) => {
-      const tree = this.addDeco(tx, ty, "deco_tree", true);
-      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    housePositions.forEach(([hx, hy]) => {
+      const house = this.addDeco(hx, hy, "deco_house_small", true);
+      if (house) { house.body.setSize(30, 16); house.body.setOffset(3, 14); house.refreshBody(); }
     });
 
-    // Bushes scattered
-    const bushSpots = [[400, 300], [700, 550], [1100, 400], [500, 800], [1300, 1000], [1800, 500], [300, 1400], [2100, 800], [1000, 1500], [2000, 1200]];
-    bushSpots.forEach(([bx, by]) => this.addDeco(bx, by, "deco_bush", false));
+    // === MARKET AREA (center-south) ===
+    for (let i = 0; i < 8; i++) {
+      this.addDeco(cx - 200 + i * 60, cy + 250, "deco_barrel", false);
+      if (i % 2 === 0) this.addDeco(cx - 200 + i * 60, cy + 280, "deco_crate", false);
+    }
+    for (let i = 0; i < 4; i++) {
+      this.addDeco(cx - 100 + i * 70, cy + 310, "deco_cart", false);
+    }
 
-    // Rocks
-    this.addDeco(650, 250, "deco_rock", false);
-    this.addDeco(1300, 600, "deco_rock", false);
-    this.addDeco(2100, 400, "deco_rock", false);
-    this.addDeco(500, 1300, "deco_rock", false);
+    // === WELLS ===
+    const wellPositions = [[800, 800], [3600, 800], [800, 2600], [3600, 2600], [cx, cy + 400]];
+    wellPositions.forEach(([wx, wy]) => {
+      const well = this.addDeco(wx, wy, "deco_well", true);
+      if (well) { well.body.setSize(28, 14); well.body.setOffset(2, 22); well.refreshBody(); }
+    });
 
-    // Barrels & crates near buildings
-    this.addDeco(460, 200, "deco_barrel", false);
-    this.addDeco(480, 200, "deco_crate", false);
-    this.addDeco(1160, 200, "deco_barrel", false);
-    this.addDeco(1860, 200, "deco_crate", false);
-    this.addDeco(460, 750, "deco_barrel", false);
-    this.addDeco(1160, 900, "deco_crate", false);
-    this.addDeco(460, 1250, "deco_barrel", false);
-    this.addDeco(1860, 1250, "deco_barrel", false);
+    // === GARDENS WITH FENCES AND FLOWERS ===
+    const gardenAreas = [
+      [300, 1000], [1600, 400], [3000, 1200], [4200, 2200],
+      [1200, 2400], [3400, 1600], [2200, 800], [2600, 2600],
+    ];
+    gardenAreas.forEach(([gx, gy]) => {
+      for (let i = 0; i < 5; i++) this.addDeco(gx + i * 32, gy, "deco_fence", false);
+      for (let i = 0; i < 5; i++) this.addDeco(gx + i * 32, gy + 80, "deco_fence", false);
+      for (let i = 0; i < 15; i++) {
+        const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
+        this.addDeco(gx + Math.random() * 150, gy + 10 + Math.random() * 60, flowers[Math.floor(Math.random() * 4)], false);
+      }
+      // Add bushes
+      this.addDeco(gx - 10, gy + 40, "deco_bush_berry", false);
+      this.addDeco(gx + 160, gy + 40, "deco_bush", false);
+    });
+
+    // === TREES — Dense coverage along edges and parks ===
+    // Border trees (all 4 sides)
+    for (let x = 100; x < w - 100; x += 120 + Math.floor(Math.random() * 60)) {
+      const ty = 80 + Math.random() * 40;
+      const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    for (let x = 100; x < w - 100; x += 120 + Math.floor(Math.random() * 60)) {
+      const ty = h - 80 - Math.random() * 40;
+      const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    for (let y = 150; y < h - 150; y += 120 + Math.floor(Math.random() * 60)) {
+      const tree = this.addDeco(80, y, "deco_tree", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    for (let y = 150; y < h - 150; y += 120 + Math.floor(Math.random() * 60)) {
+      const tree = this.addDeco(w - 80, y, "deco_tree", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    // Park trees (scattered interior)
+    for (let i = 0; i < 30; i++) {
+      const tx = 200 + Math.random() * (w - 400);
+      const ty = 200 + Math.random() * (h - 400);
+      // Skip if near roads
+      if (Math.abs(ty - cy) < 60 || Math.abs(tx - cx) < 60) continue;
+      const tree = this.addDeco(tx, ty, Math.random() > 0.3 ? "deco_tree" : "deco_tree_willow", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+
+    // === BUSHES everywhere ===
+    for (let i = 0; i < 40; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
+        Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
+    }
+
+    // === SIGNPOSTS at key locations ===
+    this.addDeco(cx + 200, cy - 200, "deco_signpost", false);
+    this.addDeco(w - 200, cy, "deco_signpost", false);
+    this.addDeco(cx, 200, "deco_signpost", false);
+    this.addDeco(200, cy, "deco_signpost", false);
+
+    // === LANTERNS along roads ===
+    for (let x = 200; x < w - 200; x += 250) {
+      this.addDeco(x, cy - 60, "deco_lantern", false);
+      this.addDeco(x, cy + 80, "deco_lantern", false);
+    }
+    for (let y = 200; y < h - 200; y += 250) {
+      this.addDeco(cx - 60, y, "deco_lantern", false);
+      this.addDeco(cx + 80, y, "deco_lantern", false);
+    }
+
+    // === STATUE in training grounds ===
+    const statue = this.addDeco(cx - 400, cy - 400, "deco_statue", true);
+    if (statue) { statue.body.setSize(16, 8); statue.body.setOffset(2, 30); statue.refreshBody(); }
+    const statue2 = this.addDeco(cx + 400, cy - 400, "deco_statue", true);
+    if (statue2) { statue2.body.setSize(16, 8); statue2.body.setOffset(2, 30); statue2.refreshBody(); }
+
+    // === BARRELS & CRATES near buildings ===
+    const barrelSpots = [
+      [700, 500], [1300, 500], [3500, 500], [4300, 500],
+      [600, 1600], [600, 2400], [4100, 1400], [4100, 2400],
+      [700, 3000], [1500, 3000], [3900, 3000], [4500, 3000],
+    ];
+    barrelSpots.forEach(([bx, by]) => {
+      this.addDeco(bx, by, "deco_barrel", false);
+      this.addDeco(bx + 20, by, "deco_crate", false);
+    });
+
+    // === ROCKS scattered ===
+    for (let i = 0; i < 15; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_rock", false);
+    }
+
+    // === BANNERS at entrance gates ===
+    this.addDeco(w - 100, cy - 80, "deco_banner_red", false);
+    this.addDeco(w - 100, cy + 80, "deco_banner_blue", false);
+    this.addDeco(cx - 80, 100, "deco_banner_red", false);
+    this.addDeco(cx + 80, 100, "deco_banner_green", false);
+    this.addDeco(100, cy - 80, "deco_banner_blue", false);
+    this.addDeco(100, cy + 80, "deco_banner_red", false);
   }
 
-  // --- FIELDS DECORATION ---
+  // --- FIELDS DECORATION --- (6400×4800)
   decorateFields(w: number, h: number, _ts: number) {
-    // Main dirt paths connecting areas
-    for (let x = 80; x < 600; x += 32) {
+    // === MAIN DIRT ROAD NETWORK ===
+    // Central east-west highway
+    for (let x = 80; x < w - 80; x += 32) {
       this.add.image(x, h / 3, "tile_dirt").setDepth(0);
       this.add.image(x, h / 3 + 32, "tile_dirt").setDepth(0);
     }
+    // North-south crossroads
     for (let y = 200; y < h - 200; y += 32) {
       this.add.image(w / 4, y, "tile_dirt").setDepth(0);
       this.add.image(3 * w / 4, y, "tile_dirt").setDepth(0);
     }
-    // Cross path
+    // Central cross
     for (let x = w / 4; x < 3 * w / 4; x += 32) {
       this.add.image(x, h / 2, "tile_dirt").setDepth(0);
     }
+    // Southern road
+    for (let x = 200; x < w - 200; x += 32) {
+      this.add.image(x, 2 * h / 3, "tile_dirt_dark").setDepth(0);
+    }
 
-    // Multiple farm plots spread across 3200×2400
-    const farmPlots = [[600, 300], [1200, 250], [2000, 400], [600, 1200], [1800, 1400], [2500, 800]];
+    // === FARM PLOTS — 12 farms spread across the map ===
+    const farmPlots = [
+      [600, 400], [1400, 300], [2400, 500], [3400, 400],
+      [800, 2200], [1800, 2400], [3200, 2200], [4400, 2400],
+      [600, 3600], [2000, 3800], [3600, 3600], [5000, 3200],
+    ];
     farmPlots.forEach(([fx, fy]) => {
+      // Dirt plots
       for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 6; col++) {
+        for (let col = 0; col < 7; col++) {
           const px = fx + col * 40;
           const py = fy + row * 50;
           this.add.image(px, py, "tile_dirt").setDepth(0);
-          if (Math.random() > 0.25) {
-            this.addDeco(px, py - 8, "deco_flower_yellow", false);
+          if (Math.random() > 0.2) {
+            this.addDeco(px, py - 8, "deco_wheat", false);
           }
         }
       }
-      // Fences around each plot
-      for (let x = fx - 20; x < fx + 260; x += 32) {
+      // Fences around plots
+      for (let x = fx - 20; x < fx + 300; x += 32) {
         this.addDeco(x, fy - 30, "deco_fence", false);
         this.addDeco(x, fy + 220, "deco_fence", false);
       }
     });
 
-    // Haystacks in clusters
-    const haystackPos = [
-      [400, 700], [440, 730], [420, 760],
-      [1100, 500], [1150, 520], [1130, 550],
-      [1800, 700], [1840, 730],
-      [2500, 1200], [2540, 1230], [2520, 1260],
-      [700, 1800], [740, 1830],
-      [2200, 1700], [2240, 1730], [2260, 1700],
-    ];
-    haystackPos.forEach(([hx, hy]) => this.addDeco(hx, hy, "deco_haystack", false));
-
-    // Trees scattered across large map
-    const fieldTrees = [
-      [250, 350], [500, 200], [1000, 400], [1500, 250],
-      [1800, 600], [2200, 350], [2800, 500], [3000, 300],
-      [300, 1000], [800, 1300], [1200, 1600], [1600, 1000],
-      [2000, 1200], [2400, 1500], [2800, 1100], [3000, 1400],
-      [400, 1800], [900, 2000], [1400, 2100], [2000, 2000],
-      [2500, 1900], [3000, 1800], [150, 1500], [2800, 1800],
-    ];
-    fieldTrees.forEach(([tx, ty]) => {
-      const tree = this.addDeco(tx, ty, "deco_tree", true);
-      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    // === WINDMILLS ===
+    const windmillPos = [[1000, 600], [3000, 600], [5000, 800], [1600, 3400], [4200, 3200]];
+    windmillPos.forEach(([mx, my]) => {
+      const mill = this.addDeco(mx, my, "deco_windmill", true);
+      if (mill) { mill.body.setSize(12, 10); mill.body.setOffset(10, 36); mill.refreshBody(); }
     });
 
-    // Boulders and rocks
-    this.addDeco(900, 1100, "deco_boulder", true);
-    this.addDeco(1600, 600, "deco_boulder", true);
-    this.addDeco(2300, 1000, "deco_boulder", true);
-    this.addDeco(500, 1600, "deco_rock", false);
-    this.addDeco(1300, 900, "deco_rock", false);
-    this.addDeco(2100, 1500, "deco_rock", false);
-    this.addDeco(2900, 700, "deco_rock", false);
-    this.addDeco(300, 2100, "deco_rock", false);
-
-    // Bushes
-    for (let i = 0; i < 20; i++) {
-      this.addDeco(
-        150 + Math.random() * (w - 300),
-        150 + Math.random() * (h - 300),
-        "deco_bush", false
-      );
+    // === HAYSTACKS in clusters ===
+    for (let i = 0; i < 30; i++) {
+      const hx = 200 + Math.random() * (w - 400);
+      const hy = 200 + Math.random() * (h - 400);
+      this.addDeco(hx, hy, "deco_haystack", false);
     }
 
-    // Ponds (water)
-    const ponds = [[1500, 1300], [2600, 600]];
-    ponds.forEach(([px, py]) => {
-      for (let ix = 0; ix < 4; ix++) {
-        for (let iy = 0; iy < 3; iy++) {
-          this.add.image(px + ix * 32, py + iy * 32, "tile_water").setDepth(0);
+    // === LARGE LAKE (center-west) ===
+    const lakeX = w / 3;
+    const lakeY = h / 2 + 200;
+    for (let dx = -4; dx <= 4; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        if (Math.sqrt(dx * dx + dy * dy) <= 3.5) {
+          const tileKey = Math.sqrt(dx * dx + dy * dy) <= 2 ? "tile_water_deep" : "tile_water";
+          this.add.image(lakeX + dx * 32, lakeY + dy * 32, tileKey).setDepth(0);
         }
       }
-    });
-
-    // Flowers everywhere
-    for (let i = 0; i < 30; i++) {
-      const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue"];
-      this.addDeco(
-        100 + Math.random() * (w - 200),
-        100 + Math.random() * (h - 200),
-        flowers[Math.floor(Math.random() * 3)], false
-      );
+    }
+    // Reeds around lake
+    for (let a = 0; a < Math.PI * 2; a += 0.5) {
+      const rx = lakeX + Math.cos(a) * 130;
+      const ry = lakeY + Math.sin(a) * 105;
+      this.addDeco(rx, ry, Math.random() > 0.5 ? "deco_bush" : "deco_flower_blue", false);
     }
 
-    // Stumps
-    this.addDeco(800, 500, "deco_stump", false);
-    this.addDeco(2200, 900, "deco_stump", false);
-    this.addDeco(1400, 1800, "deco_stump", false);
-    this.addDeco(600, 2100, "deco_stump", false);
+    // === RIVER flowing south ===
+    const riverX = 2 * w / 3;
+    for (let y = 200; y < h - 200; y += 32) {
+      const wobble = Math.sin(y * 0.01) * 40;
+      this.add.image(riverX + wobble, y, "tile_water").setDepth(0);
+      this.add.image(riverX + wobble + 32, y, "tile_water").setDepth(0);
+    }
+    // Bridges over river
+    const bridgeY = [h / 3, h / 2, 2 * h / 3];
+    bridgeY.forEach((by) => {
+      const wobble = Math.sin(by * 0.01) * 40;
+      this.addDeco(riverX + wobble + 16, by, "deco_bridge", false);
+    });
+
+    // === SECOND POND (east) ===
+    for (let dx = 0; dx < 5; dx++) {
+      for (let dy = 0; dy < 4; dy++) {
+        this.add.image(5200 + dx * 32, 1600 + dy * 32, "tile_water").setDepth(0);
+      }
+    }
+
+    // === TREES — massive forest borders ===
+    // Northern tree line
+    for (let x = 100; x < w - 100; x += 80 + Math.floor(Math.random() * 60)) {
+      const ty = 80 + Math.random() * 60;
+      const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    // Southern tree line
+    for (let x = 100; x < w - 100; x += 80 + Math.floor(Math.random() * 60)) {
+      const ty = h - 80 - Math.random() * 60;
+      const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+    // Scattered trees across fields
+    for (let i = 0; i < 50; i++) {
+      const tx = 200 + Math.random() * (w - 400);
+      const ty = 200 + Math.random() * (h - 400);
+      const tree = this.addDeco(tx, ty, Math.random() > 0.6 ? "deco_tree" : "deco_pine", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+
+    // === BOULDERS AND ROCKS ===
+    for (let i = 0; i < 20; i++) {
+      const rx = 200 + Math.random() * (w - 400);
+      const ry = 200 + Math.random() * (h - 400);
+      this.addDeco(rx, ry, Math.random() > 0.5 ? "deco_rock" : "deco_boulder", Math.random() > 0.5);
+    }
+
+    // === MOUNTAINS along northern edge ===
+    for (let x = 200; x < w - 200; x += 140 + Math.floor(Math.random() * 80)) {
+      this.addDeco(x, 60 + Math.random() * 30, "deco_mountain", true);
+    }
+
+    // === BUSHES ===
+    for (let i = 0; i < 40; i++) {
+      this.addDeco(150 + Math.random() * (w - 300), 150 + Math.random() * (h - 300),
+        Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
+    }
+
+    // === FLOWERS everywhere ===
+    for (let i = 0; i < 60; i++) {
+      const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
+        flowers[Math.floor(Math.random() * 4)], false);
+    }
+
+    // === STUMPS ===
+    for (let i = 0; i < 10; i++) {
+      this.addDeco(300 + Math.random() * (w - 600), 300 + Math.random() * (h - 600), "deco_stump", false);
+    }
+
+    // === SIGNPOSTS at crossroads ===
+    this.addDeco(w / 4 + 40, h / 3 - 40, "deco_signpost", false);
+    this.addDeco(3 * w / 4 + 40, h / 3 - 40, "deco_signpost", false);
+    this.addDeco(w / 4 + 40, h / 2 - 40, "deco_signpost", false);
+
+    // === CAMPFIRES (bandit camps) ===
+    const campfirePos = [[4400, 1400], [4800, 1800], [5200, 2200], [3200, 3400]];
+    campfirePos.forEach(([cfx, cfy]) => {
+      this.addDeco(cfx, cfy, "deco_campfire", false);
+      this.addDeco(cfx - 40, cfy + 20, "deco_tent", true);
+      this.addDeco(cfx + 40, cfy + 20, "deco_barrel", false);
+      this.addDeco(cfx - 20, cfy - 30, "deco_log", false);
+    });
+
+    // === CARTS on roads ===
+    this.addDeco(w / 4 + 100, h / 3 + 50, "deco_cart", false);
+    this.addDeco(w / 2, h / 3 + 50, "deco_cart", false);
+    this.addDeco(3 * w / 4 - 100, h / 3 + 50, "deco_cart", false);
+
+    // === STONE FENCES separating areas ===
+    for (let x = w / 2 - 200; x < w / 2 + 200; x += 32) {
+      this.addDeco(x, h / 4, "deco_fence_stone", false);
+    }
   }
 
   // --- FOREST DECORATION ---
   decorateForest(w: number, h: number, _ts: number) {
-    // Dense tree coverage for 2800×2200
-    const numTrees = 100;
+    // === FOREST DECORATION (5600×4400) ===
+    // Dense ancient forest with distinct biomes
+
+    // === MAIN PATHS ===
+    // Winding east-west forest trail
+    for (let x = 80; x < w - 80; x += 32) {
+      const wobble = Math.sin(x * 0.008) * 50;
+      this.add.image(x, h / 2 + wobble, "tile_dirt").setDepth(0);
+      this.add.image(x, h / 2 + wobble + 32, "tile_dirt").setDepth(0);
+    }
+    // North-south deer trail
+    for (let y = 200; y < h - 200; y += 32) {
+      const wobble = Math.sin(y * 0.01) * 30;
+      this.add.image(w / 3 + wobble, y, "tile_dirt").setDepth(0);
+    }
+
+    // === DENSE TREE COVERAGE ===
     const placed: { x: number; y: number }[] = [];
-
-    const pathY = h / 2;
-    const pathX = w / 2;
-
+    const numTrees = 220;
     for (let i = 0; i < numTrees; i++) {
       const tx = 80 + Math.random() * (w - 160);
       const ty = 80 + Math.random() * (h - 160);
-
-      const nearPathH = Math.abs(ty - pathY) < 60;
-      const nearPathV = Math.abs(tx - pathX) < 60;
-      if (nearPathH || nearPathV) continue;
-
-      const tooClose = placed.some(
-        (p) => Math.abs(p.x - tx) < 40 && Math.abs(p.y - ty) < 40
-      );
+      // Keep paths clear
+      const pathWobble1 = Math.sin(tx * 0.008) * 50;
+      const pathWobble2 = Math.sin(ty * 0.01) * 30;
+      if (Math.abs(ty - (h / 2 + pathWobble1)) < 70) continue;
+      if (Math.abs(tx - (w / 3 + pathWobble2)) < 50) continue;
+      const tooClose = placed.some(p => Math.abs(p.x - tx) < 42 && Math.abs(p.y - ty) < 42);
       if (tooClose) continue;
-
       placed.push({ x: tx, y: ty });
-      const treeType = Math.random() > 0.4 ? "deco_pine" : "deco_tree";
+      const r = Math.random();
+      const treeType = r < 0.3 ? "deco_pine" : r < 0.5 ? "deco_pine_large" : r < 0.75 ? "deco_tree" : r < 0.9 ? "deco_tree_large" : "deco_tree_dead";
       const tree = this.addDeco(tx, ty, treeType, true);
-      if (tree) {
-        tree.body.setSize(8, 8);
-        tree.body.setOffset(treeType === "deco_pine" ? 8 : 12, 38);
-        tree.refreshBody();
-      }
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
 
-    // Mushroom clusters spread across large forest
-    const mushClusters = [
-      [400, 600], [900, 400], [600, 1200], [1600, 700],
-      [1300, 1400], [500, 1700], [2000, 500], [2200, 1000],
-      [1800, 1600], [700, 2000], [2400, 400], [1000, 1800],
-    ];
-    mushClusters.forEach(([mx, my]) => {
-      for (let j = 0; j < 4; j++) {
-        this.addDeco(mx + (Math.random() - 0.5) * 40, my + (Math.random() - 0.5) * 30, "deco_mushroom", false);
-      }
+    // === WILLOW GROVE (center-east, near water) ===
+    const willowPos = [[3800, 1800], [3900, 2000], [4000, 1700], [4100, 1900], [3700, 2100]];
+    willowPos.forEach(([wx, wy]) => {
+      const tree = this.addDeco(wx, wy, "deco_tree_willow", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     });
 
-    // Bushes (lots)
-    for (let i = 0; i < 35; i++) {
-      this.addDeco(
-        100 + Math.random() * (w - 200),
-        100 + Math.random() * (h - 200),
-        "deco_bush", false
-      );
+    // === ENCHANTED STREAM ===
+    for (let y = 400; y < h - 400; y += 32) {
+      const wobble = Math.sin(y * 0.015) * 60;
+      this.add.image(2 * w / 3 + wobble, y, "tile_water").setDepth(0);
+      this.add.image(2 * w / 3 + wobble + 32, y, "tile_water_deep").setDepth(0);
     }
+    // Bridge over stream
+    this.addDeco(2 * w / 3 + 16, h / 2, "deco_bridge", false);
+    this.addDeco(2 * w / 3 + 16, h / 3, "deco_bridge", false);
 
-    // Rocks and boulders
-    for (let i = 0; i < 14; i++) {
-      this.addDeco(
-        150 + Math.random() * (w - 300),
-        150 + Math.random() * (h - 300),
-        Math.random() > 0.5 ? "deco_rock" : "deco_boulder",
-        Math.random() > 0.5
-      );
+    // === WATERFALL (north, stream source) ===
+    this.addDeco(2 * w / 3 + Math.sin(400 * 0.015) * 60, 380, "deco_waterfall", true);
+
+    // === SWAMP ZONE (south-east) ===
+    for (let x = 3600; x < 4800; x += 32) {
+      for (let y = 3200; y < 4000; y += 32) {
+        if (Math.random() > 0.4) this.add.image(x, y, "tile_swamp").setDepth(0);
+      }
     }
-
-    // Stumps (fallen trees)
-    const stumpPos = [[800, 900], [1400, 700], [500, 500], [2000, 800], [1200, 1600], [600, 1900], [2200, 1300]];
-    stumpPos.forEach(([sx, sy]) => this.addDeco(sx, sy, "deco_stump", false));
-
-    // Blue flowers (sparse, mystical forest floor)
-    for (let i = 0; i < 20; i++) {
-      this.addDeco(
-        100 + Math.random() * (w - 200),
-        100 + Math.random() * (h - 200),
-        "deco_flower_blue", false
-      );
-    }
-
-    // Mossy dark patches
+    // Dead trees in swamp
     for (let i = 0; i < 10; i++) {
+      const tree = this.addDeco(3600 + Math.random() * 1200, 3200 + Math.random() * 800, "deco_tree_dead", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    }
+
+    // === MUSHROOM GROVES ===
+    for (let i = 0; i < 25; i++) {
+      const mx = 300 + Math.random() * (w - 600);
+      const my = 300 + Math.random() * (h - 600);
+      this.addDeco(mx, my, "deco_mushroom", false);
+      this.addDeco(mx + 15, my + 10, "deco_mushroom", false);
+    }
+    // Glowing mushrooms (deeper forest, north)
+    for (let i = 0; i < 15; i++) {
+      this.addDeco(1500 + Math.random() * 2000, 500 + Math.random() * 1200, "deco_mushroom_glow", false);
+    }
+
+    // === ANCIENT RUINS (center-north) ===
+    const ruinX = w / 2 - 100;
+    const ruinY = h / 4;
+    // Stone platform
+    for (let x = -3; x <= 3; x++) {
+      for (let y = -2; y <= 2; y++) {
+        this.add.image(ruinX + x * 32, ruinY + y * 32, "tile_stone_mossy").setDepth(0);
+      }
+    }
+    // Ruined walls and pillars
+    for (let x = -3; x <= 3; x++) {
+      if (Math.random() > 0.3) this.addDeco(ruinX + x * 32, ruinY - 64, "deco_ruined_wall", true);
+      if (Math.random() > 0.3) this.addDeco(ruinX + x * 32, ruinY + 80, "deco_ruined_wall", true);
+    }
+    const ruinPillar = (px: number, py: number) => {
+      const p = this.addDeco(px, py, "deco_pillar_ruined", true);
+      if (p) { p.body.setSize(12, 8); p.body.setOffset(2, 30); p.refreshBody(); }
+    };
+    ruinPillar(ruinX - 96, ruinY - 64); ruinPillar(ruinX + 96, ruinY - 64);
+    ruinPillar(ruinX - 96, ruinY + 80); ruinPillar(ruinX + 96, ruinY + 80);
+    // Shrine in ruins center
+    this.addDeco(ruinX, ruinY, "deco_shrine_glow", false);
+
+    // === FAIRY CLEARING (south-west) ===
+    const fairyX = w / 5;
+    const fairyY = 3 * h / 4;
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -3; dy <= 3; dy++) {
+        if (Math.sqrt(dx * dx + dy * dy) <= 3) {
+          this.add.image(fairyX + dx * 32, fairyY + dy * 32, "tile_grass_lush").setDepth(0);
+        }
+      }
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      this.addDeco(fairyX + Math.cos(a) * 80, fairyY + Math.sin(a) * 80, "deco_crystal", false);
+    }
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const flowers = ["deco_flower_blue", "deco_flower_purple"];
+      this.addDeco(fairyX + Math.cos(a) * 50, fairyY + Math.sin(a) * 50, flowers[i % 2], false);
+    }
+    this.addDeco(fairyX, fairyY, "deco_lantern", false);
+
+    // === SPIDER DEN (east) ===
+    for (let i = 0; i < 12; i++) {
+      this.addDeco(4400 + Math.random() * 800, 1000 + Math.random() * 1000, "deco_web", false);
+    }
+
+    // === VINES on trees ===
+    for (let i = 0; i < 20; i++) {
+      this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_vine", false);
+    }
+
+    // === LOGS and STUMPS ===
+    for (let i = 0; i < 15; i++) {
+      this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_log", false);
+    }
+    for (let i = 0; i < 12; i++) {
+      this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_stump", false);
+    }
+
+    // === BUSHES ===
+    for (let i = 0; i < 50; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
+        Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
+    }
+
+    // === ROCKS AND BOULDERS ===
+    for (let i = 0; i < 20; i++) {
+      this.addDeco(150 + Math.random() * (w - 300), 150 + Math.random() * (h - 300),
+        Math.random() > 0.5 ? "deco_rock" : "deco_boulder", Math.random() > 0.5);
+    }
+
+    // === FLOWERS ===
+    for (let i = 0; i < 30; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_flower_blue", false);
+    }
+
+    // === CAMPFIRE CLEARING ===
+    const campX = w / 2 + 400;
+    const campY = h / 2 + 300;
+    this.addDeco(campX, campY, "deco_campfire", false);
+    this.addDeco(campX - 50, campY + 20, "deco_tent", true);
+    this.addDeco(campX + 40, campY - 20, "deco_log", false);
+    this.addDeco(campX + 40, campY + 30, "deco_log", false);
+    this.addDeco(campX - 30, campY - 40, "deco_barrel", false);
+
+    // === MOUNTAIN RANGE (far north edge) ===
+    for (let x = 200; x < w - 200; x += 150 + Math.floor(Math.random() * 80)) {
+      this.addDeco(x, 50 + Math.random() * 30, "deco_mountain", true);
+    }
+    // Cliffs near stream
+    this.addDeco(2 * w / 3 + 100, 300, "deco_cliff", true);
+    this.addDeco(2 * w / 3 - 60, 300, "deco_cliff", true);
+
+    // === MOSSY DARK PATCHES ===
+    for (let i = 0; i < 15; i++) {
       const dx = 200 + Math.random() * (w - 400);
       const dy = 200 + Math.random() * (h - 400);
       for (let px = 0; px < 2; px++) {
@@ -587,156 +853,201 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Small clearings with dirt
-    const clearings = [[w / 4, h / 4], [3 * w / 4, 3 * h / 4], [w / 2, h / 4 * 3]];
-    clearings.forEach(([clx, cly]) => {
-      for (let px = -2; px <= 2; px++) {
-        for (let py = -2; py <= 2; py++) {
-          if (Math.sqrt(px * px + py * py) <= 2) {
-            this.add.image(clx + px * 32, cly + py * 32, "tile_dirt").setDepth(0).setAlpha(0.5);
-          }
+    // === SIGNPOST at trail crossroads ===
+    this.addDeco(w / 3 + 40, h / 2 - 40, "deco_signpost", false);
+  }
+
+  // --- DUNGEON DECORATION --- (4800×3600)
+  decorateDungeon(w: number, h: number, _ts: number) {
+    // === MAIN CORRIDORS ===
+    // Horizontal main hall
+    for (let x = 64; x < w - 64; x += 32) {
+      for (let dy = -1; dy <= 1; dy++) {
+        this.add.image(x, h / 2 + dy * 32, "tile_stone").setDepth(0);
+      }
+    }
+    // Vertical corridors (4)
+    const vCorrX = [w / 5, 2 * w / 5, 3 * w / 5, 4 * w / 5];
+    vCorrX.forEach(cx => {
+      for (let y = 64; y < h - 64; y += 32) {
+        this.add.image(cx, y, "tile_stone").setDepth(0);
+        this.add.image(cx + 32, y, "tile_stone").setDepth(0);
+      }
+    });
+
+    // === ROOM DEFINITIONS ===
+    const rooms = [
+      // [x, y, tw, th, name, floorTile]
+      { x: 100, y: 100, tw: 8, th: 6, name: "Entrance Hall", tile: "tile_stone" },
+      { x: 100, y: h - 700, tw: 8, th: 6, name: "Prison Block", tile: "tile_stone" },
+      { x: w / 2 - 160, y: 100, tw: 10, th: 7, name: "Ritual Chamber", tile: "tile_stone_mossy" },
+      { x: w - 900, y: 100, tw: 9, th: 6, name: "Armory", tile: "tile_stone" },
+      { x: w - 900, y: h - 700, tw: 10, th: 8, name: "Boss Throne", tile: "tile_stone" },
+      { x: 100, y: h / 2 - 300, tw: 7, th: 5, name: "Treasure Vault", tile: "tile_stone" },
+      { x: w / 2 - 128, y: h - 700, tw: 8, th: 6, name: "Crypt", tile: "tile_stone_mossy" },
+      { x: w - 500, y: h / 2 - 250, tw: 7, th: 5, name: "Library", tile: "tile_stone" },
+    ];
+
+    rooms.forEach(room => {
+      // Floor
+      for (let bx = 0; bx < room.tw; bx++) {
+        for (let by = 0; by < room.th; by++) {
+          this.add.image(room.x + bx * 32 + 16, room.y + by * 32 + 16, room.tile).setDepth(0);
         }
       }
+      // Walls (border)
+      for (let bx = 0; bx < room.tw; bx++) {
+        this.addWallBlock(room.x + bx * 32 + 16, room.y);
+        this.addWallBlock(room.x + bx * 32 + 16, room.y + (room.th - 1) * 32);
+      }
+      for (let by = 1; by < room.th - 1; by++) {
+        this.addWallBlock(room.x, room.y + by * 32 + 16);
+        this.addWallBlock(room.x + (room.tw - 1) * 32, room.y + by * 32 + 16);
+      }
     });
-  }
 
-  // --- DUNGEON DECORATION ---
-  decorateDungeon(w: number, h: number, _ts: number) {
-    // Stone corridors for 2400×1800
-    // Main corridor (horizontal)
+    // === CORRIDOR WALLS ===
     for (let x = 64; x < w - 64; x += 32) {
-      this.add.image(x, h / 2, "tile_stone").setDepth(0);
-      this.add.image(x, h / 2 + 32, "tile_stone").setDepth(0);
-      this.add.image(x, h / 2 - 32, "tile_stone").setDepth(0);
-    }
-    // Vertical corridors
-    for (let y = 64; y < h - 64; y += 32) {
-      this.add.image(w / 4, y, "tile_stone").setDepth(0);
-      this.add.image(w / 4 + 32, y, "tile_stone").setDepth(0);
-      this.add.image(w / 2, y, "tile_stone").setDepth(0);
-      this.add.image(w / 2 + 32, y, "tile_stone").setDepth(0);
-      this.add.image(3 * w / 4, y, "tile_stone").setDepth(0);
-      this.add.image(3 * w / 4 + 32, y, "tile_stone").setDepth(0);
-    }
-
-    // Room 1 (top-left) - Entry room
-    for (let rx = 100; rx < 650; rx += 32) {
-      for (let ry = 100; ry < 450; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
+      // Skip openings at vertical corridor intersections
+      const nearVCorr = vCorrX.some(cx => Math.abs(x - cx) < 48);
+      if (!nearVCorr) {
+        this.addWallBlock(x, h / 2 - 64);
+        this.addWallBlock(x, h / 2 + 64);
       }
     }
 
-    // Room 2 (top-right) - Treasure room
-    for (let rx = w - 700; rx < w - 100; rx += 32) {
-      for (let ry = 100; ry < 450; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
-      }
-    }
-
-    // Room 3 (bottom-left) - Armory
-    for (let rx = 100; rx < 650; rx += 32) {
-      for (let ry = h - 500; ry < h - 100; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
-      }
-    }
-
-    // Room 4 (bottom-right) - Boss room
-    for (let rx = w - 700; rx < w - 100; rx += 32) {
-      for (let ry = h - 550; ry < h - 100; ry += 32) {
-        this.add.image(rx, ry, "tile_stone").setDepth(0);
-      }
-    }
-
-    // Pillars in all rooms
-    const pillarPositions = [
-      // Entry room
-      [200, 200], [500, 200], [200, 350], [500, 350],
-      // Treasure room
-      [w - 600, 200], [w - 250, 200], [w - 600, 350], [w - 250, 350],
-      // Armory
-      [200, h - 400], [500, h - 400], [200, h - 200], [500, h - 200],
-      // Boss room
-      [w - 600, h - 450], [w - 250, h - 450],
-      [w - 600, h - 200], [w - 250, h - 200],
-    ];
-    pillarPositions.forEach(([px, py]) => {
-      const pillar = this.addDeco(px, py, "deco_pillar", true);
-      if (pillar) { pillar.body.setSize(12, 8); pillar.body.setOffset(2, 30); pillar.refreshBody(); }
+    // === PILLAR SYSTEM ===
+    // Pillars in each room
+    rooms.forEach(room => {
+      const cx = room.x + (room.tw * 32) / 2;
+      const cy = room.y + (room.th * 32) / 2;
+      const offsets = [[-60, -40], [60, -40], [-60, 40], [60, 40]];
+      offsets.forEach(([ox, oy]) => {
+        const r = Math.random();
+        const pType = r < 0.4 ? "deco_pillar" : "deco_pillar_ruined";
+        const p = this.addDeco(cx + ox, cy + oy, pType, true);
+        if (p) { p.body.setSize(12, 8); p.body.setOffset(2, 30); p.refreshBody(); }
+      });
     });
 
-    // Torches along corridors
-    for (let x = 128; x < w - 128; x += 120) {
-      this.addDeco(x, h / 2 - 70, "deco_torch", false);
-      this.addDeco(x, h / 2 + 80, "deco_torch", false);
+    // === TORCHES — along all corridors ===
+    for (let x = 128; x < w - 128; x += 100) {
+      this.addDeco(x, h / 2 - 90, "deco_torch", false);
+      this.addDeco(x, h / 2 + 90, "deco_torch", false);
     }
-    // Torches in rooms
-    const torchRoomPos = [
-      [130, 130], [600, 130], [130, 400], [600, 400],
-      [w - 660, 130], [w - 140, 130], [w - 660, 400], [w - 140, 400],
-      [130, h - 460], [600, h - 460], [130, h - 140], [600, h - 140],
-      [w - 660, h - 500], [w - 140, h - 500], [w - 660, h - 140], [w - 140, h - 140],
-    ];
-    torchRoomPos.forEach(([tx, ty]) => this.addDeco(tx, ty, "deco_torch", false));
+    vCorrX.forEach(cx => {
+      for (let y = 128; y < h - 128; y += 120) {
+        this.addDeco(cx - 40, y, "deco_torch", false);
+      }
+    });
+    // Lanterns in rooms
+    rooms.forEach(room => {
+      this.addDeco(room.x + 20, room.y + 20, "deco_lantern", false);
+      this.addDeco(room.x + room.tw * 32 - 20, room.y + 20, "deco_lantern", false);
+    });
 
-    // Bone piles
-    const bonePos = [
-      [300, 300], [450, 220], [w - 400, h - 350],
-      [w - 250, h - 300], [w / 2, h / 2 + 60],
-      [350, h - 350], [w - 500, 300], [w / 2 - 100, h / 2 - 50],
-    ];
-    bonePos.forEach(([bx, by]) => this.addDeco(bx, by, "deco_bones", false));
+    // === LAVA ZONE (center-south) ===
+    const lavaX = w / 2;
+    const lavaY = 2 * h / 3 + 200;
+    for (let dx = -4; dx <= 4; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        if (Math.sqrt(dx * dx + dy * dy) <= 3.5) {
+          this.add.image(lavaX + dx * 32, lavaY + dy * 32, "tile_lava").setDepth(0);
+        }
+      }
+    }
 
-    // Barrels and crates in entry room
-    this.addDeco(140, 140, "deco_barrel", false);
-    this.addDeco(160, 140, "deco_crate", false);
-    this.addDeco(140, 160, "deco_crate", false);
-    this.addDeco(180, 140, "deco_barrel", false);
+    // === ENTRANCE HALL decorations ===
+    this.addDeco(200, 200, "deco_barrel", false);
+    this.addDeco(230, 200, "deco_barrel", false);
+    this.addDeco(260, 200, "deco_crate", false);
+    this.addDeco(200, 250, "deco_crate", false);
 
-    // Treasure room crates
-    this.addDeco(w - 660, 140, "deco_crate", false);
-    this.addDeco(w - 640, 140, "deco_barrel", false);
-    this.addDeco(w - 660, 160, "deco_barrel", false);
+    // === PRISON BLOCK ===
+    for (let i = 0; i < 4; i++) {
+      const cellX = 150 + i * 60;
+      const cellY = h - 600;
+      this.addDeco(cellX, cellY, "deco_bones", false);
+      // Iron fences (use stone fence as bars)
+      this.addDeco(cellX, cellY - 30, "deco_fence_stone", false);
+    }
 
-    // Boss room decorations
-    this.addDeco(w - 400, h - 300, "deco_barrel", false);
-    this.addDeco(w - 380, h - 300, "deco_barrel", false);
-    this.addDeco(w - 420, h - 300, "deco_crate", false);
+    // === RITUAL CHAMBER ===
+    const ritualCX = w / 2;
+    const ritualCY = 300;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      this.addDeco(ritualCX + Math.cos(a) * 70, ritualCY + Math.sin(a) * 70, "deco_crystal", false);
+    }
+    this.addDeco(ritualCX, ritualCY, "deco_shrine_glow", false);
 
-    // Scattered rocks
+    // === ARMORY room ===
+    for (let i = 0; i < 5; i++) {
+      this.addDeco(w - 850 + i * 50, 200, "deco_barrel", false);
+      this.addDeco(w - 850 + i * 50, 250, "deco_crate", false);
+    }
+    this.addDeco(w - 600, 350, "deco_statue", true);
+
+    // === TREASURE VAULT ===
+    for (let i = 0; i < 6; i++) {
+      this.addDeco(200 + i * 40, h / 2 - 220, "deco_chest", false);
+    }
+    this.addDeco(300, h / 2 - 150, "deco_barrel", false);
+    this.addDeco(350, h / 2 - 150, "deco_barrel", false);
+
+    // === CRYPT ===
+    for (let i = 0; i < 6; i++) {
+      this.addDeco(w / 2 - 80 + i * 40, h - 600, "deco_tombstone", false);
+    }
+    for (let i = 0; i < 4; i++) {
+      this.addDeco(w / 2 - 60 + i * 50, h - 500, "deco_bones", false);
+    }
+
+    // === BOSS THRONE ROOM ===
+    const bossRX = w - 500;
+    const bossRY = h - 400;
+    this.addDeco(bossRX, bossRY - 100, "deco_statue", true);
+    this.addDeco(bossRX - 80, bossRY - 60, "deco_banner_red", false);
+    this.addDeco(bossRX + 80, bossRY - 60, "deco_banner_red", false);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      this.addDeco(bossRX + Math.cos(a) * 100, bossRY + Math.sin(a) * 80, "deco_torch", false);
+    }
+    // Scattered bones
+    for (let i = 0; i < 8; i++) {
+      this.addDeco(bossRX + (Math.random() - 0.5) * 150, bossRY + (Math.random() - 0.5) * 120, "deco_bones", false);
+    }
+
+    // === LIBRARY ROOM ===
+    for (let i = 0; i < 4; i++) {
+      this.addDeco(w - 450 + i * 50, h / 2 - 200, "deco_crate", false);
+      this.addDeco(w - 450 + i * 50, h / 2 - 150, "deco_crate", false);
+    }
+    this.addDeco(w - 350, h / 2 - 100, "deco_lantern", false);
+
+    // === SCATTERED BONES throughout ===
+    for (let i = 0; i < 15; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_bones", false);
+    }
+
+    // === SCATTERED ROCKS ===
+    for (let i = 0; i < 15; i++) {
+      this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_rock", false);
+    }
+
+    // === WEBS in dark corners ===
     for (let i = 0; i < 10; i++) {
-      this.addDeco(
-        100 + Math.random() * (w - 200),
-        100 + Math.random() * (h - 200),
-        "deco_rock", false
-      );
-    }
-
-    // Inner walls
-    for (let x = 64; x < w / 4 - 48; x += 32) {
-      this.addWallBlock(x, h / 2 - 80);
-      this.addWallBlock(x, h / 2 + 80);
-    }
-    for (let x = w / 4 + 80; x < w / 2 - 48; x += 32) {
-      this.addWallBlock(x, h / 2 - 80);
-      this.addWallBlock(x, h / 2 + 80);
-    }
-    for (let x = w / 2 + 80; x < 3 * w / 4 - 48; x += 32) {
-      this.addWallBlock(x, h / 2 - 80);
-      this.addWallBlock(x, h / 2 + 80);
-    }
-    for (let x = 3 * w / 4 + 80; x < w - 64; x += 32) {
-      this.addWallBlock(x, h / 2 - 80);
-      this.addWallBlock(x, h / 2 + 80);
+      this.addDeco(80 + Math.random() * (w - 160), 80 + Math.random() * (h - 160), "deco_web", false);
     }
   }
 
-  // --- ARENA DECORATION ---
+  // --- ARENA DECORATION --- (2400×2400)
   decorateArena(w: number, h: number, _ts: number) {
     const cx = w / 2;
     const cy = h / 2;
 
-    // Arena floor (center pit) - bigger for 1200×1200
-    const pitR = 300;
+    // === GRAND ARENA PIT ===
+    const pitR = 500;
     for (let x = cx - pitR; x < cx + pitR; x += 32) {
       for (let y = cy - pitR; y < cy + pitR; y += 32) {
         const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
@@ -746,76 +1057,132 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // Arena border ring (sand)
-    for (let angle = 0; angle < Math.PI * 2; angle += 0.1) {
+    // Sand border ring
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.06) {
       const bx = cx + Math.cos(angle) * (pitR + 16);
       const by = cy + Math.sin(angle) * (pitR + 16);
       this.add.image(bx, by, "tile_sand").setDepth(0);
     }
 
-    // Inner decorative ring
-    for (let angle = 0; angle < Math.PI * 2; angle += 0.12) {
-      const bx = cx + Math.cos(angle) * (pitR - 30);
-      const by = cy + Math.sin(angle) * (pitR - 30);
-      this.add.image(bx, by, "tile_sand").setDepth(0).setAlpha(0.4);
+    // Inner decorative circle
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.08) {
+      this.add.image(cx + Math.cos(angle) * (pitR - 40), cy + Math.sin(angle) * (pitR - 40), "tile_sand").setDepth(0).setAlpha(0.4);
     }
 
-    // Banners around perimeter (more)
+    // === 16 BANNERS around arena perimeter ===
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const bx = cx + Math.cos(angle) * (pitR + 80);
+      const by = cy + Math.sin(angle) * (pitR + 80);
+      const bannerType = i % 3 === 0 ? "deco_banner_red" : i % 3 === 1 ? "deco_banner_blue" : "deco_banner_green";
+      this.addDeco(bx, by, bannerType, false);
+    }
+
+    // === 12 TORCHES ===
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
-      const bx = cx + Math.cos(angle) * (pitR + 70);
-      const by = cy + Math.sin(angle) * (pitR + 70);
-      this.addDeco(bx, by, i % 2 === 0 ? "deco_banner_red" : "deco_banner_blue", false);
+      this.addDeco(cx + Math.cos(angle) * (pitR + 55), cy + Math.sin(angle) * (pitR + 55), "deco_torch", false);
     }
 
-    // Torches (8 around)
+    // === 8 PILLARS ===
     for (let i = 0; i < 8; i++) {
       const angle = (i / 8) * Math.PI * 2;
-      const tx = cx + Math.cos(angle) * (pitR + 50);
-      const ty = cy + Math.sin(angle) * (pitR + 50);
-      this.addDeco(tx, ty, "deco_torch", false);
+      const px = cx + Math.cos(angle) * (pitR + 100);
+      const py = cy + Math.sin(angle) * (pitR + 100);
+      const p = this.addDeco(px, py, "deco_pillar", true);
+      if (p) { p.body.setSize(12, 8); p.body.setOffset(2, 30); p.refreshBody(); }
     }
 
-    // Spectator stands (stone tiles on all four sides)
+    // === SPECTATOR STANDS (stone on all 4 sides) ===
+    // North stands
     for (let x = 64; x < w - 64; x += 32) {
-      for (let y = 64; y < 180; y += 32) {
-        this.add.image(x, y, "tile_stone").setDepth(0);
-      }
-      for (let y = h - 180; y < h - 64; y += 32) {
+      for (let y = 40; y < 220; y += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
-    for (let y = 180; y < h - 180; y += 32) {
-      for (let x = 64; x < 160; x += 32) {
+    // South stands
+    for (let x = 64; x < w - 64; x += 32) {
+      for (let y = h - 220; y < h - 40; y += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
-      for (let x = w - 160; x < w - 64; x += 32) {
+    }
+    // West stands
+    for (let y = 220; y < h - 220; y += 32) {
+      for (let x = 40; x < 180; x += 32) {
+        this.add.image(x, y, "tile_stone").setDepth(0);
+      }
+    }
+    // East stands
+    for (let y = 220; y < h - 220; y += 32) {
+      for (let x = w - 180; x < w - 40; x += 32) {
         this.add.image(x, y, "tile_stone").setDepth(0);
       }
     }
 
-    // Barrels by entrance
-    this.addDeco(w - 120, cy - 40, "deco_barrel", false);
-    this.addDeco(w - 120, cy + 40, "deco_barrel", false);
-    this.addDeco(w - 140, cy, "deco_crate", false);
+    // === 4 STATUES at cardinal points ===
+    const statuePos = [[cx, 200], [cx, h - 200], [180, cy], [w - 180, cy]];
+    statuePos.forEach(([sx, sy]) => {
+      const s = this.addDeco(sx, sy, "deco_statue", true);
+      if (s) { s.body.setSize(12, 8); s.body.setOffset(4, 30); s.refreshBody(); }
+    });
+
+    // === ENTRANCE GATES (east and west) ===
+    // West gate
+    const wgP1 = this.addDeco(60, cy - 70, "deco_pillar", true);
+    if (wgP1) { wgP1.body.setSize(12, 8); wgP1.body.setOffset(2, 30); wgP1.refreshBody(); }
+    const wgP2 = this.addDeco(60, cy + 70, "deco_pillar", true);
+    if (wgP2) { wgP2.body.setSize(12, 8); wgP2.body.setOffset(2, 30); wgP2.refreshBody(); }
+    this.addDeco(60, cy - 100, "deco_banner_red", false);
+    this.addDeco(60, cy + 100, "deco_banner_red", false);
+    // East gate
+    const egP1 = this.addDeco(w - 60, cy - 70, "deco_pillar", true);
+    if (egP1) { egP1.body.setSize(12, 8); egP1.body.setOffset(2, 30); egP1.refreshBody(); }
+    const egP2 = this.addDeco(w - 60, cy + 70, "deco_pillar", true);
+    if (egP2) { egP2.body.setSize(12, 8); egP2.body.setOffset(2, 30); egP2.refreshBody(); }
+    this.addDeco(w - 60, cy - 100, "deco_banner_blue", false);
+    this.addDeco(w - 60, cy + 100, "deco_banner_blue", false);
+
+    // === SUPPLY AREAS ===
+    // West supplies
     this.addDeco(100, cy - 40, "deco_barrel", false);
     this.addDeco(100, cy + 40, "deco_barrel", false);
+    this.addDeco(130, cy, "deco_crate", false);
+    this.addDeco(130, cy - 30, "deco_crate", false);
+    // East supplies
+    this.addDeco(w - 100, cy - 40, "deco_barrel", false);
+    this.addDeco(w - 100, cy + 40, "deco_barrel", false);
+    this.addDeco(w - 130, cy, "deco_crate", false);
 
-    // Pillars at entrance  
-    const entrance = this.addDeco(w - 90, cy - 60, "deco_pillar", true);
-    if (entrance) { entrance.body.setSize(12, 8); entrance.body.setOffset(2, 30); entrance.refreshBody(); }
-    const entrance2 = this.addDeco(w - 90, cy + 60, "deco_pillar", true);
-    if (entrance2) { entrance2.body.setSize(12, 8); entrance2.body.setOffset(2, 30); entrance2.refreshBody(); }
-    // Pillars at opposite side
-    const e3 = this.addDeco(90, cy - 60, "deco_pillar", true);
-    if (e3) { e3.body.setSize(12, 8); e3.body.setOffset(2, 30); e3.refreshBody(); }
-    const e4 = this.addDeco(90, cy + 60, "deco_pillar", true);
-    if (e4) { e4.body.setSize(12, 8); e4.body.setOffset(2, 30); e4.refreshBody(); }
+    // === BONES scattered in arena ===
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 100 + Math.random() * (pitR - 150);
+      this.addDeco(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, "deco_bones", false);
+    }
 
-    // Bones scattered in arena
-    this.addDeco(cx - 100, cy + 80, "deco_bones", false);
-    this.addDeco(cx + 120, cy - 60, "deco_bones", false);
-    this.addDeco(cx - 60, cy - 100, "deco_bones", false);
+    // === LANTERNS on stands ===
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + 0.2;
+      this.addDeco(cx + Math.cos(angle) * (pitR + 130), cy + Math.sin(angle) * (pitR + 130), "deco_lantern", false);
+    }
+
+    // === CHAMPION PREPARATION ROOMS (NW and NE corners) ===
+    // NW room
+    for (let rx = 60; rx < 280; rx += 32) {
+      for (let ry = 60; ry < 200; ry += 32) {
+        this.add.image(rx, ry, "tile_stone").setDepth(0);
+      }
+    }
+    this.addDeco(100, 100, "deco_chest", false);
+    this.addDeco(200, 100, "deco_barrel", false);
+    // NE room
+    for (let rx = w - 280; rx < w - 60; rx += 32) {
+      for (let ry = 60; ry < 200; ry += 32) {
+        this.add.image(rx, ry, "tile_stone").setDepth(0);
+      }
+    }
+    this.addDeco(w - 200, 100, "deco_chest", false);
+    this.addDeco(w - 120, 100, "deco_barrel", false);
   }
 
   // --- Decoration helpers ---
@@ -891,12 +1258,18 @@ export class WorldScene extends Phaser.Scene {
   }
 
   getMapTile(): string {
+    const r = Math.random();
     switch (this.currentMap) {
-      case "village": return "tile_grass";
-      case "fields": return Math.random() > 0.15 ? "tile_grass" : "tile_dirt";
-      case "forest": return Math.random() > 0.3 ? "tile_grass" : "tile_dark";
-      case "dungeon": return "tile_dark";
-      case "arena": return "tile_sand";
+      case "village":
+        return r < 0.6 ? "tile_grass" : r < 0.85 ? "tile_grass_lush" : "tile_grass_dark";
+      case "fields":
+        return r < 0.45 ? "tile_grass" : r < 0.7 ? "tile_grass_lush" : r < 0.85 ? "tile_dirt" : "tile_dirt_dark";
+      case "forest":
+        return r < 0.35 ? "tile_grass_dark" : r < 0.6 ? "tile_grass" : r < 0.85 ? "tile_dark" : "tile_grass_lush";
+      case "dungeon":
+        return r < 0.5 ? "tile_dark" : r < 0.8 ? "tile_stone" : "tile_stone_mossy";
+      case "arena":
+        return r < 0.7 ? "tile_sand" : r < 0.9 ? "tile_arena" : "tile_stone";
       default: return "tile_grass";
     }
   }
