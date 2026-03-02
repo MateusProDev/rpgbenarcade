@@ -161,27 +161,27 @@ export class BootScene extends Phaser.Scene {
     this.generateDecorations();
 
     // ========================
-    // TILES (32x32)
+    // TILES (32x32) — painted style via Canvas 2D API
     // ========================
-    this.generateDetailedTile("tile_grass", 0x3a7d44, 0x2d6b35, "grass");
-    this.generateDetailedTile("tile_grass_dark", 0x2d6633, 0x1f5525, "grass");
-    this.generateDetailedTile("tile_grass_lush", 0x44994e, 0x338940, "grass");
-    this.generateDetailedTile("tile_dirt", 0x8b6914, 0x7a5c12, "dirt");
-    this.generateDetailedTile("tile_dirt_dark", 0x6b4c0e, 0x5a3e08, "dirt");
-    this.generateDetailedTile("tile_stone", 0x666666, 0x555555, "stone");
-    this.generateDetailedTile("tile_stone_mossy", 0x556655, 0x445544, "stone");
-    this.generateDetailedTile("tile_water", 0x2244aa, 0x1a3388, "water");
-    this.generateDetailedTile("tile_water_deep", 0x112266, 0x0a1a55, "water");
-    this.generateDetailedTile("tile_sand", 0xccbb88, 0xbbaa77, "sand");
-    this.generateDetailedTile("tile_dark", 0x332233, 0x221122, "dark");
-    this.generateDetailedTile("tile_lava", 0xcc4400, 0xaa2200, "lava");
-    this.generateDetailedTile("tile_swamp", 0x3a5522, 0x2a4418, "swamp");
-    this.generateDetailedTile("tile_cobble", 0x887766, 0x776655, "cobble");
-    this.generateDetailedTile("tile_snow", 0xddddee, 0xccccdd, "snow");
-    this.generateDetailedTile("tile_arena", 0x884422, 0x773311, "arena");
-    this.generateDetailedTile("tile_wall", 0x555555, 0x444444, "wall");
-    this.generateDetailedTile("tile_wood", 0x8b5a2b, 0x7a4a1b, "wood");
-    this.generateDetailedTile("tile_path", 0x998877, 0x887766, "path");
+    this.generatePaintedTile("tile_grass", "grass");
+    this.generatePaintedTile("tile_grass_dark", "grass_dark");
+    this.generatePaintedTile("tile_grass_lush", "grass_lush");
+    this.generatePaintedTile("tile_dirt", "dirt");
+    this.generatePaintedTile("tile_dirt_dark", "dirt_dark");
+    this.generatePaintedTile("tile_stone", "stone");
+    this.generatePaintedTile("tile_stone_mossy", "stone_mossy");
+    this.generatePaintedTile("tile_water", "water");
+    this.generatePaintedTile("tile_water_deep", "water_deep");
+    this.generatePaintedTile("tile_sand", "sand");
+    this.generatePaintedTile("tile_dark", "dark");
+    this.generatePaintedTile("tile_lava", "lava");
+    this.generatePaintedTile("tile_swamp", "swamp");
+    this.generatePaintedTile("tile_cobble", "cobble");
+    this.generatePaintedTile("tile_snow", "snow");
+    this.generatePaintedTile("tile_arena", "arena");
+    this.generatePaintedTile("tile_wall", "wall");
+    this.generatePaintedTile("tile_wood", "wood");
+    this.generatePaintedTile("tile_path", "path");
   }
 
   // ========================
@@ -4134,161 +4134,523 @@ export class BootScene extends Phaser.Scene {
   // ========================
   // TILE GENERATOR (32x32)
   // ========================
-  generateDetailedTile(key: string, color1: number, color2: number, type: string) {
-    const g = this.make.graphics({ x: 0, y: 0 });
-    const S = 32;
+  // ========================
+  // TILE GENERATOR (32x32) — painted
+  // ========================
+  generateDetailedTile(_key: string, _c1: number, _c2: number, _type: string) {
+    // legacy no-op — replaced by generatePaintedTile
+  }
 
-    g.fillStyle(color1, 1);
-    g.fillRect(0, 0, S, S);
+  // ========================
+  // PAINTED TILE GENERATOR
+  // Uses Canvas 2D API for gradients, compositing, shadows.
+  // Result: indie premium RPG look — soft shading, depth, natural light.
+  // ========================
+  generatePaintedTile(key: string, type: string) {
+    const S = 32;
+    const tex = this.textures.createCanvas(key, S, S);
+    if (!tex) return;
+    const ctx = tex.context;
+    ctx.imageSmoothingEnabled = false;
+
+    // --- Helpers ---
+    const n = (x: number, y: number, s = 1) =>
+      Math.abs(Math.sin(x * 127.1 * s + y * 311.7) * 43758.5453) % 1;
+    const vignette = (alpha: number) => {
+      const vg = ctx.createRadialGradient(S/2, S/2, S * 0.05, S/2, S/2, S * 0.82);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, `rgba(0,0,0,${alpha})`);
+      ctx.fillStyle = vg; ctx.fillRect(0, 0, S, S);
+    };
+    const topLight = (alpha: number) => {
+      const lg = ctx.createRadialGradient(5, 4, 0, 5, 4, S * 1.3);
+      lg.addColorStop(0, `rgba(255,255,230,${alpha})`);
+      lg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = lg; ctx.fillRect(0, 0, S, S);
+    };
 
     switch (type) {
-      case "grass":
-        g.fillStyle(color2, 0.6);
-        for (let i = 0; i < 12; i++) {
-          const gx = Math.floor(Math.random() * 28) + 2;
-          const gy = Math.floor(Math.random() * 28) + 2;
-          g.fillRect(gx, gy, 1, 3);
+      // ======================================================
+      case 'grass': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#4f9558'); g.addColorStop(0.5, '#3d8046'); g.addColorStop(1, '#2e6535');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // soft colour patches
+        for (let i = 0; i < 22; i++) {
+          const px = n(i, 0) * 30 + 1, py = n(0, i) * 30 + 1, r = n(i, i) * 4 + 1.5;
+          ctx.fillStyle = n(i, i*2) > 0.5 ? 'rgba(80,165,90,0.28)' : 'rgba(28,75,35,0.32)';
+          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
         }
-        g.fillStyle(this.lighten(color1, 15), 0.4);
-        for (let i = 0; i < 4; i++) {
-          const px = Math.floor(Math.random() * 24) + 4;
-          const py = Math.floor(Math.random() * 24) + 4;
-          g.fillCircle(px, py, 3);
-        }
+        // grass blades — dark then light
+        const drawBlade = (bx: number, by: number, col: string) => {
+          ctx.strokeStyle = col; ctx.lineWidth = 0.7;
+          const cx2 = bx + (n(bx,by+1)-.5)*3, top = by - 5 - n(bx,by)*3;
+          ctx.beginPath(); ctx.moveTo(bx, by);
+          ctx.quadraticCurveTo(cx2, by - 3, bx + (n(bx+1,by)-.5)*2, top);
+          ctx.stroke();
+        };
+        for (let i = 0; i < 12; i++) drawBlade(n(i,4)*30+1, n(4,i)*30+1, 'rgba(40,95,48,0.75)');
+        for (let i = 0; i < 10; i++) drawBlade(n(i+15,5)*30+1, n(5,i+8)*30+1, 'rgba(100,195,112,0.5)');
+        vignette(0.18); topLight(0.12);
         break;
-      case "dirt":
-        g.fillStyle(color2, 0.7);
+      }
+      // ======================================================
+      case 'grass_lush': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#5db86a'); g.addColorStop(0.5, '#4ba057'); g.addColorStop(1, '#378544');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        for (let i = 0; i < 24; i++) {
+          const px = n(i, 1) * 30 + 1, py = n(1, i) * 30 + 1, r = n(i+1, i) * 5 + 1.5;
+          ctx.fillStyle = n(i, i+3) > 0.5 ? 'rgba(100,200,115,0.32)' : 'rgba(35,100,45,0.3)';
+          ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
+        }
+        for (let i = 0; i < 13; i++) {
+          const bx = n(i,6)*30+1, by = n(6,i)*30+1;
+          ctx.strokeStyle = n(i,7) > 0.5 ? 'rgba(120,220,135,0.55)' : 'rgba(50,120,60,0.7)';
+          ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.moveTo(bx, by);
+          ctx.quadraticCurveTo(bx+(n(i+2,by)-.5)*4, by-4, bx+(n(i+3,by)-.5)*3, by-7);
+          ctx.stroke();
+        }
+        // scattered tiny flowers
         for (let i = 0; i < 5; i++) {
-          const dx = Math.floor(Math.random() * 26) + 3;
-          const dy = Math.floor(Math.random() * 26) + 3;
-          g.fillCircle(dx, dy, 1 + Math.random());
+          const fx = n(i,9)*28+2, fy = n(9,i)*28+2;
+          ctx.fillStyle = n(i,11) > 0.6 ? 'rgba(255,220,60,0.7)' : 'rgba(255,105,155,0.65)';
+          ctx.beginPath(); ctx.arc(fx, fy, 1.2, 0, Math.PI*2); ctx.fill();
         }
-        g.fillStyle(this.darken(color1, 20), 0.5);
-        g.fillRect(8, 12, 6, 1);
-        g.fillRect(18, 20, 8, 1);
+        vignette(0.16); topLight(0.14);
         break;
-      case "stone":
-        g.lineStyle(1, this.darken(color1, 25), 0.5);
-        g.strokeRect(0, 0, 16, 16);
-        g.strokeRect(16, 0, 16, 16);
-        g.strokeRect(8, 16, 16, 16);
-        g.fillStyle(0x446644, 0.3);
-        g.fillCircle(6, 24, 2);
-        g.fillCircle(26, 8, 2);
-        break;
-      case "water":
-        g.fillStyle(this.lighten(color1, 20), 0.4);
-        for (let i = 0; i < 3; i++) {
-          const wy = 6 + i * 10;
-          g.fillEllipse(16, wy, 24, 3);
+      }
+      // ======================================================
+      case 'grass_dark': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#2e6e38'); g.addColorStop(0.5, '#245a2d'); g.addColorStop(1, '#1a4520');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        for (let i = 0; i < 18; i++) {
+          ctx.fillStyle = n(i,2) > 0.5 ? 'rgba(50,110,55,0.3)' : 'rgba(12,40,16,0.45)';
+          ctx.beginPath(); ctx.arc(n(i,0)*30+1, n(0,i)*30+1, n(i,i)*3.5+1.5, 0, Math.PI*2); ctx.fill();
         }
-        g.fillStyle(0xffffff, 0.3);
-        g.fillRect(10, 8, 2, 1);
-        g.fillRect(22, 18, 2, 1);
-        break;
-      case "dark":
-        g.fillStyle(color2, 0.5);
-        for (let i = 0; i < 8; i++) {
-          const dx = Math.floor(Math.random() * 28) + 2;
-          const dy = Math.floor(Math.random() * 28) + 2;
-          g.fillRect(dx, dy, 2, 2);
-        }
-        g.fillStyle(0x440044, 0.3);
-        g.fillCircle(8, 24, 3);
-        break;
-      case "arena":
-        g.fillStyle(this.lighten(color1, 20), 0.4);
-        g.fillRect(0, 15, 32, 2);
-        g.fillRect(15, 0, 2, 32);
-        g.fillStyle(0xffcc00, 0.3);
-        g.fillRect(0, 0, 4, 4);
-        g.fillRect(28, 0, 4, 4);
-        g.fillRect(0, 28, 4, 4);
-        g.fillRect(28, 28, 4, 4);
-        break;
-      case "wall":
-        g.lineStyle(1, this.darken(color1, 20), 0.6);
-        g.strokeRect(0, 0, 16, 8);
-        g.strokeRect(16, 0, 16, 8);
-        g.strokeRect(8, 8, 16, 8);
-        g.strokeRect(0, 16, 16, 8);
-        g.strokeRect(16, 16, 16, 8);
-        g.strokeRect(8, 24, 16, 8);
-        break;
-      case "wood":
-        g.fillStyle(this.darken(color1, 15), 0.5);
-        for (let i = 0; i < 6; i++) {
-          g.fillRect(0, i * 5 + 2, 32, 1);
-        }
-        g.fillStyle(this.darken(color1, 25), 0.6);
-        g.fillCircle(12, 16, 3);
-        g.fillCircle(24, 8, 2);
-        break;
-      case "sand":
-        g.fillStyle(color2, 0.4);
         for (let i = 0; i < 10; i++) {
-          g.fillRect(Math.floor(Math.random() * 30) + 1, Math.floor(Math.random() * 30) + 1, 1, 1);
+          ctx.strokeStyle = 'rgba(30,75,38,0.85)'; ctx.lineWidth = 0.8;
+          const bx = n(i,8)*30+1, by = n(8,i)*30+1;
+          ctx.beginPath(); ctx.moveTo(bx, by);
+          ctx.quadraticCurveTo(bx+(n(i+4,by)-.5)*3, by-3, bx, by-6); ctx.stroke();
         }
-        g.fillStyle(this.lighten(color1, 10), 0.3);
-        g.fillEllipse(16, 20, 20, 6);
+        // damp dark rim
+        const dr = ctx.createLinearGradient(0, S, S, 0);
+        dr.addColorStop(0, 'rgba(0,10,5,0.3)'); dr.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = dr; ctx.fillRect(0, 0, S, S);
+        vignette(0.28); topLight(0.08);
         break;
-      case "path":
-        g.fillStyle(this.darken(color1, 10), 0.6);
-        g.fillRoundedRect(1, 1, 14, 14, 2);
-        g.fillRoundedRect(17, 1, 14, 14, 2);
-        g.fillRoundedRect(9, 17, 14, 14, 2);
-        g.fillStyle(this.lighten(color1, 15), 0.3);
-        g.fillRect(3, 3, 4, 4);
-        g.fillRect(19, 19, 4, 4);
-        g.fillStyle(this.darken(color1, 25), 0.3);
-        g.fillRect(0, 15, 32, 1);
-        g.fillRect(15, 0, 1, 32);
+      }
+      // ======================================================
+      case 'dirt': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#9e7a2a'); g.addColorStop(0.5, '#8a6820'); g.addColorStop(1, '#745516');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // soil texture — mottled patches
+        for (let i = 0; i < 18; i++) {
+          ctx.fillStyle = n(i,3) > 0.55 ? 'rgba(140,100,35,0.35)' : 'rgba(80,50,10,0.3)';
+          ctx.beginPath(); ctx.ellipse(n(i,0)*29+1.5, n(0,i)*29+1.5, n(i,i)*4+1, n(i+1,i)*2+0.8, n(i,i+2)*Math.PI, 0, Math.PI*2); ctx.fill();
+        }
+        // pebbles
+        for (let i = 0; i < 5; i++) {
+          const px = n(i+5,0)*26+3, py = n(0,i+5)*26+3;
+          ctx.fillStyle = 'rgba(120,95,40,0.8)';
+          ctx.beginPath(); ctx.ellipse(px, py, 2, 1.3, n(i,10)*Math.PI, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = 'rgba(180,145,75,0.5)';
+          ctx.beginPath(); ctx.arc(px-0.7, py-0.5, 0.8, 0, Math.PI*2); ctx.fill();
+        }
+        // crack lines
+        ctx.strokeStyle = 'rgba(90,60,15,0.55)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(6, 14); ctx.bezierCurveTo(10, 12, 15, 16, 20, 14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(18, 22); ctx.bezierCurveTo(22, 20, 25, 24, 28, 22); ctx.stroke();
+        vignette(0.2); topLight(0.1);
         break;
-      case "lava":
-        g.fillStyle(0xff6600, 0.5);
+      }
+      // ======================================================
+      case 'dirt_dark': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#7a5618'); g.addColorStop(0.5, '#654510'); g.addColorStop(1, '#50360a');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        for (let i = 0; i < 20; i++) {
+          ctx.fillStyle = n(i,4) > 0.5 ? 'rgba(110,75,20,0.4)' : 'rgba(55,32,5,0.45)';
+          ctx.beginPath(); ctx.ellipse(n(i,1)*29+1.5, n(1,i)*29+1.5, n(i,i+1)*4+1, n(i,i)*2+0.8, n(i,i+3)*Math.PI, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(60,38,8,0.65)'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(3, 10); ctx.bezierCurveTo(9, 8, 14, 13, 19, 11); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(15, 22); ctx.bezierCurveTo(20, 20, 25, 24, 29, 21); ctx.stroke();
+        vignette(0.3); topLight(0.06);
+        break;
+      }
+      // ======================================================
+      case 'stone': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#787878'); g.addColorStop(0.5, '#636363'); g.addColorStop(1, '#4f4f4f');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // stone blocks — staggered brick pattern with bevel
+        const blocks = [[0,0,16,11],[16,0,16,11],[8,11,16,10],[0,21,16,11],[16,21,16,11]];
+        blocks.forEach(([bx,by,bw,bh]) => {
+          // mortar gap
+          ctx.fillStyle = 'rgba(40,40,40,0.6)';
+          ctx.fillRect(bx, by, bw, bh);
+          // block face
+          const bf = ctx.createLinearGradient(bx, by, bx+bw, by+bh);
+          bf.addColorStop(0, 'rgba(135,130,125,0.7)'); bf.addColorStop(1, 'rgba(85,82,78,0.7)');
+          ctx.fillStyle = bf;
+          ctx.fillRect(bx+1, by+1, bw-2, bh-2);
+          // top highlight
+          ctx.fillStyle = 'rgba(190,185,180,0.35)';
+          ctx.fillRect(bx+1, by+1, bw-2, 2);
+          // bottom shadow
+          ctx.fillStyle = 'rgba(30,28,25,0.4)';
+          ctx.fillRect(bx+1, by+bh-3, bw-2, 2);
+        });
+        // chisel texture noise
+        for (let i = 0; i < 20; i++) {
+          ctx.fillStyle = `rgba(${n(i,5)>0.5?200:50},${n(i,5)>0.5?195:48},${n(i,5)>0.5?188:44},0.08)`;
+          ctx.fillRect(n(i,0)*30+1, n(0,i)*30+1, 2, 1);
+        }
+        vignette(0.22); topLight(0.13);
+        break;
+      }
+      // ======================================================
+      case 'stone_mossy': {
+        // base stone
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#6a7268'); g.addColorStop(1, '#505b4e');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        const blocks2 = [[0,0,16,11],[16,0,16,11],[8,11,16,10],[0,21,16,11],[16,21,16,11]];
+        blocks2.forEach(([bx,by,bw,bh]) => {
+          ctx.fillStyle = 'rgba(35,42,32,0.6)'; ctx.fillRect(bx, by, bw, bh);
+          const bf = ctx.createLinearGradient(bx, by, bx+bw, by+bh);
+          bf.addColorStop(0, 'rgba(120,135,110,0.7)'); bf.addColorStop(1, 'rgba(70,85,62,0.7)');
+          ctx.fillStyle = bf; ctx.fillRect(bx+1, by+1, bw-2, bh-2);
+          ctx.fillStyle = 'rgba(155,180,135,0.3)'; ctx.fillRect(bx+1, by+1, bw-2, 2);
+          ctx.fillStyle = 'rgba(20,30,18,0.45)'; ctx.fillRect(bx+1, by+bh-3, bw-2, 2);
+        });
+        // moss patches
+        for (let i = 0; i < 14; i++) {
+          ctx.fillStyle = `rgba(${45+n(i,6)*30|0},${110+n(6,i)*40|0},${38+n(i+1,i)*20|0},${(n(i,i+4)*0.4+0.2).toFixed(2)})`;
+          ctx.beginPath(); ctx.arc(n(i,2)*30+1, n(2,i)*30+1, n(i,i)*4+1.5, 0, Math.PI*2); ctx.fill();
+        }
+        vignette(0.24); topLight(0.1);
+        break;
+      }
+      // ======================================================
+      case 'water': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#2f5bc9'); g.addColorStop(0.5, '#2248a8'); g.addColorStop(1, '#183688');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // caustic light ripples
+        for (let i = 0; i < 4; i++) {
+          const wy = 5 + i * 7, wx = 6 + n(i,0) * 18;
+          const wg = ctx.createRadialGradient(wx, wy, 0, wx, wy, 6+n(i,1)*4);
+          wg.addColorStop(0, 'rgba(120,180,255,0.35)');
+          wg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = wg; ctx.fillRect(0, 0, S, S);
+        }
+        // surface sheen lines
+        ctx.strokeStyle = 'rgba(140,195,255,0.4)'; ctx.lineWidth = 0.8;
+        for (let i = 0; i < 4; i++) {
+          const wy = 4 + i * 7;
+          ctx.beginPath();
+          ctx.moveTo(3, wy); ctx.quadraticCurveTo(S/2 + (n(i,3)-.5)*8, wy-2, S-3, wy+1);
+          ctx.stroke();
+        }
+        // specular glint top-left
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath(); ctx.ellipse(7, 6, 3, 1.2, -0.3, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath(); ctx.ellipse(22, 12, 2, 0.9, -0.2, 0, Math.PI*2); ctx.fill();
+        vignette(0.18); topLight(0.06);
+        break;
+      }
+      // ======================================================
+      case 'water_deep': {
+        const g = ctx.createLinearGradient(0, 0, 0, S);
+        g.addColorStop(0, '#1b358f'); g.addColorStop(0.6, '#112068'); g.addColorStop(1, '#090f3f');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // faint caustic ripples
         for (let i = 0; i < 3; i++) {
-          g.fillEllipse(8 + i * 8, 10 + i * 5, 10, 6);
+          const wg = ctx.createRadialGradient(8+n(i,0)*16, 6+n(0,i)*20, 0, 8+n(i,0)*16, 6+n(0,i)*20, 5);
+          wg.addColorStop(0, 'rgba(60,100,200,0.25)');
+          wg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = wg; ctx.fillRect(0, 0, S, S);
         }
-        g.fillStyle(0xffaa00, 0.4);
-        g.fillCircle(12, 14, 4);
-        g.fillCircle(22, 18, 3);
-        g.fillStyle(0xffcc44, 0.3);
-        g.fillCircle(16, 16, 2);
+        ctx.strokeStyle = 'rgba(60,100,200,0.25)'; ctx.lineWidth = 0.6;
+        for (let i = 0; i < 3; i++) {
+          const wy = 6 + i * 9;
+          ctx.beginPath(); ctx.moveTo(4, wy);
+          ctx.quadraticCurveTo(S/2+(n(i+5,2)-.5)*6, wy-1, S-4, wy+1); ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(180,220,255,0.3)';
+        ctx.beginPath(); ctx.ellipse(8, 7, 2.5, 0.9, -0.3, 0, Math.PI*2); ctx.fill();
+        vignette(0.35); topLight(0.04);
         break;
-      case "swamp":
-        g.fillStyle(this.darken(color1, 15), 0.5);
+      }
+      // ======================================================
+      case 'cobble': {
+        ctx.fillStyle = '#9a8f7e'; ctx.fillRect(0, 0, S, S);
+        // mortar fill
+        ctx.fillStyle = 'rgba(60,52,44,0.7)'; ctx.fillRect(0, 0, S, S);
+        // individual cobblestones
+        const stones = [
+          [1,1,10,10],[12,1,9,10],[22,1,9,10],
+          [1,12,9,9],  [11,12,10,9],[22,12,9,9],
+          [1,22,9,9],  [11,22,10,9],[22,22,9,9],
+        ];
+        stones.forEach(([sx, sy, sw, sh], idx) => {
+          const sg = ctx.createLinearGradient(sx, sy, sx+sw, sy+sh);
+          sg.addColorStop(0, `rgba(${165+n(idx,1)*30|0},${152+n(1,idx)*28|0},${132+n(idx,idx)*22|0},1)`);
+          sg.addColorStop(1, `rgba(${108+n(idx,2)*20|0},${98+n(2,idx)*18|0},${82+n(idx+1,idx)*16|0},1)`);
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.roundRect(sx+1, sy+1, sw-2, sh-2, 2); ctx.fill();
+          // highlight top-left
+          ctx.fillStyle = 'rgba(215,205,190,0.4)';
+          ctx.beginPath(); ctx.roundRect(sx+1, sy+1, sw-2, 2.5, 1); ctx.fill();
+          ctx.fillStyle = 'rgba(215,205,190,0.25)';
+          ctx.beginPath(); ctx.roundRect(sx+1, sy+1, 2.5, sh-2, 1); ctx.fill();
+          // shadow bottom-right
+          ctx.fillStyle = 'rgba(50,42,34,0.45)';
+          ctx.beginPath(); ctx.roundRect(sx+1, sy+sh-3, sw-2, 2.5, [0,0,2,2]); ctx.fill();
+        });
+        vignette(0.2); topLight(0.12);
+        break;
+      }
+      // ======================================================
+      case 'path': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#b09a78'); g.addColorStop(0.5, '#9a8566'); g.addColorStop(1, '#826f52');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        for (let i = 0; i < 22; i++) {
+          ctx.fillStyle = n(i,5) > 0.5 ? 'rgba(155,130,90,0.3)' : 'rgba(90,68,38,0.35)';
+          ctx.beginPath(); ctx.ellipse(n(i,1)*29+1.5, n(1,i)*29+1.5, n(i,i+1)*4+0.8, n(i,i)*2+0.5, n(i+1,i)*Math.PI, 0, Math.PI*2); ctx.fill();
+        }
+        // tyre/hoof groove lines
+        ctx.strokeStyle = 'rgba(100,78,45,0.5)'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(2, 10); ctx.bezierCurveTo(8,8, 14,12, 20,10); ctx.bezierCurveTo(24,9, 28,11, 31,10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(2, 22); ctx.bezierCurveTo(9,20, 15,24, 21,22); ctx.bezierCurveTo(25,21, 29,23, 31,22); ctx.stroke();
+        // small embedded pebbles
         for (let i = 0; i < 6; i++) {
-          g.fillCircle(Math.floor(Math.random() * 28) + 2, Math.floor(Math.random() * 28) + 2, 3);
+          const px = n(i+7,1)*26+3, py = n(1,i+7)*26+3;
+          ctx.fillStyle = 'rgba(140,120,85,0.85)';
+          ctx.beginPath(); ctx.ellipse(px, py, 1.5, 1, n(i,12)*Math.PI, 0, Math.PI*2); ctx.fill();
         }
-        g.fillStyle(0x2a3a11, 0.4);
-        g.fillRect(8, 12, 1, 4);
-        g.fillRect(20, 6, 1, 5);
-        g.fillStyle(0x88aa44, 0.2);
-        g.fillCircle(16, 20, 5);
+        vignette(0.22); topLight(0.1);
         break;
-      case "cobble":
-        g.lineStyle(1, this.darken(color1, 20), 0.4);
-        g.strokeRoundedRect(1, 1, 10, 10, 2);
-        g.strokeRoundedRect(12, 1, 9, 10, 2);
-        g.strokeRoundedRect(22, 1, 9, 10, 2);
-        g.strokeRoundedRect(5, 12, 10, 9, 2);
-        g.strokeRoundedRect(16, 12, 10, 9, 2);
-        g.strokeRoundedRect(1, 22, 9, 9, 2);
-        g.strokeRoundedRect(11, 22, 10, 9, 2);
-        g.strokeRoundedRect(22, 22, 9, 9, 2);
-        break;
-      case "snow":
-        g.fillStyle(0xffffff, 0.3);
-        for (let i = 0; i < 8; i++) {
-          g.fillCircle(Math.floor(Math.random() * 28) + 2, Math.floor(Math.random() * 28) + 2, 1);
+      }
+      // ======================================================
+      case 'sand': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#e0cc98'); g.addColorStop(0.5, '#ccb880'); g.addColorStop(1, '#b8a46a');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // wind ripple lines
+        ctx.strokeStyle = 'rgba(170,148,90,0.45)'; ctx.lineWidth = 0.6;
+        for (let i = 0; i < 6; i++) {
+          const ry = 4 + i * 5;
+          ctx.beginPath(); ctx.moveTo(0, ry + (n(i,0)-.5)*2);
+          ctx.quadraticCurveTo(S/2, ry+(n(i,1)-.5)*3, S, ry+(n(i,2)-.5)*2); ctx.stroke();
         }
-        g.fillStyle(this.darken(color1, 8), 0.2);
-        g.fillEllipse(16, 20, 18, 6);
+        // micro-grain stipple
+        for (let i = 0; i < 30; i++) {
+          ctx.fillStyle = n(i,6) > 0.5 ? 'rgba(220,200,155,0.3)' : 'rgba(130,108,65,0.25)';
+          ctx.fillRect(n(i,3)*30+1, n(3,i)*30+1, 1, 1);
+        }
+        // specular dune crest
+        const sc = ctx.createLinearGradient(0, S*0.35, 0, S*0.55);
+        sc.addColorStop(0, 'rgba(255,248,220,0.3)'); sc.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = sc; ctx.fillRect(0, 0, S, S);
+        vignette(0.14); topLight(0.15);
         break;
+      }
+      // ======================================================
+      case 'wall': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#6e6d68'); g.addColorStop(0.5, '#5a5956'); g.addColorStop(1, '#454442');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // brick rows
+        const rows: [number, number, number[]][] = [
+          [0,  8, [0,16,32]],
+          [8,  7, [8,24]],
+          [15, 8, [0,16,32]],
+          [23, 9, [8,24]],
+        ];
+        rows.forEach(([ry, rh, starts]) => {
+          for (let s = 0; s < starts.length - 1; s++) {
+            const bx = starts[s], bw = starts[s+1] - starts[s];
+            // mortar
+            ctx.fillStyle = 'rgba(28,26,22,0.75)'; ctx.fillRect(bx, ry, bw, rh);
+            // brick face gradient
+            const bf = ctx.createLinearGradient(bx, ry, bx, ry+rh);
+            bf.addColorStop(0, 'rgba(135,130,120,0.8)'); bf.addColorStop(1, 'rgba(88,84,76,0.8)');
+            ctx.fillStyle = bf; ctx.fillRect(bx+1, ry+1, bw-2, rh-2);
+            // top chamfer light
+            ctx.fillStyle = 'rgba(195,188,175,0.4)'; ctx.fillRect(bx+1, ry+1, bw-2, 1.5);
+            // bottom shadow
+            ctx.fillStyle = 'rgba(18,16,12,0.5)'; ctx.fillRect(bx+1, ry+rh-2.5, bw-2, 2);
+            // surface imperfections
+            for (let ci = 0; ci < 3; ci++) {
+              ctx.fillStyle = `rgba(${n(bx+ci,ry)>0.5?170:70},${n(ry,bx+ci)>0.5?165:66},${n(bx,ry+ci)>0.5?155:60},0.12)`;
+              ctx.fillRect(bx+2+n(bx+ci,ry)*( bw-4), ry+2+n(ry+ci,bx)*(rh-4), 2, 1);
+            }
+          }
+        });
+        vignette(0.25); topLight(0.1);
+        break;
+      }
+      // ======================================================
+      case 'wood': {
+        const g = ctx.createLinearGradient(0, 0, S, 0);
+        g.addColorStop(0, '#9e6830'); g.addColorStop(0.4, '#8a5a26'); g.addColorStop(1, '#6e4518');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // plank definition lines
+        [[10,0,10,S],[20,0,20,S]].forEach(([x1,y1,x2,y2]) => {
+          ctx.strokeStyle = 'rgba(60,35,10,0.55)'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        });
+        // grain lines per plank
+        for (let p = 0; p < 3; p++) {
+          const ox = p * 10 + 1;
+          ctx.strokeStyle = 'rgba(80,50,18,0.35)'; ctx.lineWidth = 0.5;
+          for (let gi = 0; gi < 7; gi++) {
+            const gy = 2 + gi * 4 + n(p,gi) * 2;
+            ctx.beginPath(); ctx.moveTo(ox + n(gi,p)*2, gy);
+            ctx.quadraticCurveTo(ox+4+(n(gi+1,p)-.5)*2, gy+1, ox+8+n(p+1,gi)*1.5, gy); ctx.stroke();
+          }
+          // knot
+          const kx = ox + 4 + n(p,15)*3, ky = 6 + n(15,p) * 18;
+          ctx.strokeStyle = 'rgba(70,42,12,0.6)'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.ellipse(kx, ky, 2.5, 1.8, n(p,16)*Math.PI, 0, Math.PI*2); ctx.stroke();
+        }
+        // highlight left edge
+        const wh = ctx.createLinearGradient(0, 0, 4, 0);
+        wh.addColorStop(0, 'rgba(210,165,90,0.35)'); wh.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = wh; ctx.fillRect(0, 0, S, S);
+        vignette(0.2); topLight(0.12);
+        break;
+      }
+      // ======================================================
+      case 'dark': {
+        const g = ctx.createRadialGradient(S/2, S/2, 2, S/2, S/2, S*0.9);
+        g.addColorStop(0, '#2a1f2e'); g.addColorStop(1, '#140d18');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // stone floor subtle cracks
+        ctx.strokeStyle = 'rgba(80,55,90,0.35)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(3,16); ctx.bezierCurveTo(8,14,13,18,18,16); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(18,8); ctx.bezierCurveTo(22,6,26,10,30,9); ctx.stroke();
+        // magic dust sparkle
+        for (let i = 0; i < 10; i++) {
+          const alpha = n(i,7)*0.45+0.1;
+          ctx.fillStyle = `rgba(${155+n(i,8)*60|0},${90+n(8,i)*50|0},${200+n(i+1,i)*55|0},${alpha.toFixed(2)})`;
+          ctx.beginPath(); ctx.arc(n(i,0)*30+1, n(0,i)*30+1, 0.7, 0, Math.PI*2); ctx.fill();
+        }
+        // subtle purple vein glow
+        const dg = ctx.createRadialGradient(20, 22, 0, 20, 22, 12);
+        dg.addColorStop(0, 'rgba(120,40,180,0.2)'); dg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = dg; ctx.fillRect(0, 0, S, S);
+        vignette(0.4);
+        break;
+      }
+      // ======================================================
+      case 'lava': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#c84800'); g.addColorStop(0.5, '#a83400'); g.addColorStop(1, '#7a2000');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // glowing lava pools
+        [[10,12,8],[22,8,6],[16,22,5]].forEach(([lx,ly,lr]) => {
+          const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr+2);
+          lg.addColorStop(0, 'rgba(255,220,80,0.9)');
+          lg.addColorStop(0.4, 'rgba(255,120,20,0.7)');
+          lg.addColorStop(1, 'rgba(100,20,0,0)');
+          ctx.fillStyle = lg; ctx.fillRect(0, 0, S, S);
+        });
+        // dark rock cracks
+        ctx.strokeStyle = 'rgba(40,10,0,0.8)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0,8); ctx.bezierCurveTo(5,6,8,11,13,9); ctx.bezierCurveTo(17,8,20,13,25,11); ctx.lineTo(S,10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(5,20); ctx.bezierCurveTo(10,18,14,23,19,21); ctx.bezierCurveTo(22,20,26,24,S,22); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(12,0); ctx.bezierCurveTo(10,5,14,8,12,14); ctx.stroke();
+        // ember glow overlay
+        const eg = ctx.createLinearGradient(0,0,S,S);
+        eg.addColorStop(0,'rgba(255,160,40,0.12)'); eg.addColorStop(1,'rgba(120,30,0,0.08)');
+        ctx.fillStyle = eg; ctx.fillRect(0,0,S,S);
+        vignette(0.15);
+        break;
+      }
+      // ======================================================
+      case 'swamp': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#3e5e25'); g.addColorStop(0.5, '#2e4d18'); g.addColorStop(1, '#1e3a0e');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // murky water patches
+        for (let i = 0; i < 6; i++) {
+          const wg = ctx.createRadialGradient(n(i,0)*28+2, n(0,i)*28+2, 0, n(i,0)*28+2, n(0,i)*28+2, n(i,i)*7+3);
+          wg.addColorStop(0, 'rgba(20,40,10,0.7)'); wg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = wg; ctx.fillRect(0, 0, S, S);
+        }
+        // dead plant stems
+        ctx.strokeStyle = 'rgba(30,50,15,0.9)'; ctx.lineWidth = 0.9;
+        [[8,28,7,14],[16,30,18,12],[24,29,22,16],[12,30,11,20]].forEach(([x1,y1,x2,y2]) => {
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(x1+(n(x1,y1)-.5)*4, (y1+y2)/2, x2,y2); ctx.stroke();
+        });
+        // sickly green surface sheen
+        const sg2 = ctx.createLinearGradient(0, S*0.5, 0, S);
+        sg2.addColorStop(0,'rgba(80,140,30,0.15)'); sg2.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = sg2; ctx.fillRect(0, 0, S, S);
+        for (let i = 0; i < 9; i++) {
+          ctx.fillStyle = `rgba(70,${120+n(i,9)*40|0},25,0.3)`;
+          ctx.beginPath(); ctx.arc(n(i,1)*30+1, n(1,i)*30+1, n(i,i+2)*3+1, 0, Math.PI*2); ctx.fill();
+        }
+        vignette(0.3); topLight(0.05);
+        break;
+      }
+      // ======================================================
+      case 'arena': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#a05228'); g.addColorStop(0.5, '#8a4018'); g.addColorStop(1, '#6e2e0a');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // sand-soil base texture
+        for (let i = 0; i < 20; i++) {
+          ctx.fillStyle = n(i,7) > 0.5 ? 'rgba(155,80,35,0.3)' : 'rgba(70,28,8,0.35)';
+          ctx.beginPath(); ctx.ellipse(n(i,0)*29+1.5, n(0,i)*29+1.5, n(i,i)*3+0.8, n(i+1,i)*2+0.5, n(i,i+2)*Math.PI, 0, Math.PI*2); ctx.fill();
+        }
+        // sword scoring lines
+        ctx.strokeStyle = 'rgba(70,25,5,0.6)'; ctx.lineWidth = 0.7;
+        [[4,6,18,8],[14,18,28,16],[8,24,22,26],[20,4,30,6]].forEach(([x1,y1,x2,y2]) => {
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        });
+        // blood stain subtle — dark organic splotch
+        const bs = ctx.createRadialGradient(18,20,0,18,20,7);
+        bs.addColorStop(0,'rgba(80,10,10,0.35)'); bs.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = bs; ctx.fillRect(0,0,S,S);
+        vignette(0.22); topLight(0.1);
+        break;
+      }
+      // ======================================================
+      case 'snow': {
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#eef0f8'); g.addColorStop(0.5, '#dde0ee'); g.addColorStop(1, '#c8cce0');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        // soft snow surface undulation
+        const sw = ctx.createLinearGradient(0, S*0.3, 0, S*0.6);
+        sw.addColorStop(0,'rgba(255,255,255,0.35)'); sw.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle = sw; ctx.fillRect(0, 0, S, S);
+        // shallow depressions
+        for (let i = 0; i < 5; i++) {
+          const dg2 = ctx.createRadialGradient(n(i,0)*26+3, n(0,i)*26+3, 0, n(i,0)*26+3, n(0,i)*26+3, n(i,i)*4+3);
+          dg2.addColorStop(0,'rgba(170,178,205,0.35)'); dg2.addColorStop(1,'rgba(0,0,0,0)');
+          ctx.fillStyle = dg2; ctx.fillRect(0, 0, S, S);
+        }
+        // sparkle
+        for (let i = 0; i < 12; i++) {
+          ctx.fillStyle = `rgba(255,255,255,${(n(i,6)*0.6+0.3).toFixed(2)})`;
+          ctx.beginPath(); ctx.arc(n(i,2)*30+1, n(2,i)*30+1, 0.8, 0, Math.PI*2); ctx.fill();
+        }
+        vignette(0.12); topLight(0.2);
+        break;
+      }
     }
-
-    g.generateTexture(key, S, S);
-    g.destroy();
+    tex.refresh();
   }
 
   // ========================
