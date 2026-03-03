@@ -9,16 +9,16 @@ import type { PlayerData, AllianceData, TerritoryData } from '@/store/types';
 
 // ---- Players ----
 export async function loadPlayer(uid: string): Promise<PlayerData | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
+  const snap = await getDoc(doc(db, 'players', uid));
   return snap.exists() ? (snap.data() as PlayerData) : null;
 }
 
 export async function savePlayer(uid: string, data: Partial<PlayerData>): Promise<void> {
-  await setDoc(doc(db, 'users', uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  await setDoc(doc(db, 'players', uid), { ...data, updatedAt: serverTimestamp() }, { merge: true });
 }
 
 export async function updatePlayer(uid: string, data: Partial<PlayerData>): Promise<void> {
-  await updateDoc(doc(db, 'users', uid), { ...data, updatedAt: serverTimestamp() } as DocumentData);
+  await updateDoc(doc(db, 'players', uid), { ...data, updatedAt: serverTimestamp() } as DocumentData);
 }
 
 // ---- Alliances ----
@@ -53,7 +53,7 @@ export async function logCombat(data: {
 
 // ---- Queries ----
 export async function getPlayersInAlliance(allianceId: string): Promise<PlayerData[]> {
-  const q = query(collection(db, 'users'), where('allianceId', '==', allianceId));
+  const q = query(collection(db, 'players'), where('allianceId', '==', allianceId));
   const snap = await getDocs(q);
   return snap.docs.map((d) => d.data() as PlayerData);
 }
