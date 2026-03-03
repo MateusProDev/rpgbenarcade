@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { signIn, signUp } from '@/services/firebase/auth';
 
-export function LoginScreen() {
+export function LoginScreen({ onBack }: { onBack?: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -92,13 +92,21 @@ export function LoginScreen() {
           </button>
         </form>
 
-        <div className="text-center mt-4">
+        <div className="text-center mt-4 space-y-2">
           <button
             onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-            className="text-[var(--color-text-dim)] text-sm hover:text-[var(--color-gold-accent)] transition-colors"
+            className="text-[var(--color-text-dim)] text-sm hover:text-[var(--color-gold-accent)] transition-colors block mx-auto"
           >
             {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Criar'}
           </button>
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-[var(--color-text-dim)] text-xs hover:text-[var(--color-gold-accent)] transition-colors flex items-center gap-1 mx-auto"
+            >
+              ← Voltar para a página inicial
+            </button>
+          )}
         </div>
 
         {/* Decorative corners */}
