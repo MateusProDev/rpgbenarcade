@@ -39,9 +39,9 @@ export function GameView() {
     });
   }, [user, setPlayer]);
 
-  // Init engine after player loaded
+  // Init engine after player loaded AND canvas is in DOM
   useEffect(() => {
-    if (!player || !canvasRef.current || engineReady) return;
+    if (!player || !canvasRef.current || engineReady || needsCreation) return;
 
     const engine = new GameEngine();
     setEngine(engine);
@@ -54,7 +54,7 @@ export function GameView() {
       engine.destroy();
       setEngine(null);
     };
-  }, [player, engineReady]);
+  }, [player, engineReady, needsCreation]);
 
   // Handle keyboard shortcuts for UI
   useEffect(() => {
