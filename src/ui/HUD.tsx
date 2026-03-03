@@ -116,7 +116,10 @@ export function HUD() {
         </div>
       </div>
 
-      {/* Mini Info — Top Right */}
+      {/* Minimap Frame Overlay */}
+      <div className="minimap-frame" />
+
+      {/* Mini Info — Top Right (below minimap) */}
       <div className="hud-mini-info">
         <div className="mini-badge time-badge">
           <span className="badge-icon">{getTimeEmoji(timeOfDay)}</span>

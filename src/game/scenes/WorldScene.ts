@@ -93,6 +93,14 @@ export class WorldScene extends Phaser.Scene {
   // Blocking decoration colliders
   private decoColliders!: Phaser.Physics.Arcade.StaticGroup;
 
+  // === MINIMAP ===
+  private minimapCam: Phaser.Cameras.Scene2D.Camera | null = null;
+  private minimapBorder!: Phaser.GameObjects.Graphics;
+  private minimapPlayerDot!: Phaser.GameObjects.Arc;
+  private minimapEnemyDots: Phaser.GameObjects.Arc[] = [];
+  private minimapPortalDots: Phaser.GameObjects.Arc[] = [];
+  private minimapNpcDots: Phaser.GameObjects.Arc[] = [];
+
   // === TILEMAP SYSTEM ===
   // TilemapLayer renders ALL visible tiles in ONE WebGL draw call
   // with automatic camera culling — zero per-frame CPU cost.
@@ -257,6 +265,9 @@ export class WorldScene extends Phaser.Scene {
       this.setupMultiplayer(playerData.uid);
       cleanupOfflinePlayers();
     }
+
+    // === MINIMAP SETUP ===
+    this.setupMinimap(mapConfig.width, mapConfig.height);
   }
 
   showClickMarker(x: number, y: number) {
@@ -279,6 +290,103 @@ export class WorldScene extends Phaser.Scene {
         this.clickMarker?.destroy();
         this.clickMarker = undefined;
       },
+    });
+  }
+
+  // ========================
+  // MINIMAP — Secondary Phaser Camera
+  // Renders full map zoomed out in top-right corner
+  // ========================
+  setupMinimap(mapW: number, mapH: number) {
+    const MINIMAP_SIZE = 180;  // px viewport size
+    const PADDING = 12;
+
+    // Screen position — top-right with padding
+    const screenW = this.cameras.main.width;
+    const mx = screenW - MINIMAP_SIZE - PADDING;
+    const my = PADDING;
+
+    // Calculate zoom to fit entire map into the minimap viewport
+    const zoomX = MINIMAP_SIZE / mapW;
+    const zoomY = MINIMAP_SIZE / mapH;
+    const zoom = Math.min(zoomX, zoomY);
+
+    // Create secondary camera
+    this.minimapCam = this.cameras.add(mx, my, MINIMAP_SIZE, MINIMAP_SIZE, false, "minimap");
+    this.minimapCam.setBounds(0, 0, mapW, mapH);
+    this.minimapCam.setZoom(zoom);
+    this.minimapCam.scrollX = (mapW - MINIMAP_SIZE / zoom) / 2;
+    this.minimapCam.scrollY = (mapH - MINIMAP_SIZE / zoom) / 2;
+    this.minimapCam.setBackgroundColor(0x0a0e0a);
+    this.minimapCam.setRoundPixels(true);
+
+    // The minimap camera should NOT render UI-depth objects (scrollFactor=0 text, etc.)
+    // We ignore specific game objects from minimap that clutter it:
+    this.minimapCam.ignore([
+      this.nameText,
+      this.hpBarBg,
+      this.hpBarFg,
+      this.dayNightOverlay,
+    ]);
+
+    // Player dot — large bright dot on minimap (rendered in world-space)
+    this.minimapPlayerDot = this.add.circle(
+      this.player.x, this.player.y, Math.max(60, mapW * 0.006), 0x44ff44, 1
+    );
+    this.minimapPlayerDot.setDepth(60);
+    // Main camera should not show the dot (it's too big in world coords)
+    this.cameras.main.ignore(this.minimapPlayerDot);
+
+    // Add a pulsing effect to the player dot
+    this.tweens.add({
+      targets: this.minimapPlayerDot,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      alpha: 0.6,
+      yoyo: true,
+      repeat: -1,
+      duration: 800,
+      ease: "Sine.easeInOut",
+    });
+
+    // Enemy dots (red) — static markers for spawn locations
+    const mapConfig = getMapConfig(this.currentMap);
+    this.minimapEnemyDots = [];
+    mapConfig.enemies.forEach((e) => {
+      const dotR = Math.max(40, mapW * 0.004);
+      const dot = this.add.circle(e.x, e.y, dotR, 0xff4444, 0.7);
+      dot.setDepth(59);
+      this.cameras.main.ignore(dot);
+      this.minimapEnemyDots.push(dot);
+    });
+
+    // Portal dots (purple glow)
+    this.minimapPortalDots = [];
+    mapConfig.portals.forEach((p) => {
+      const dotR = Math.max(50, mapW * 0.005);
+      const dot = this.add.circle(
+        p.x + p.width / 2, p.y + p.height / 2, dotR, 0xaa66ff, 0.8
+      );
+      dot.setDepth(59);
+      this.cameras.main.ignore(dot);
+      this.minimapPortalDots.push(dot);
+    });
+
+    // NPC dots (yellow)
+    this.minimapNpcDots = [];
+    mapConfig.npcs.forEach((n) => {
+      const dotR = Math.max(45, mapW * 0.0045);
+      const dot = this.add.circle(n.x, n.y, dotR, 0xffdd44, 0.8);
+      dot.setDepth(59);
+      this.cameras.main.ignore(dot);
+      this.minimapNpcDots.push(dot);
+    });
+
+    // Handle resize — reposition minimap
+    this.scale.on("resize", (gameSize: { width: number; height: number }) => {
+      if (this.minimapCam) {
+        this.minimapCam.setPosition(gameSize.width - MINIMAP_SIZE - PADDING, PADDING);
+      }
     });
   }
 
@@ -2892,6 +3000,13 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // ============================
+    // MINIMAP PLAYER DOT
+    // ============================
+    if (this.minimapPlayerDot && this.minimapPlayerDot.active) {
+      this.minimapPlayerDot.setPosition(this.player.x, this.player.y);
+    }
+
+    // ============================
     // DAY/NIGHT CYCLE
     // ============================
     this.dayNightTime += delta * 0.00005;
@@ -2948,6 +3063,20 @@ export class WorldScene extends Phaser.Scene {
     if (this.input.keyboard) {
       this.input.keyboard.removeAllKeys(true);
     }
+
+    // Clean up minimap
+    if (this.minimapCam) {
+      this.cameras.remove(this.minimapCam, true);
+      this.minimapCam = null;
+    }
+    this.minimapBorder?.destroy();
+    this.minimapPlayerDot?.destroy();
+    this.minimapEnemyDots.forEach(d => d.destroy());
+    this.minimapEnemyDots = [];
+    this.minimapPortalDots.forEach(d => d.destroy());
+    this.minimapPortalDots = [];
+    this.minimapNpcDots.forEach(d => d.destroy());
+    this.minimapNpcDots = [];
 
     // Clean up tilemap
     if (this.tileMap) { this.tileMap.destroy(); this.tileMap = null; }
