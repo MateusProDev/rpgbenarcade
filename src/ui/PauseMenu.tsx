@@ -1,95 +1,139 @@
-// ========================
-// Pause Menu — ESC key overlay
-// ========================
-import { useAuth } from "../hooks/useAuth";
-import "./pauseMenu.css";
+// ============================================
+// Pause Menu — settings, logout, resume
+// ============================================
+import { useGameStore } from '@/store/gameStore';
+import { getEngine, setEngine } from '@/engine/GameEngine';
+import { signOut } from '@/services/firebase/auth';
 
-interface PauseMenuProps {
-  onResume: () => void;
-  onExitToHome: () => void;
-}
-
-export function PauseMenu({ onResume, onExitToHome }: PauseMenuProps) {
-  const { logout } = useAuth();
-
-  const handleExitToHome = () => {
-    // Exit fullscreen if active
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-    onExitToHome();
-  };
+export function PauseMenu({ onClose }: { onClose: () => void }) {
+  const player = useGameStore((s) => s.player);
+  const ui = useGameStore((s) => s.ui);
+  const setPlayer = useGameStore((s) => s.setPlayer);
 
   const handleLogout = async () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+    const engine = getEngine();
+    if (engine) {
+      engine.destroy();
+      setEngine(null);
     }
-    await logout();
-    onExitToHome();
+    setPlayer(null);
+    await signOut();
   };
 
-  const handleToggleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    } else {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
+  const toggleSetting = (key: 'showDamageNumbers' | 'showNames' | 'screenShake') => {
+    const state = useGameStore.getState();
+    useGameStore.setState({
+      ui: { ...state.ui, [key]: !state.ui[key] },
+    });
   };
 
   return (
-    <div className="pause-overlay" onClick={onResume}>
-      <div className="pause-menu" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="pause-header">
-          <div className="pause-icon">⚔️</div>
-          <h2>Jogo Pausado</h2>
-          <p className="pause-subtitle">RPG Ben Arcade — Era das Sombras</p>
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 animate-fade-in">
+      <div className="glass-panel w-80 p-5 space-y-4">
+        {/* Title */}
+        <div className="text-center">
+          <h2 className="text-lg font-bold text-[var(--color-gold-accent)]">⚙️ Menu</h2>
+          {player && (
+            <p className="text-xs text-[var(--color-text-dim)] mt-1">
+              {player.name} · Lv.{player.level} {player.className}
+            </p>
+          )}
         </div>
 
-        {/* Menu Options */}
-        <div className="pause-options">
-          <button className="pause-btn pause-btn-resume" onClick={onResume}>
-            <span className="pause-btn-icon">▶️</span>
-            <span className="pause-btn-text">
-              <span className="pause-btn-label">Continuar Jogando</span>
-              <span className="pause-btn-hint">ESC para voltar</span>
-            </span>
-          </button>
+        <div className="h-px bg-[var(--color-border-dim)]" />
 
-          <button className="pause-btn" onClick={handleToggleFullscreen}>
-            <span className="pause-btn-icon">🖥️</span>
-            <span className="pause-btn-text">
-              <span className="pause-btn-label">
-                {document.fullscreenElement ? "Sair da Tela Cheia" : "Tela Cheia"}
-              </span>
-              <span className="pause-btn-hint">Alternar modo de tela</span>
-            </span>
-          </button>
+        {/* Settings toggles */}
+        <div className="space-y-2">
+          <h3 className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider">Configurações</h3>
 
-          <div className="pause-divider" />
-
-          <button className="pause-btn pause-btn-exit" onClick={handleExitToHome}>
-            <span className="pause-btn-icon">🏠</span>
-            <span className="pause-btn-text">
-              <span className="pause-btn-label">Tela Inicial</span>
-              <span className="pause-btn-hint">Voltar para a landing page</span>
-            </span>
-          </button>
-
-          <button className="pause-btn pause-btn-logout" onClick={handleLogout}>
-            <span className="pause-btn-icon">🚪</span>
-            <span className="pause-btn-text">
-              <span className="pause-btn-label">Sair da Conta</span>
-              <span className="pause-btn-hint">Desconectar e voltar ao início</span>
-            </span>
-          </button>
+          <ToggleRow
+            label="Números de dano"
+            enabled={ui.showDamageNumbers}
+            onChange={() => toggleSetting('showDamageNumbers')}
+          />
+          <ToggleRow
+            label="Nomes dos jogadores"
+            enabled={ui.showNames}
+            onChange={() => toggleSetting('showNames')}
+          />
+          <ToggleRow
+            label="Tremor de tela"
+            enabled={ui.screenShake}
+            onChange={() => toggleSetting('screenShake')}
+          />
         </div>
 
-        {/* Footer hint */}
-        <div className="pause-footer">
-          Pressione <kbd>ESC</kbd> para fechar
+        <div className="h-px bg-[var(--color-border-dim)]" />
+
+        {/* Stats summary */}
+        {player && (
+          <div className="space-y-1">
+            <h3 className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider">Estatísticas</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
+              <StatRow label="Ataque" value={player.stats.attack} />
+              <StatRow label="Defesa" value={player.stats.defense} />
+              <StatRow label="Velocidade" value={player.stats.speed} />
+              <StatRow label="Crit" value={`${(player.stats.critRate * 100).toFixed(0)}%`} />
+              <StatRow label="Crit Dano" value={`${player.stats.critDamage}x`} />
+              <StatRow label="PvP Rating" value={player.pvpRating} />
+            </div>
+          </div>
+        )}
+
+        <div className="h-px bg-[var(--color-border-dim)]" />
+
+        {/* Actions */}
+        <div className="space-y-2">
+          <button
+            onClick={onClose}
+            className="w-full py-2 text-sm font-bold rounded bg-[var(--color-glow-gold)] text-[var(--color-gold-accent)] border border-[var(--color-border-gold)] hover:bg-[var(--color-gold-accent)]/30 transition-colors"
+          >
+            ▶ Continuar jogando
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 text-sm font-bold rounded bg-[var(--color-accent-red)]/10 text-[var(--color-accent-red)] border border-[var(--color-accent-red)]/20 hover:bg-[var(--color-accent-red)]/20 transition-colors"
+          >
+            🚪 Sair
+          </button>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---- Toggle row ---- */
+function ToggleRow({
+  label, enabled, onChange,
+}: {
+  label: string; enabled: boolean; onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-[var(--color-text-light)]">{label}</span>
+      <button
+        onClick={onChange}
+        className={`w-9 h-5 rounded-full transition-colors relative ${
+          enabled ? 'bg-[var(--color-accent-green)]' : 'bg-[var(--color-border-dim)]'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+            enabled ? 'left-[18px]' : 'left-0.5'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+/* ---- Stat row ---- */
+function StatRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <>
+      <span className="text-[var(--color-text-dim)]">{label}</span>
+      <span className="text-[var(--color-text-light)] text-right">{value}</span>
+    </>
   );
 }

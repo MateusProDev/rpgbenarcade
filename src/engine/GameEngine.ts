@@ -1,0 +1,175 @@
+// ============================================
+// Game Engine — PixiJS Application, layer system, game loop
+// ============================================
+import { Application, Container } from 'pixi.js';
+import { Camera } from './Camera';
+import { input } from './InputManager';
+import { TileMap } from './TileMap';
+import { EntityManager } from './EntityManager';
+import { EffectsManager } from './effects/EffectsManager';
+import { CombatManager } from './combat/CombatManager';
+import { SyncManager } from './multiplayer/SyncManager';
+import { MinimapRenderer } from './MinimapRenderer';
+import { useGameStore } from '@/store/gameStore';
+import { ZONES } from '@/data/zones';
+import type { ZoneDefinition } from '@/store/types';
+
+export class GameEngine {
+  app!: Application;
+  camera!: Camera;
+  tileMap!: TileMap;
+  entities!: EntityManager;
+  effects!: EffectsManager;
+  combat!: CombatManager;
+  sync!: SyncManager;
+  minimap!: MinimapRenderer;
+
+  // Layer containers (added to camera.pivot in order)
+  layers = {
+    ground: new Container(),
+    entities: new Container(),
+    effects: new Container(),
+    overhead: new Container(),
+  };
+
+  private _currentZone: ZoneDefinition | null = null;
+  private _running = false;
+  private _canvasParent: HTMLElement | null = null;
+
+  get currentZone(): ZoneDefinition | null { return this._currentZone; }
+
+  async init(parent: HTMLElement): Promise<void> {
+    this._canvasParent = parent;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+
+    this.app = new Application();
+    await this.app.init({
+      width: w,
+      height: h,
+      backgroundColor: 0x0a0c10,
+      antialias: false,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+    });
+
+    parent.appendChild(this.app.canvas as HTMLCanvasElement);
+
+    // Camera
+    this.camera = new Camera(w, h);
+    this.app.stage.addChild(this.camera.pivot);
+
+    // Build layer stack
+    this.camera.pivot.addChild(this.layers.ground);
+    this.camera.pivot.addChild(this.layers.entities);
+    this.camera.pivot.addChild(this.layers.effects);
+    this.camera.pivot.addChild(this.layers.overhead);
+
+    // Sorted entity layer (by Y position)
+    this.layers.entities.sortableChildren = true;
+
+    // Sub-systems
+    this.tileMap = new TileMap(this.layers.ground);
+    this.entities = new EntityManager(this.layers.entities, this.camera);
+    this.effects = new EffectsManager(this.layers.effects);
+    this.combat = new CombatManager(this);
+    this.sync = new SyncManager(this);
+    this.minimap = new MinimapRenderer(this.app.stage, w, h);
+
+    // Input
+    input.init(this.app.canvas as HTMLElement);
+
+    // Resize
+    window.addEventListener('resize', this.onResize);
+
+    // Load initial zone
+    const zone = useGameStore.getState().currentZone;
+    this.loadZone(zone);
+
+    useGameStore.getState().setEngineReady(true);
+    this._running = true;
+
+    // Game loop
+    this.app.ticker.add(this.gameLoop);
+  }
+
+  private gameLoop = (): void => {
+    if (!this._running || !this._currentZone) return;
+    const dt = this.app.ticker.deltaMS / 1000; // seconds
+
+    // Update systems
+    this.entities.update(dt);
+    this.effects.update(dt);
+    this.combat.update(dt);
+    this.sync.update(dt);
+
+    // Camera follows local player
+    const playerPos = this.entities.getLocalPlayerPos();
+    if (playerPos) {
+      this.camera.setTarget(playerPos);
+    }
+    this.camera.update(dt);
+
+    // Sort entities by Y for depth (zIndex)
+    this.layers.entities.sortChildren();
+
+    // Update minimap
+    this.minimap.update(this);
+
+    // Input end frame
+    input.endFrame();
+  };
+
+  loadZone(zoneId: string): void {
+    const zone = ZONES[zoneId];
+    if (!zone) {
+      console.warn(`Zone "${zoneId}" not found, defaulting to town`);
+      this._currentZone = ZONES['town'] ?? null;
+    } else {
+      this._currentZone = zone;
+    }
+    if (!this._currentZone) return;
+
+    // Clear old
+    this.tileMap.clear();
+    this.entities.clear();
+    this.effects.clear();
+
+    // Build new zone
+    this.tileMap.build(this._currentZone);
+    this.entities.spawnLocalPlayer(this._currentZone.spawnPoint);
+
+    // Snap camera
+    this.camera.snap();
+
+    // Update store
+    useGameStore.getState().setCurrentZone(zoneId);
+
+    // Sync presence
+    this.sync.changeZone(zoneId);
+  }
+
+  private onResize = (): void => {
+    if (!this._canvasParent) return;
+    const w = this._canvasParent.clientWidth;
+    const h = this._canvasParent.clientHeight;
+    this.app.renderer.resize(w, h);
+    this.camera.resize(w, h);
+    this.minimap.resize(w, h);
+  };
+
+  destroy(): void {
+    this._running = false;
+    this.app.ticker.remove(this.gameLoop);
+    window.removeEventListener('resize', this.onResize);
+    input.destroy();
+    this.sync.destroy();
+    this.app.destroy(true, { children: true });
+    useGameStore.getState().setEngineReady(false);
+  }
+}
+
+/** Singleton for use across modules */
+let _engine: GameEngine | null = null;
+export function getEngine(): GameEngine | null { return _engine; }
+export function setEngine(e: GameEngine | null): void { _engine = e; }

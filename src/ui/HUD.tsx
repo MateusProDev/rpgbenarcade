@@ -1,189 +1,140 @@
-// ========================
-// HUD — Premium Heads-Up Display
-// Glass panels, animated bars, skill bar, danger effects
-// ========================
-import { useGameStore } from "../store/gameStore";
-import { getClassSkills } from "../game/entities/classes";
-import { getRemainingCooldown } from "../game/combat";
-import "./styles.css";
+// ============================================
+// HUD — HP, Mana, XP bars + player info
+// ============================================
+import { useGameStore } from '@/store/gameStore';
 
 export function HUD() {
   const player = useGameStore((s) => s.player);
-  const cooldowns = useGameStore((s) => s.cooldowns);
-  const timeOfDay = useGameStore((s) => s.timeOfDay);
-  const notifications = useGameStore((s) => s.notifications);
-  const removeNotification = useGameStore((s) => s.removeNotification);
-  const remotePlayers = useGameStore((s) => s.remotePlayers);
+  const openPanel = useGameStore((s) => s.openPanel);
+  const currentZone = useGameStore((s) => s.currentZone);
 
   if (!player) return null;
 
-  const skills = getClassSkills(player.classType, player.advancedClass);
-  const hpPercent = Math.min(100, (player.hp / player.maxHp) * 100);
-  const manaPercent = Math.min(100, (player.mana / player.maxMana) * 100);
-  const xpPercent = Math.min(100, (player.xp / player.xpToNext) * 100);
-  const hpLow = hpPercent <= 25;
+  const hpRatio = player.stats.hp / player.stats.maxHp;
+  const manaRatio = player.stats.mana / player.stats.maxMana;
+  const xpRatio = player.stats.hp > 0 ? player.xp / player.xpToNext : 0;
 
   return (
-    <div className={`hud ${hpLow ? "hud-danger" : ""}`}>
-      {/* Player Info Panel */}
-      <div className="hud-player-info">
-        <div className="hud-portrait">
-          <span className="portrait-icon">
-            {getClassEmoji(player.classType)}
-          </span>
-          <span className="portrait-level">{player.level}</span>
-        </div>
-        <div className="hud-bars">
-          <div className="hud-name">
-            {player.title && <span className="hud-title">{player.title}</span>}
-            <span className="hud-player-name">{player.name}</span>
-            <span className="hud-class">
-              {player.advancedClass || player.classType}
+    <>
+      {/* Top-left: Player info + bars */}
+      <div className="absolute top-3 left-3 z-10 animate-fade-in">
+        <div className="glass-panel p-3 w-64">
+          {/* Player name + level */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--color-gold-accent)] font-bold text-sm">
+                Lv.{player.level}
+              </span>
+              <span className="text-[var(--color-text-light)] font-bold text-sm truncate">
+                {player.name}
+              </span>
+            </div>
+            <span className="text-[var(--color-text-dim)] text-xs capitalize">
+              {player.className}
             </span>
           </div>
 
           {/* HP Bar */}
-          <div className="hud-bar hp-bar">
-            <div
-              className={`bar-fill hp-fill ${hpLow ? "bar-danger" : ""}`}
-              style={{ width: `${hpPercent}%` }}
-            />
-            <span className="bar-text">
-              {player.hp}/{player.maxHp}
-            </span>
-            <span className="bar-icon">❤️</span>
-          </div>
+          <ResourceBar
+            label="HP"
+            current={player.stats.hp}
+            max={player.stats.maxHp}
+            ratio={hpRatio}
+            color="var(--color-hp)"
+            bgColor="rgba(204, 51, 68, 0.15)"
+          />
 
           {/* Mana Bar */}
-          <div className="hud-bar mana-bar">
-            <div className="bar-fill mana-fill" style={{ width: `${manaPercent}%` }} />
-            <span className="bar-text">
-              {player.mana}/{player.maxMana}
-            </span>
-            <span className="bar-icon">💙</span>
-          </div>
+          <ResourceBar
+            label="MP"
+            current={player.stats.mana}
+            max={player.stats.maxMana}
+            ratio={manaRatio}
+            color="var(--color-mana)"
+            bgColor="rgba(51, 136, 221, 0.15)"
+          />
 
           {/* XP Bar */}
-          <div className="hud-bar xp-bar">
-            <div className="bar-fill xp-fill" style={{ width: `${xpPercent}%` }} />
-            <span className="bar-text">
-              {player.xp}/{player.xpToNext} XP
-            </span>
-            <span className="bar-icon">⭐</span>
+          <ResourceBar
+            label="XP"
+            current={player.xp}
+            max={player.xpToNext}
+            ratio={xpRatio}
+            color="var(--color-xp)"
+            bgColor="rgba(204, 170, 68, 0.1)"
+            thin
+          />
+
+          {/* Gold */}
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-[var(--color-text-dim)] text-xs">🪙 {player.gold}</span>
+            <span className="text-[var(--color-text-dim)] text-xs">⚔️ {player.pvpRating}</span>
           </div>
         </div>
       </div>
 
-      {/* Gold display */}
-      <div className="hud-gold-display">
-        <span className="gold-icon">💰</span>
-        <span className="gold-amount">{player.gold.toLocaleString()}</span>
-      </div>
-
-      {/* Skill Bar */}
-      <div className="hud-skill-bar">
-        <div className="skill-bar-frame">
-          {skills.map((skill, i) => {
-            const cd = getRemainingCooldown(skill.id, cooldowns);
-            const isOnCd = cd > 0;
-            const cdPercent = isOnCd ? (cd / (skill.cooldown / 1000)) * 100 : 0;
-            return (
-              <div
-                key={skill.id}
-                className={`skill-slot ${isOnCd ? "on-cooldown" : ""}`}
-                title={`${skill.name}\n${skill.description}\nDano: ${skill.damage}\nCusto: ${skill.manaCost || 0} Mana\nCooldown: ${skill.cooldown / 1000}s`}
-              >
-                {isOnCd && (
-                  <div
-                    className="skill-cd-overlay"
-                    style={{ height: `${cdPercent}%` }}
-                  />
-                )}
-                <span className="skill-icon">{skill.icon}</span>
-                <span className="skill-key">{i + 1}</span>
-                {isOnCd && <span className="skill-cd">{cd.toFixed(1)}</span>}
-              </div>
-            );
-          })}
-          <div className="skill-divider" />
-          <div
-            className="skill-slot attack-slot"
-            title="Ataque básico (Espaço / Clique direito)"
-          >
-            <span className="skill-icon">⚔️</span>
-            <span className="skill-key">Spc</span>
-          </div>
+      {/* Top-center: Zone name */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
+        <div className="glass-panel px-4 py-1.5">
+          <span className="text-[var(--color-text-dim)] text-xs uppercase tracking-wider">
+            {currentZone.replace(/_/g, ' ')}
+          </span>
         </div>
       </div>
 
-      {/* Minimap Frame Overlay */}
-      <div className="minimap-frame" />
+      {/* Bottom-left: Quick action buttons */}
+      <div className="absolute bottom-20 left-3 z-10 flex gap-2">
+        <ActionButton icon="🎒" label="Inventário" shortcut="I" onClick={() => openPanel('inventory')} />
+        <ActionButton icon="👥" label="Aliança" shortcut="G" onClick={() => openPanel('alliance')} />
+        <ActionButton icon="📜" label="Quests" shortcut="Q" onClick={() => openPanel('quest')} />
+        <ActionButton icon="⚙️" label="Config" shortcut="Esc" onClick={() => openPanel('settings')} />
+      </div>
+    </>
+  );
+}
 
-      {/* Mini Info — Top Right (below minimap) */}
-      <div className="hud-mini-info">
-        <div className="mini-badge time-badge">
-          <span className="badge-icon">{getTimeEmoji(timeOfDay)}</span>
-          <span className="badge-text">{timeOfDay}</span>
+/* ---- Resource Bar ---- */
+function ResourceBar({
+  label, current, max, ratio, color, bgColor, thin = false,
+}: {
+  label: string; current: number; max: number; ratio: number;
+  color: string; bgColor: string; thin?: boolean;
+}) {
+  const height = thin ? 'h-2' : 'h-4';
+  return (
+    <div className={`relative ${height} w-full rounded-full overflow-hidden mb-1.5`} style={{ background: bgColor }}>
+      <div
+        className="absolute inset-y-0 left-0 rounded-full transition-all duration-200"
+        style={{ width: `${Math.max(0, ratio * 100)}%`, background: color }}
+      />
+      {!thin && (
+        <div className="absolute inset-0 flex items-center justify-between px-2">
+          <span className="text-[9px] font-bold text-white/90 drop-shadow">{label}</span>
+          <span className="text-[9px] font-bold text-white/90 drop-shadow">
+            {Math.floor(current)}/{max}
+          </span>
         </div>
-        <div className="mini-badge players-badge">
-          <span className="badge-icon">👥</span>
-          <span className="badge-text">{remotePlayers.length + 1}</span>
-        </div>
-        {player.attributePoints > 0 && (
-          <div className="mini-badge ap-badge">
-            <span className="badge-icon">✨</span>
-            <span className="badge-text">{player.attributePoints} pts</span>
-          </div>
-        )}
-      </div>
-
-      {/* Hotkey bar */}
-      <div className="hud-hotkeys">
-        <span className="hotkey"><kbd>I</kbd> Inventário</span>
-        <span className="hotkey"><kbd>K</kbd> Skills</span>
-        <span className="hotkey"><kbd>T</kbd> Talentos</span>
-        <span className="hotkey"><kbd>Q</kbd> Quests</span>
-        <span className="hotkey"><kbd>C</kbd> Chat</span>
-        <span className="hotkey"><kbd>E</kbd> Interagir</span>
-      </div>
-
-      {/* Notifications */}
-      <div className="hud-notifications">
-        {notifications.map((msg, i) => (
-          <div
-            key={i}
-            className="notification"
-            onClick={() => removeNotification(i)}
-          >
-            <span className="notif-border" />
-            {msg}
-          </div>
-        ))}
-      </div>
-
-      {/* Danger vignette overlay */}
-      {hpLow && <div className="danger-vignette" />}
+      )}
     </div>
   );
 }
 
-function getTimeEmoji(time: string): string {
-  switch (time) {
-    case "dawn": return "🌅";
-    case "day": return "☀️";
-    case "dusk": return "🌇";
-    case "night": return "🌙";
-    default: return "☀️";
-  }
-}
-
-function getClassEmoji(classType: string): string {
-  switch (classType) {
-    case "mage": return "🧙";
-    case "archer": return "🏹";
-    case "swordsman": return "⚔️";
-    case "knight": return "🛡️";
-    case "assassin": return "🗡️";
-    default: return "⚔️";
-  }
+/* ---- Quick Action Button ---- */
+function ActionButton({
+  icon, label, shortcut, onClick,
+}: {
+  icon: string; label: string; shortcut: string; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-[var(--color-glow-gold)] transition-all active:scale-95 relative group"
+      title={`${label} (${shortcut})`}
+    >
+      {icon}
+      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] text-[var(--color-text-dim)] bg-black/80 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        {label} [{shortcut}]
+      </span>
+    </button>
+  );
 }

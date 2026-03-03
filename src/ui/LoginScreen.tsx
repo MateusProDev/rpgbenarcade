@@ -1,193 +1,111 @@
-// ========================
-// Login Screen — Premium Medieval UI
-// Cinematic entry with particles, tips, glass card
-// ========================
-import { useState, useEffect, useMemo } from "react";
-import { useAuth } from "../hooks/useAuth";
-import "./styles.css";
-
-const TIPS = [
-  "Explore masmorras para encontrar equipamentos lendários",
-  "Cada classe possui uma árvore de evolução única",
-  "Use combos de habilidades para maximizar seu dano",
-  "O mundo muda entre dia e noite — cuidado com as sombras",
-  "Forme grupos com outros jogadores para enfrentar chefões",
-  "Distribua seus atributos sabiamente ao subir de nível",
-  "Mercadores nas vilas vendem itens raros por bom preço",
-  "Clique no mapa para mover seu personagem automaticamente",
-  "Assassinos causam dano crítico ao atacar por trás",
-  "Cavaleiros podem bloquear ataques e proteger aliados",
-];
+// ============================================
+// Login Screen — Firebase auth UI
+// ============================================
+import { useState } from 'react';
+import { signIn, signUp } from '@/services/firebase/auth';
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tip, setTip] = useState("");
-
-  // Generate persistent particles
-  const particles = useMemo(
-    () =>
-      Array.from({ length: 40 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        delay: Math.random() * 10,
-        size: Math.random() * 3 + 1,
-        duration: 10 + Math.random() * 8,
-      })),
-    []
-  );
-
-  useEffect(() => {
-    setTip(TIPS[Math.floor(Math.random() * TIPS.length)]);
-    const interval = setInterval(() => {
-      setTip(TIPS[Math.floor(Math.random() * TIPS.length)]);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
-
     try {
-      if (isRegistering) {
-        await register(email, password);
+      if (isSignUp) {
+        await signUp(email, password);
       } else {
-        await login(email, password);
+        await signIn(email, password);
       }
     } catch (err: any) {
-      setError(err.message || "Erro ao autenticar");
+      setError(err.message ?? 'Erro na autenticação');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="login-screen">
-      {/* Animated background particles */}
-      <div className="login-particles">
-        {particles.map((p) => (
-          <div
-            key={p.id}
-            className="login-particle"
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-            }}
-          />
-        ))}
+    <div className="flex items-center justify-center w-full h-full bg-[var(--color-bg-dark)]">
+      {/* Background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--color-accent-purple)] rounded-full opacity-5 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-[var(--color-accent-blue)] rounded-full opacity-5 blur-3xl" />
       </div>
 
-      <div className="login-vignette" />
-
-      <div className="login-container">
-        {/* Logo section */}
-        <div className="login-header">
-          <div className="login-logo-frame">
-            <div className="login-logo-icon">⚔️</div>
-          </div>
-          <h1 className="game-title">
-            <span className="title-line">RPG Ben</span>
-            <span className="title-line title-accent">Arcade</span>
+      <div className="glass-panel p-8 w-96 animate-fade-in relative z-10">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[var(--color-gold-accent)] font-[var(--font-display)]">
+            ⚔️ RPG Benarcade
           </h1>
-          <div className="game-subtitle-box">
-            <span className="subtitle-deco">━━━</span>
-            <span className="game-subtitle">Era das Sombras</span>
-            <span className="subtitle-deco">━━━</span>
-          </div>
-          <p className="game-version">v1.0 — Mundo Medieval Online</p>
+          <p className="text-[var(--color-text-dim)] text-sm mt-2">
+            MMORPG 2D Online
+          </p>
         </div>
 
-        {/* Form */}
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="form-tab-row">
-            <button
-              type="button"
-              className={`form-tab ${!isRegistering ? "active" : ""}`}
-              onClick={() => { setIsRegistering(false); setError(""); }}
-            >
-              🏰 Entrar
-            </button>
-            <button
-              type="button"
-              className={`form-tab ${isRegistering ? "active" : ""}`}
-              onClick={() => { setIsRegistering(true); setError(""); }}
-            >
-              ⚔️ Registrar
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label>
-              <span className="label-icon">📧</span> Email
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[var(--color-text-dim)] text-xs mb-1 uppercase tracking-wider">
+              Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              className="w-full px-3 py-2 bg-black/40 border border-[var(--color-border-gold)] rounded-md text-[var(--color-text-light)] focus:outline-none focus:border-[var(--color-gold-accent)] transition-colors"
+              placeholder="email@exemplo.com"
               required
-              autoComplete="email"
             />
           </div>
 
-          <div className="form-group">
-            <label>
-              <span className="label-icon">🔒</span> Senha
+          <div>
+            <label className="block text-[var(--color-text-dim)] text-xs mb-1 uppercase tracking-wider">
+              Senha
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 bg-black/40 border border-[var(--color-border-gold)] rounded-md text-[var(--color-text-light)] focus:outline-none focus:border-[var(--color-gold-accent)] transition-colors"
               placeholder="••••••••"
-              minLength={6}
               required
-              autoComplete={isRegistering ? "new-password" : "current-password"}
+              minLength={6}
             />
           </div>
 
           {error && (
-            <div className="error-msg">
-              <span className="error-icon">⚠️</span> {error}
+            <div className="text-[var(--color-accent-red)] text-sm bg-red-900/20 px-3 py-2 rounded">
+              {error}
             </div>
           )}
 
-          <button type="submit" className="btn-primary btn-glow" disabled={loading}>
-            {loading ? (
-              <span className="btn-loading">
-                <span className="btn-spinner" />
-                Carregando...
-              </span>
-            ) : isRegistering ? (
-              "⚔️ Criar Conta"
-            ) : (
-              "🏰 Entrar no Mundo"
-            )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2.5 bg-gradient-to-r from-[var(--color-gold-accent)] to-yellow-600 text-black font-bold rounded-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? '⏳ Aguarde...' : isSignUp ? '📝 Criar Conta' : '🔑 Entrar'}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="login-footer">
-          <div className="login-tip">
-            <span className="tip-label">💡 Dica:</span>
-            <span className="tip-text">{tip}</span>
-          </div>
-          <div className="login-features">
-            <span>🗡️ 5 Classes</span>
-            <span>🌍 Mundo Aberto</span>
-            <span>👥 Multiplayer</span>
-            <span>🏰 Masmorras</span>
-          </div>
+        <div className="text-center mt-4">
+          <button
+            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+            className="text-[var(--color-text-dim)] text-sm hover:text-[var(--color-gold-accent)] transition-colors"
+          >
+            {isSignUp ? 'Já tem conta? Entrar' : 'Não tem conta? Criar'}
+          </button>
         </div>
+
+        {/* Decorative corners */}
+        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[var(--color-gold-accent)] rounded-tl-lg opacity-50" />
+        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[var(--color-gold-accent)] rounded-tr-lg opacity-50" />
+        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[var(--color-gold-accent)] rounded-bl-lg opacity-50" />
+        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[var(--color-gold-accent)] rounded-br-lg opacity-50" />
       </div>
     </div>
   );
