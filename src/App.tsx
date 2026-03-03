@@ -20,6 +20,7 @@ import { ShopPanel } from "./ui/ShopPanel";
 import { DialoguePanel } from "./ui/DialoguePanel";
 import { PauseMenu } from "./ui/PauseMenu";
 import { TutorialOverlay } from "./ui/TutorialOverlay";
+import { ConflictZoneHUD } from "./ui/ConflictZoneHUD";
 import "./ui/styles.css";
 
 const LOADING_TIPS = [
@@ -129,6 +130,7 @@ function App() {
     <div className="game-wrapper">
       <GameCanvas />
       <HUD />
+      <ConflictZoneHUD />
       <InventoryPanel />
       <SkillsPanel />
       <TalentPanel />

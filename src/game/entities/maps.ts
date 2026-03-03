@@ -108,6 +108,7 @@ export const MAP_CONFIGS: Record<MapId, MapConfig> = {
       { x: 14350, y: 4800, width: 50, height: 120, targetMap: "fields", targetX: 240, targetY: 3600 },
       { x: 6600, y: 0, width: 120, height: 50, targetMap: "forest", targetX: 3600, targetY: 10500 },
       { x: 0, y: 3600, width: 50, height: 120, targetMap: "arena", targetX: 6300, targetY: 3600 },
+      { x: 7000, y: 10750, width: 120, height: 50, targetMap: "conflict_zone", targetX: 9600, targetY: 18400 },
     ],
   },
 
@@ -385,6 +386,71 @@ export const MAP_CONFIGS: Record<MapId, MapConfig> = {
     ],
     portals: [
       { x: 7050, y: 3300, width: 50, height: 120, targetMap: "village", targetX: 240, targetY: 3600 },
+    ],
+  },
+
+  conflict_zone: {
+    id: "conflict_zone",
+    name: "Zona de Conflito",
+    width: 19200,
+    height: 19200,
+    tileSize: 32,
+    spawnPoint: { x: 9600, y: 18400 },
+    pvpEnabled: true,
+    enemies: [
+      // NW base elite guards
+      { type: "elite_guardian", x: 1400, y: 1400, respawnTime: 45000 },
+      { type: "elite_guardian", x: 1800, y: 1600, respawnTime: 45000 },
+      { type: "elite_guardian", x: 1600, y: 1800, respawnTime: 45000 },
+      // NE base elite guards
+      { type: "elite_guardian", x: 17600, y: 1400, respawnTime: 45000 },
+      { type: "elite_guardian", x: 17400, y: 1600, respawnTime: 45000 },
+      { type: "elite_guardian", x: 17800, y: 1800, respawnTime: 45000 },
+      // SW base elite guards
+      { type: "elite_guardian", x: 1400, y: 17600, respawnTime: 45000 },
+      { type: "elite_guardian", x: 1800, y: 17400, respawnTime: 45000 },
+      { type: "elite_guardian", x: 1600, y: 17800, respawnTime: 45000 },
+      // SE base elite guards
+      { type: "elite_guardian", x: 17600, y: 17600, respawnTime: 45000 },
+      { type: "elite_guardian", x: 17400, y: 17800, respawnTime: 45000 },
+      { type: "elite_guardian", x: 17800, y: 17400, respawnTime: 45000 },
+      // Central fortress world boss
+      { type: "world_boss", x: 9600, y: 9600, respawnTime: 120000 },
+      // Fortress guards
+      { type: "dark_knight", x: 9200, y: 9200, respawnTime: 40000 },
+      { type: "dark_knight", x: 10000, y: 9200, respawnTime: 40000 },
+      { type: "dark_knight", x: 9200, y: 10000, respawnTime: 40000 },
+      { type: "dark_knight", x: 10000, y: 10000, respawnTime: 40000 },
+      // Roaming mobs in quadrants
+      { type: "orc", x: 4800, y: 4800, respawnTime: 25000 },
+      { type: "orc", x: 14400, y: 4800, respawnTime: 25000 },
+      { type: "orc", x: 4800, y: 14400, respawnTime: 25000 },
+      { type: "orc", x: 14400, y: 14400, respawnTime: 25000 },
+      { type: "skeleton", x: 6400, y: 7200, respawnTime: 20000 },
+      { type: "skeleton", x: 12800, y: 7200, respawnTime: 20000 },
+      { type: "skeleton", x: 6400, y: 12000, respawnTime: 20000 },
+      { type: "skeleton", x: 12800, y: 12000, respawnTime: 20000 },
+      { type: "bandit", x: 3200, y: 9600, respawnTime: 20000 },
+      { type: "bandit", x: 16000, y: 9600, respawnTime: 20000 },
+      { type: "bandit", x: 9600, y: 3200, respawnTime: 20000 },
+      { type: "bandit", x: 9600, y: 16000, respawnTime: 20000 },
+    ],
+    npcs: [
+      {
+        id: "war_herald",
+        name: "Arauto da Guerra",
+        x: 9600,
+        y: 18000,
+        dialogue: [
+          "Bem-vindo à Zona de Conflito!",
+          "Quatro alianças lutam pelo domínio desta terra.",
+          "Capture as bases nos cantos e a fortaleza central para dominar.",
+          "Quando uma aliança controla tudo, o reino inteiro se submete!",
+        ],
+      },
+    ],
+    portals: [
+      { x: 9400, y: 19150, width: 120, height: 50, targetMap: "village", targetX: 7200, targetY: 5400 },
     ],
   },
 };

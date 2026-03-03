@@ -143,8 +143,32 @@ export type RemotePlayer = {
 
 export type Direction = "up" | "down" | "left" | "right";
 
+// === Alliances ===
+export type AllianceId = "red" | "blue" | "green" | "purple";
+
+export type AllianceData = {
+  id: AllianceId;
+  name: string;
+  color: number;
+  cssColor: string;
+  icon: string;
+  controlledStructures: string[];
+};
+
+export type ConflictStructure = {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  type: "base" | "fortress";
+  owner: AllianceId | null;
+  guardElite: EnemyType;
+  hp: number;
+  maxHp: number;
+};
+
 // === Maps ===
-export type MapId = "village" | "forest" | "dungeon" | "fields" | "arena";
+export type MapId = "village" | "forest" | "dungeon" | "fields" | "arena" | "conflict_zone";
 
 export type MapConfig = {
   id: MapId;
@@ -170,7 +194,7 @@ export type Portal = {
 };
 
 // === Enemies ===
-export type EnemyType = "skeleton" | "wolf" | "goblin" | "orc" | "dragon" | "dark_knight" | "slime" | "bandit";
+export type EnemyType = "skeleton" | "wolf" | "goblin" | "orc" | "dragon" | "dark_knight" | "slime" | "bandit" | "elite_guardian" | "world_boss";
 
 export type EnemySpawn = {
   type: EnemyType;

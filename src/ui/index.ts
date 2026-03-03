@@ -8,3 +8,4 @@ export { QuestPanel } from "./QuestPanel";
 export { ChatPanel } from "./ChatPanel";
 export { ShopPanel } from "./ShopPanel";
 export { DialoguePanel } from "./DialoguePanel";
+export { ConflictZoneHUD } from "./ConflictZoneHUD";

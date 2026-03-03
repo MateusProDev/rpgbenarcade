@@ -332,6 +332,7 @@ export class WorldScene extends Phaser.Scene {
       case "forest":  this.decorateForest(width, height, tileSize);  break;
       case "dungeon": this.decorateDungeon(width, height, tileSize); break;
       case "arena":   this.decorateArena(width, height, tileSize);   break;
+      case "conflict_zone": this.decorateConflictZone(width, height, tileSize); break;
     }
   }
 
@@ -531,24 +532,37 @@ export class WorldScene extends Phaser.Scene {
 
   // --- FIELDS DECORATION --- (6400×4800)
   decorateFields(w: number, h: number, _ts: number) {
-    // === MAIN DIRT ROAD NETWORK ===
-    // Central east-west highway
-    for (let x = 80; x < w - 80; x += 32) {
-      this.drawTile("tile_dirt", x, h / 3);
-      this.drawTile("tile_dirt", x, h / 3 + 32);
-    }
-    // North-south crossroads
-    for (let y = 200; y < h - 200; y += 32) {
-      this.drawTile("tile_dirt", w / 4, y);
-      this.drawTile("tile_dirt", 3 * w / 4, y);
-    }
-    // Central cross
-    for (let x = w / 4; x < 3 * w / 4; x += 32) {
-      this.drawTile("tile_dirt", x, h / 2);
-    }
-    // Southern road
-    for (let x = 200; x < w - 200; x += 32) {
-      this.drawTile("tile_dirt_dark", x, 2 * h / 3);
+    // === ORGANIC DIRT ROAD NETWORK ===
+    // Helper: draw a winding 2-tile-wide road along X axis with vertical sine wobble
+    const windingRoadH = (y0: number, amp: number, freq: number, tileKey: string, width = 2) => {
+      for (let x = 64; x < w - 64; x += 32) {
+        const wobble = Math.round(Math.sin(x * freq) * amp / 32) * 32;
+        for (let d = 0; d < width; d++) this.drawTile(tileKey, x, y0 + wobble + d * 32);
+      }
+    };
+    // Helper: draw a winding road along Y axis with horizontal sine wobble
+    const windingRoadV = (x0: number, amp: number, freq: number, tileKey: string, width = 2) => {
+      for (let y = 64; y < h - 64; y += 32) {
+        const wobble = Math.round(Math.sin(y * freq) * amp / 32) * 32;
+        for (let d = 0; d < width; d++) this.drawTile(tileKey, x0 + wobble + d * 32, y);
+      }
+    };
+
+    // Main east-west highway — gently winding, 3 tiles wide
+    windingRoadH(h / 3, 64, 0.0055, "tile_dirt", 3);
+    // Secondary southern trail — narrower, darker, more winding
+    windingRoadH(2 * h / 3, 96, 0.009, "tile_dirt_dark", 2);
+    // North-south crossroads — two winding verticals
+    windingRoadV(w / 4, 48, 0.008, "tile_dirt", 2);
+    windingRoadV(3 * w / 4, 48, 0.006, "tile_dirt", 2);
+    // A diagonal connector path (south-west to north-east via tiles)
+    const diagPts = 80;
+    for (let i = 0; i < diagPts; i++) {
+      const t = i / diagPts;
+      const px = w * 0.15 + (w * 0.7) * t;
+      const py = h * 0.75 - (h * 0.45) * t + Math.sin(t * Math.PI * 4) * 60;
+      this.drawTile("tile_path", Math.round(px / 32) * 32, Math.round(py / 32) * 32);
+      this.drawTile("tile_path", Math.round(px / 32) * 32, Math.round(py / 32) * 32 + 32);
     }
 
     // === FARM PLOTS — 12 farms spread across the map ===
@@ -681,10 +695,37 @@ export class WorldScene extends Phaser.Scene {
       this.addDeco(rx, ry, Math.random() > 0.5 ? "deco_rock" : "deco_boulder", Math.random() > 0.5);
     }
 
-    // === MOUNTAINS along northern edge ===
-    for (let x = 200; x < w - 200; x += 140 + Math.floor(Math.random() * 80)) {
-      this.addDeco(x, 60 + Math.random() * 30, "deco_mountain", true);
-    }
+    // === MOUNTAIN ZONES — dense clusters with elevation feeling ===
+    // Helper: place a mountain pack around a center point
+    const mountainCluster = (cx: number, cy: number, radius: number, count: number, spread = 1.0) => {
+      // Dense inner ring
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2 + (i % 3) * 0.4;
+        const r = radius * (0.2 + ((i * 7919) % 17) / 17 * 0.8) * spread;
+        const mx = cx + Math.cos(a) * r + (((i * 6271) % 40) - 20);
+        const my = cy + Math.sin(a) * r * 0.6 + (((i * 5381) % 30) - 15);
+        const mt = this.addDeco(mx, my, "deco_mountain", true);
+        if (mt) { mt.body.setSize(20, 12); mt.body.setOffset(6, 24); mt.refreshBody(); }
+      }
+      // Scattered outer foothills
+      for (let i = 0; i < Math.floor(count * 0.5); i++) {
+        const a = ((i * 11) / count) * Math.PI * 2;
+        const r = radius * (1.0 + ((i * 3517) % 20) / 20 * 0.6) * spread;
+        const mx = cx + Math.cos(a) * r + (((i * 7411) % 60) - 30);
+        const my = cy + Math.sin(a) * r * 0.5 + (((i * 4637) % 40) - 20);
+        this.addDeco(mx, my, "deco_boulder", Math.random() > 0.3);
+      }
+    };
+    // Northern mountain range (dense)
+    mountainCluster(w * 0.15, 80,  110, 14);
+    mountainCluster(w * 0.35, 70,  100, 12);
+    mountainCluster(w * 0.55, 90,  120, 16);
+    mountainCluster(w * 0.78, 75,  100, 13);
+    // Western mountain backdrop
+    mountainCluster(60, h * 0.3, 90, 10, 0.5);
+    mountainCluster(60, h * 0.6, 80, 9,  0.5);
+    // Interior rocky rise (east-center)
+    mountainCluster(w * 0.72, h * 0.55, 130, 11);
 
     // === BUSHES ===
     for (let i = 0; i < 40; i++) {
@@ -747,25 +788,97 @@ export class WorldScene extends Phaser.Scene {
       this.drawTile("tile_dirt", w / 3 + wobble, y);
     }
 
-    // === DENSE TREE COVERAGE ===
-    const placed: { x: number; y: number }[] = [];
-    const numTrees = 220;
-    for (let i = 0; i < numTrees; i++) {
-      const tx = 80 + Math.random() * (w - 160);
-      const ty = 80 + Math.random() * (h - 160);
-      // Keep paths clear
-      const pathWobble1 = Math.sin(tx * 0.008) * 50;
-      const pathWobble2 = Math.sin(ty * 0.01) * 30;
-      if (Math.abs(ty - (h / 2 + pathWobble1)) < 70) continue;
-      if (Math.abs(tx - (w / 3 + pathWobble2)) < 50) continue;
-      const tooClose = placed.some(p => Math.abs(p.x - tx) < 42 && Math.abs(p.y - ty) < 42);
-      if (tooClose) continue;
-      placed.push({ x: tx, y: ty });
-      const r = Math.random();
-      const treeType = r < 0.3 ? "deco_pine" : r < 0.5 ? "deco_pine_large" : r < 0.75 ? "deco_tree" : r < 0.9 ? "deco_tree_large" : "deco_tree_dead";
-      const tree = this.addDeco(tx, ty, treeType, true);
+    // === DENSE FOREST ZONES — organic clumps instead of uniform scatter ===
+    // Returns true if position is too close to the main path/trail
+    const nearPath = (tx: number, ty: number): boolean => {
+      const pw1 = Math.sin(tx * 0.008) * 50;
+      const pw2 = Math.sin(ty * 0.01) * 30;
+      return Math.abs(ty - (h / 2 + pw1)) < 80 || Math.abs(tx - (w / 3 + pw2)) < 60;
+    };
+
+    const placeTree = (tx: number, ty: number, type: string) => {
+      if (nearPath(tx, ty)) return;
+      if (tx < 60 || ty < 60 || tx > w - 60 || ty > h - 60) return;
+      const tree = this.addDeco(tx, ty, type, true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+    };
+
+    // Dense forest clump helper — organic irregular placement
+    const forestClump = (
+      fcx: number, fcy: number, baseRadius: number,
+      types: string[], count: number
+    ) => {
+      for (let i = 0; i < count; i++) {
+        const seed = i * 7919 + fcx;
+        const a = (i / count) * Math.PI * 2 + ((seed % 31) / 31) * 1.2;
+        const r = baseRadius * (0.15 + ((seed % 23) / 23) * 0.85);
+        const jx = ((seed * 6271) % 60) - 30;
+        const jy = ((seed * 5381) % 50) - 25;
+        const tx = fcx + Math.cos(a) * r + jx;
+        const ty = fcy + Math.sin(a) * r * 0.8 + jy;
+        placeTree(tx, ty, types[seed % types.length]);
+      }
+    };
+
+    // --- 8 distinct forest biome clumps ---
+    // NW: dense pine grove
+    forestClump(w * 0.12, h * 0.20, 180, ["deco_pine", "deco_pine_large", "deco_pine"], 28);
+    // NE: mixed deciduous
+    forestClump(w * 0.75, h * 0.18, 200, ["deco_tree_large", "deco_tree", "deco_tree_large"], 30);
+    // W center: ancient oaks (large + willow mix)
+    forestClump(w * 0.08, h * 0.52, 160, ["deco_tree_large", "deco_tree_willow", "deco_tree"], 24);
+    // E center: dark hollow (dead + pine)
+    forestClump(w * 0.85, h * 0.55, 170, ["deco_tree_dead", "deco_pine", "deco_tree_dead"], 26);
+    // SW: young mixed forest
+    forestClump(w * 0.18, h * 0.78, 190, ["deco_tree", "deco_pine", "deco_tree_large"], 28);
+    // SE: deep pine forest
+    forestClump(w * 0.78, h * 0.80, 200, ["deco_pine_large", "deco_pine", "deco_pine_large"], 32);
+    // Center-north: enchanted willow grove
+    forestClump(w * 0.50, h * 0.14, 150, ["deco_tree_willow", "deco_tree_large", "deco_tree"], 22);
+    // Center-south: glade edge trees
+    forestClump(w * 0.48, h * 0.82, 160, ["deco_tree", "deco_pine", "deco_tree_willow"], 24);
+
+    // Sparse connector trees between clumps (fill without crowding paths)
+    const placed2: { x: number; y: number }[] = [];
+    for (let i = 0; i < 90; i++) {
+      const seed = i * 6271 + 17;
+      const tx = 80 + ((seed * 7411) % (w - 200));
+      const ty = 80 + ((seed * 5381) % (h - 200));
+      if (nearPath(tx, ty)) continue;
+      const tooClose = placed2.some(p => Math.abs(p.x - tx) < 48 && Math.abs(p.y - ty) < 48);
+      if (tooClose) continue;
+      placed2.push({ x: tx, y: ty });
+      const r2 = i % 7;
+      const treeType = r2 < 2 ? "deco_pine" : r2 < 4 ? "deco_tree" : r2 < 5 ? "deco_tree_dead" : r2 < 6 ? "deco_pine_large" : "deco_tree_large";
+      placeTree(tx, ty, treeType);
     }
+
+    // Dense border tree wall (all 4 edges)
+    for (let x = 64; x < w - 64; x += 56 + (x * 37) % 40) {
+      placeTree(x, 64 + (x % 3) * 18, "deco_pine");
+      placeTree(x, h - 64 - (x % 3) * 18, "deco_tree_large");
+    }
+    for (let y = 100; y < h - 100; y += 56 + (y * 41) % 40) {
+      placeTree(64 + (y % 3) * 14, y, "deco_tree");
+      placeTree(w - 64 - (y % 3) * 14, y, "deco_pine_large");
+    }
+
+    // === MOUNTAIN RIDGE — northern edge, forest origin ===
+    const forestMtnCluster = (cx: number, cy: number, r: number, cnt: number) => {
+      for (let i = 0; i < cnt; i++) {
+        const a = (i / cnt) * Math.PI * 1.8 - Math.PI * 0.1;
+        const d = r * (0.3 + ((i * 6271) % 17) / 17 * 0.7);
+        const mx = cx + Math.cos(a) * d + (((i * 5381) % 40) - 20);
+        const my = cy + Math.sin(a) * d * 0.45;
+        const mt = this.addDeco(mx, my, "deco_mountain", true);
+        if (mt) { mt.body.setSize(20, 12); mt.body.setOffset(6, 24); mt.refreshBody(); }
+      }
+    };
+    forestMtnCluster(w * 0.10, 70, 100, 10);
+    forestMtnCluster(w * 0.35, 65, 110, 12);
+    forestMtnCluster(w * 0.62, 75, 100, 11);
+    forestMtnCluster(w * 0.88, 68, 90, 10);
+
 
     // === WILLOW GROVE (center-east, near water) ===
     const willowPos = [[11400, 5400], [11700, 6000], [12000, 5100], [12300, 5700], [11100, 6300]];
@@ -1274,6 +1387,506 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(w - 120, 100, "deco_barrel", false);
   }
 
+  // ========================
+  // CONFLICT ZONE DECORATION
+  // Epic strategic PvP map: 4 quadrants, central fortress,
+  // alliance bases, rivers, roads, dungeons, magic portals
+  // ========================
+  decorateConflictZone(w: number, h: number, _ts: number) {
+    const cx = w / 2;   // 9600
+    const cy = h / 2;   // 9600
+    const BO = 1600;    // base offset from corners
+
+    // ============================================
+    // 1) ROADS — Stone roads connecting all bases to central fortress
+    //    Slightly curved with worn texture
+    // ============================================
+    const drawRoad = (x1: number, y1: number, x2: number, y2: number, width = 3) => {
+      const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) / 32;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const px = x1 + (x2 - x1) * t;
+        const py = y1 + (y2 - y1) * t;
+        // Slight curve
+        const wobble = Math.sin(t * Math.PI * 3) * 48;
+        const perpX = -(y2 - y1) / (steps * 32);
+        const perpY = (x2 - x1) / (steps * 32);
+        for (let d = -Math.floor(width / 2); d <= Math.floor(width / 2); d++) {
+          this.drawTile("tile_cobble", px + perpX * wobble + perpY * d * 32, py + perpY * wobble - perpX * d * 32);
+        }
+      }
+    };
+
+    // Diagonal roads: corners → center
+    drawRoad(BO, BO, cx, cy, 3);
+    drawRoad(w - BO, BO, cx, cy, 3);
+    drawRoad(BO, h - BO, cx, cy, 3);
+    drawRoad(w - BO, h - BO, cx, cy, 3);
+
+    // Perimeter roads: connecting adjacent bases
+    drawRoad(BO, BO, w - BO, BO, 2);          // top
+    drawRoad(BO, h - BO, w - BO, h - BO, 2);  // bottom
+    drawRoad(BO, BO, BO, h - BO, 2);           // left
+    drawRoad(w - BO, BO, w - BO, h - BO, 2);   // right
+
+    // Path/dirt border alongside roads for worn edge effect
+    const drawDirtBorder = (x1: number, y1: number, x2: number, y2: number) => {
+      const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) / 64;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const px = x1 + (x2 - x1) * t;
+        const py = y1 + (y2 - y1) * t;
+        const wobble = Math.sin(t * Math.PI * 4) * 32;
+        this.drawTile("tile_dirt", px + wobble + 64, py + wobble + 64);
+        this.drawTile("tile_dirt_dark", px - wobble - 64, py - wobble - 64);
+      }
+    };
+    drawDirtBorder(BO, BO, cx, cy);
+    drawDirtBorder(w - BO, BO, cx, cy);
+    drawDirtBorder(BO, h - BO, cx, cy);
+    drawDirtBorder(w - BO, h - BO, cx, cy);
+
+    // ============================================
+    // 2) RIVERS — Flowing NW→SE with tributary from NE
+    //    Deep center, shallow edges with realistic depth
+    // ============================================
+    const drawRiver = (points: { x: number; y: number }[], riverWidth = 5) => {
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const steps = dist / 32;
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const px = p1.x + dx * t;
+          const py = p1.y + dy * t;
+          const sine = Math.sin(t * Math.PI * 2 + i) * 48;
+          const nx = -dy / dist;
+          const ny = dx / dist;
+          for (let d = -riverWidth; d <= riverWidth; d++) {
+            const rx = px + nx * d * 32 + nx * sine;
+            const ry = py + ny * d * 32 + ny * sine;
+            const ad = Math.abs(d);
+            if (ad <= 1) {
+              this.drawTile("tile_water_deep", rx, ry); // deep center
+            } else if (ad <= 3) {
+              this.drawTile("tile_water", rx, ry);      // shallow
+            } else {
+              this.drawTile("tile_dirt", rx, ry);        // muddy banks
+            }
+          }
+        }
+      }
+    };
+
+    // Main river NW → SE
+    drawRiver([
+      { x: 800, y: 4800 }, { x: 3200, y: 6400 }, { x: 6400, y: 7200 },
+      { x: 9600, y: 8000 }, { x: 12800, y: 9600 },
+      { x: 16000, y: 12800 }, { x: 18400, y: 16000 },
+    ], 4);
+
+    // Tributary from NE
+    drawRiver([
+      { x: 14400, y: 800 }, { x: 13600, y: 3200 },
+      { x: 12000, y: 5600 }, { x: 10400, y: 7600 }, { x: 9600, y: 8000 },
+    ], 3);
+
+    // ============================================
+    // 3) CENTRAL FORTRESS — Corrupted ground + massive structure
+    // ============================================
+
+    // Corrupted ground ring around fortress
+    const corruptR = 1200;
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.02) {
+      for (let r = 400; r < corruptR; r += 32) {
+        const fx = cx + Math.cos(angle) * r;
+        const fy = cy + Math.sin(angle) * r;
+        this.drawTile("tile_dark", fx, fy);
+      }
+    }
+
+    // Purple crack lines radiating from center
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      for (let r = 200; r < corruptR + 200; r += 48) {
+        const fx = cx + Math.cos(angle) * r;
+        const fy = cy + Math.sin(angle) * r;
+        this.addDeco(fx, fy, "cz_corrupted", false);
+      }
+    }
+
+    // Boss aura
+    this.addDeco(cx, cy, "cz_boss_aura", false);
+
+    // Fortress structure (large)
+    const fort = this.addDeco(cx, cy - 20, "cz_fortress", true);
+    if (fort) {
+      fort.body.setSize(100, 60);
+      fort.body.setOffset(14, 40);
+      fort.refreshBody();
+    }
+
+    // Fortress label
+    const fortLabel = this.add.text(cx, cy - 100, "⚔️ Cidadela das Sombras ⚔️", {
+      fontSize: "12px",
+      color: "#cc88ff",
+      fontFamily: "Georgia, serif",
+      stroke: "#000000",
+      strokeThickness: 3,
+    });
+    fortLabel.setOrigin(0.5, 1);
+    fortLabel.setDepth(5);
+
+    // Torches around fortress
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      this.addDeco(cx + Math.cos(angle) * 220, cy + Math.sin(angle) * 220, "deco_torch", false);
+    }
+
+    // Pillars around fortress entrance
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const px = cx + Math.cos(angle) * 300;
+      const py = cy + Math.sin(angle) * 300;
+      const p = this.addDeco(px, py, "deco_pillar", true);
+      if (p) { p.body.setSize(12, 8); p.body.setOffset(2, 30); p.refreshBody(); }
+    }
+
+    // Bones scattered around fortress
+    for (let i = 0; i < 20; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 300 + Math.random() * 600;
+      this.addDeco(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, "deco_bones", false);
+    }
+
+    // ============================================
+    // 4) ALLIANCE BASES — Four corners with colored structures
+    // ============================================
+    const bases = [
+      { x: BO, y: BO, color: "red", baseKey: "cz_base_red", bannerKey: "cz_banner_red", portalKey: "cz_portal_red" },
+      { x: w - BO, y: BO, color: "blue", baseKey: "cz_base_blue", bannerKey: "cz_banner_blue", portalKey: "cz_portal_blue" },
+      { x: BO, y: h - BO, color: "green", baseKey: "cz_base_green", bannerKey: "cz_banner_green", portalKey: "cz_portal_green" },
+      { x: w - BO, y: h - BO, color: "purple", baseKey: "cz_base_purple", bannerKey: "cz_banner_purple", portalKey: "cz_portal_purple" },
+    ];
+
+    const allianceNames: Record<string, string> = {
+      red: "🔥 Ordem da Chama",
+      blue: "❄️ Pacto do Gelo",
+      green: "🌿 Sentinelas da Natureza",
+      purple: "🔮 Círculo Sombrio",
+    };
+
+    bases.forEach((base) => {
+      // Stone platform around base
+      for (let dx = -4; dx <= 4; dx++) {
+        for (let dy = -4; dy <= 4; dy++) {
+          this.drawTile("tile_stone", base.x + dx * 32, base.y + dy * 32);
+        }
+      }
+
+      // Cobble perimeter
+      for (let i = -5; i <= 5; i++) {
+        this.drawTile("tile_cobble", base.x + i * 32, base.y - 5 * 32);
+        this.drawTile("tile_cobble", base.x + i * 32, base.y + 5 * 32);
+        this.drawTile("tile_cobble", base.x - 5 * 32, base.y + i * 32);
+        this.drawTile("tile_cobble", base.x + 5 * 32, base.y + i * 32);
+      }
+
+      // Base structure
+      const b = this.addDeco(base.x, base.y, base.baseKey, true);
+      if (b) { b.body.setSize(60, 40); b.body.setOffset(10, 20); b.refreshBody(); }
+
+      // Label
+      const lbl = this.add.text(base.x, base.y - 60, allianceNames[base.color], {
+        fontSize: "10px",
+        color: "#ffffff",
+        fontFamily: "Georgia, serif",
+        stroke: "#000000",
+        strokeThickness: 3,
+      });
+      lbl.setOrigin(0.5, 1);
+      lbl.setDepth(5);
+
+      // Banners around base
+      this.addDeco(base.x - 100, base.y - 80, base.bannerKey, false);
+      this.addDeco(base.x + 100, base.y - 80, base.bannerKey, false);
+      this.addDeco(base.x - 100, base.y + 80, base.bannerKey, false);
+      this.addDeco(base.x + 100, base.y + 80, base.bannerKey, false);
+
+      // Stone fences around base
+      for (let i = -3; i <= 3; i++) {
+        this.addDeco(base.x + i * 32, base.y - 120, "deco_fence_stone", false);
+        this.addDeco(base.x + i * 32, base.y + 120, "deco_fence_stone", false);
+      }
+
+      // Torches at entrance
+      this.addDeco(base.x - 80, base.y, "deco_torch", false);
+      this.addDeco(base.x + 80, base.y, "deco_torch", false);
+
+      // Barrels & crates for supplies
+      this.addDeco(base.x - 60, base.y + 40, "deco_barrel", false);
+      this.addDeco(base.x - 40, base.y + 40, "deco_crate", false);
+      this.addDeco(base.x + 60, base.y + 40, "deco_barrel", false);
+    });
+
+    // ============================================
+    // 5) MAGIC PORTALS — Near each base with glowing rune frames
+    // ============================================
+    const portalPositions = [
+      { x: BO + 400, y: BO + 400, key: "cz_portal_red" },
+      { x: w - BO - 400, y: BO + 400, key: "cz_portal_blue" },
+      { x: BO + 400, y: h - BO - 400, key: "cz_portal_green" },
+      { x: w - BO - 400, y: h - BO - 400, key: "cz_portal_purple" },
+    ];
+    portalPositions.forEach((pp) => {
+      // Stone pedestal
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          this.drawTile("tile_stone_mossy", pp.x + dx * 32, pp.y + dy * 32);
+        }
+      }
+      this.addDeco(pp.x, pp.y, pp.key, false);
+      // Rune glow around portal
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        this.addDeco(pp.x + Math.cos(angle) * 48, pp.y + Math.sin(angle) * 48, "deco_shrine_glow", false);
+      }
+    });
+
+    // ============================================
+    // 6) DUNGEONS — Red PvP cave and Black full-loot cave
+    // ============================================
+
+    // Red dungeon (NW of center) — warm glow
+    const rdx = cx - 3200;
+    const rdy = cy - 2400;
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        this.drawTile("tile_stone", rdx + dx * 32, rdy + dy * 32);
+      }
+    }
+    const rd = this.addDeco(rdx, rdy, "cz_dungeon_red", true);
+    if (rd) { rd.body.setSize(32, 24); rd.body.setOffset(8, 18); rd.refreshBody(); }
+    const rdLabel = this.add.text(rdx, rdy - 36, "🔥 Masmorra Sangrenta (PvP)", {
+      fontSize: "9px", color: "#ff6644", fontFamily: "Georgia, serif",
+      stroke: "#000000", strokeThickness: 2,
+    });
+    rdLabel.setOrigin(0.5, 1);
+    rdLabel.setDepth(5);
+    // Torch flanks
+    this.addDeco(rdx - 40, rdy, "deco_torch", false);
+    this.addDeco(rdx + 40, rdy, "deco_torch", false);
+    // Skull decorations
+    this.addDeco(rdx - 30, rdy + 30, "deco_bones", false);
+    this.addDeco(rdx + 30, rdy + 30, "deco_bones", false);
+
+    // Black dungeon (SE of center) — cold purple fog
+    const bdx = cx + 3200;
+    const bdy = cy + 2400;
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        this.drawTile("tile_dark", bdx + dx * 32, bdy + dy * 32);
+      }
+    }
+    const bd = this.addDeco(bdx, bdy, "cz_dungeon_black", true);
+    if (bd) { bd.body.setSize(32, 24); bd.body.setOffset(8, 18); bd.refreshBody(); }
+    const bdLabel = this.add.text(bdx, bdy - 36, "💀 Abismo do Vazio (Full Loot)", {
+      fontSize: "9px", color: "#aa66ff", fontFamily: "Georgia, serif",
+      stroke: "#000000", strokeThickness: 2,
+    });
+    bdLabel.setOrigin(0.5, 1);
+    bdLabel.setDepth(5);
+    // Mist effect around
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      this.addDeco(bdx + Math.cos(angle) * 60, bdy + Math.sin(angle) * 60, "deco_mushroom_glow", false);
+    }
+
+    // ============================================
+    // 7) TREES — Dense forest patches in quadrants
+    // ============================================
+    const treePatches = [
+      // NW quadrant forests
+      { cx: 3200, cy: 3600, count: 30, radius: 800 },
+      { cx: 4800, cy: 2000, count: 20, radius: 600 },
+      // NE quadrant forests
+      { cx: 15200, cy: 3600, count: 30, radius: 800 },
+      { cx: 13600, cy: 2000, count: 20, radius: 600 },
+      // SW quadrant forests
+      { cx: 3200, cy: 15600, count: 30, radius: 800 },
+      { cx: 4800, cy: 17200, count: 20, radius: 600 },
+      // SE quadrant forests
+      { cx: 15200, cy: 15600, count: 30, radius: 800 },
+      { cx: 13600, cy: 17200, count: 20, radius: 600 },
+      // Mid-zone scattered trees
+      { cx: 6400, cy: 9600, count: 15, radius: 500 },
+      { cx: 12800, cy: 9600, count: 15, radius: 500 },
+      { cx: 9600, cy: 6400, count: 15, radius: 500 },
+      { cx: 9600, cy: 12800, count: 15, radius: 500 },
+    ];
+
+    treePatches.forEach((patch) => {
+      for (let i = 0; i < patch.count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * patch.radius;
+        const tx = patch.cx + Math.cos(angle) * dist;
+        const ty = patch.cy + Math.sin(angle) * dist;
+        const types = ["deco_tree", "deco_tree_large", "deco_pine", "deco_tree_willow"];
+        const tree = this.addDeco(tx, ty, types[Math.floor(Math.random() * types.length)], true);
+        if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+      }
+      // Add bushes around tree patches
+      for (let i = 0; i < Math.floor(patch.count / 3); i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * (patch.radius + 100);
+        this.addDeco(
+          patch.cx + Math.cos(angle) * dist,
+          patch.cy + Math.sin(angle) * dist,
+          Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false
+        );
+      }
+    });
+
+    // ============================================
+    // 8) FENCES — Wooden fences projecting soft shadows
+    // ============================================
+    // Fence lines along some road segments
+    const fenceSegments = [
+      { x1: BO + 400, y1: BO, x2: 4800, y2: BO, axis: "h" as const },
+      { x1: w - BO - 400, y1: BO, x2: w - 4800, y2: BO, axis: "h" as const },
+      { x1: BO, y1: BO + 400, x2: BO, y2: 4800, axis: "v" as const },
+      { x1: BO, y1: h - BO - 400, x2: BO, y2: h - 4800, axis: "v" as const },
+    ];
+    fenceSegments.forEach((seg) => {
+      if (seg.axis === "h") {
+        const startX = Math.min(seg.x1, seg.x2);
+        const endX = Math.max(seg.x1, seg.x2);
+        for (let x = startX; x < endX; x += 32) {
+          this.addDeco(x, seg.y1 - 60, "deco_fence", false);
+        }
+      } else {
+        const startY = Math.min(seg.y1, seg.y2);
+        const endY = Math.max(seg.y1, seg.y2);
+        for (let y = startY; y < endY; y += 32) {
+          this.addDeco(seg.x1 - 60, y, "deco_fence", false);
+        }
+      }
+    });
+
+    // ============================================
+    // 9) SCATTERED ENVIRONMENT — Rocks, mushrooms, ruins
+    // ============================================
+    // Rocks scattered across map
+    for (let i = 0; i < 40; i++) {
+      const rx = 200 + Math.random() * (w - 400);
+      const ry = 200 + Math.random() * (h - 400);
+      const dist = Math.sqrt((rx - cx) ** 2 + (ry - cy) ** 2);
+      if (dist < 500) continue; // Skip center fortress area
+      this.addDeco(rx, ry, Math.random() > 0.7 ? "deco_boulder" : "deco_rock", false);
+    }
+
+    // Ruined walls scattered (battle remnants)
+    for (let i = 0; i < 12; i++) {
+      const rx = 1000 + Math.random() * (w - 2000);
+      const ry = 1000 + Math.random() * (h - 2000);
+      const dist = Math.sqrt((rx - cx) ** 2 + (ry - cy) ** 2);
+      if (dist < 1500 || dist > 7000) continue;
+      this.addDeco(rx, ry, "deco_ruined_wall", false);
+    }
+
+    // Campfire spots for flavor
+    const campfireSpots = [
+      [3600, 6000], [6000, 3600], [13200, 3600], [15600, 6000],
+      [3600, 13200], [6000, 15600], [13200, 15600], [15600, 13200],
+    ];
+    campfireSpots.forEach(([fx, fy]) => {
+      this.addDeco(fx, fy, "deco_campfire", false);
+      // Logs around campfire
+      this.addDeco(fx + 30, fy + 10, "deco_log", false);
+      this.addDeco(fx - 25, fy + 15, "deco_log", false);
+    });
+
+    // ============================================
+    // 10) SIGNPOSTS at key intersections
+    // ============================================
+    this.addDeco(cx, cy - 1400, "deco_signpost", false);
+    this.addDeco(cx, cy + 1400, "deco_signpost", false);
+    this.addDeco(cx - 1400, cy, "deco_signpost", false);
+    this.addDeco(cx + 1400, cy, "deco_signpost", false);
+
+    // ============================================
+    // 11) GRASS VARIATION — Additional flower spots
+    // ============================================
+    const flowerTypes = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
+    for (let i = 0; i < 60; i++) {
+      const fx = 500 + Math.random() * (w - 1000);
+      const fy = 500 + Math.random() * (h - 1000);
+      const dist = Math.sqrt((fx - cx) ** 2 + (fy - cy) ** 2);
+      if (dist < 1500) continue; // Skip corrupted zone
+      this.addDeco(fx, fy, flowerTypes[Math.floor(Math.random() * flowerTypes.length)], false);
+    }
+
+    // ============================================
+    // 12) BORDER TREES — Dense tree line at map edges
+    // ============================================
+    for (let x = 100; x < w - 100; x += 100 + Math.floor(Math.random() * 60)) {
+      const tree = this.addDeco(x, 80 + Math.random() * 40, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+      const tree2 = this.addDeco(x, h - 80 - Math.random() * 40, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
+      if (tree2) { tree2.body.setSize(8, 8); tree2.body.setOffset(12, 38); tree2.refreshBody(); }
+    }
+    for (let y = 150; y < h - 150; y += 100 + Math.floor(Math.random() * 60)) {
+      const tree = this.addDeco(80, y, "deco_tree", true);
+      if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
+      const tree2 = this.addDeco(w - 80, y, "deco_pine", true);
+      if (tree2) { tree2.body.setSize(8, 8); tree2.body.setOffset(12, 38); tree2.refreshBody(); }
+    }
+
+    // ============================================
+    // 13) LANTERNS — Along main roads
+    // ============================================
+    const lanternRoads = [
+      { x1: BO, y1: BO, x2: cx, y2: cy },
+      { x1: w - BO, y1: BO, x2: cx, y2: cy },
+      { x1: BO, y1: h - BO, x2: cx, y2: cy },
+      { x1: w - BO, y1: h - BO, x2: cx, y2: cy },
+    ];
+    lanternRoads.forEach((road) => {
+      const dx = road.x2 - road.x1;
+      const dy = road.y2 - road.y1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const steps = Math.floor(dist / 400);
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        this.addDeco(road.x1 + dx * t + 40, road.y1 + dy * t + 40, "deco_lantern", false);
+      }
+    });
+
+    // ============================================
+    // 14) MOUNTAINS & CLIFFS — Natural barriers between quadrants
+    // ============================================
+    // Mountain ranges in cross pattern (separating quadrants)
+    for (let i = 0; i < 12; i++) {
+      // North-south divider (with gaps for roads)
+      const my = 2400 + i * 1200;
+      if (Math.abs(my - cy) < 2000) continue; // Gap at center
+      const mx = cx + (Math.random() - 0.5) * 200;
+      const m = this.addDeco(mx, my, Math.random() > 0.5 ? "deco_mountain" : "deco_cliff", true);
+      if (m) { m.body.setSize(20, 12); m.body.setOffset(6, 32); m.refreshBody(); }
+    }
+    for (let i = 0; i < 12; i++) {
+      // East-west divider (with gaps for roads)
+      const mx = 2400 + i * 1200;
+      if (Math.abs(mx - cx) < 2000) continue; // Gap at center
+      const my = cy + (Math.random() - 0.5) * 200;
+      const m = this.addDeco(mx, my, Math.random() > 0.5 ? "deco_mountain" : "deco_cliff", true);
+      if (m) { m.body.setSize(20, 12); m.body.setOffset(6, 32); m.refreshBody(); }
+    }
+  }
+
   // --- Decoration helpers ---
   addDeco(x: number, y: number, key: string, blocking: boolean): any {
     if (blocking) {
@@ -1311,13 +1924,48 @@ export class WorldScene extends Phaser.Scene {
 
   // Deterministic base-tile selector (same position always returns same tile)
   getBaseTileKeyAt(wx: number, wy: number): string {
+    // Fine-grain per-tile variation (high frequency)
     const n = (Math.abs(Math.sin(wx * 3.7 + wy * 6.1) * 99999) | 0) % 100;
+    // Large-scale biome zone (very low frequency) — creates organic region patches
+    const zone = Math.floor(
+      ((Math.sin(wx * 0.00038 + wy * 0.00031) * Math.cos(wx * 0.00021 - wy * 0.00044) + 1) / 2) * 100
+    );
+
     switch (this.currentMap) {
-      case "village": return n < 60 ? "tile_grass" : n < 85 ? "tile_grass_lush" : "tile_grass_dark";
-      case "fields":  return n < 45 ? "tile_grass" : n < 70 ? "tile_grass_lush" : n < 85 ? "tile_dirt" : "tile_dirt_dark";
-      case "forest":  return n < 35 ? "tile_grass_dark" : n < 60 ? "tile_grass" : n < 85 ? "tile_dark" : "tile_grass_lush";
+      case "village": {
+        // lush garden zones, normal grass zones, and shadowed tree-lined zones
+        if (zone < 28) return n < 68 ? "tile_grass_lush" : "tile_grass";
+        if (zone > 74) return n < 65 ? "tile_grass_dark" : "tile_grass";
+        return n < 62 ? "tile_grass" : n < 84 ? "tile_grass_lush" : "tile_grass_dark";
+      }
+      case "fields": {
+        // farmland/dirt-zone, meadow, lush meadow, wild dark-meadow
+        if (zone < 22) return n < 65 ? "tile_dirt" : "tile_dirt_dark";         // bare dirt patches
+        if (zone > 80) return n < 62 ? "tile_grass_dark" : "tile_grass";       // dark wild scrub
+        if (zone > 62) return n < 72 ? "tile_grass_lush" : "tile_grass";       // lush meadow
+        return n < 42 ? "tile_grass" : n < 67 ? "tile_grass_lush" : n < 84 ? "tile_dirt" : "tile_dirt_dark";
+      }
+      case "forest": {
+        // deep forest floor (dark), forest glades (lush), dense undergrowth
+        if (zone < 22) return n < 70 ? "tile_dark" : "tile_grass_dark";        // deep shadow floor
+        if (zone > 78) return n < 58 ? "tile_grass_lush" : "tile_grass";       // sun-dappled glade
+        return n < 30 ? "tile_grass_dark" : n < 55 ? "tile_dark" : n < 80 ? "tile_grass" : "tile_grass_lush";
+      }
       case "dungeon": return n < 50 ? "tile_dark" : n < 80 ? "tile_stone" : "tile_stone_mossy";
       case "arena":   return n < 70 ? "tile_sand" : n < 90 ? "tile_arena" : "tile_stone";
+      case "conflict_zone": {
+        // Corrupted center zone
+        const dx = wx - 9600;
+        const dy = wy - 9600;
+        const distCenter = Math.sqrt(dx * dx + dy * dy);
+        if (distCenter < 800) return n < 60 ? "tile_dark" : "tile_stone";
+        if (distCenter < 1600) return n < 40 ? "tile_stone" : n < 70 ? "tile_grass_dark" : "tile_dark";
+        // River zones handled by deco layer
+        if (zone < 20) return n < 65 ? "tile_dirt" : "tile_dirt_dark";
+        if (zone > 80) return n < 62 ? "tile_grass_dark" : "tile_grass";
+        if (zone > 60) return n < 72 ? "tile_grass_lush" : "tile_grass";
+        return n < 42 ? "tile_grass" : n < 67 ? "tile_grass_lush" : n < 84 ? "tile_grass_dark" : "tile_dirt";
+      }
       default: return "tile_grass";
     }
   }
@@ -1386,6 +2034,8 @@ export class WorldScene extends Phaser.Scene {
         return r < 0.5 ? "tile_dark" : r < 0.8 ? "tile_stone" : "tile_stone_mossy";
       case "arena":
         return r < 0.7 ? "tile_sand" : r < 0.9 ? "tile_arena" : "tile_stone";
+      case "conflict_zone":
+        return r < 0.5 ? "tile_grass" : r < 0.75 ? "tile_grass_dark" : r < 0.9 ? "tile_dirt" : "tile_grass_lush";
       default: return "tile_grass";
     }
   }

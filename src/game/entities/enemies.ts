@@ -129,6 +129,39 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
       { itemId: "greater_health_potion", chance: 0.3 },
     ],
   },
+  elite_guardian: {
+    type: "elite_guardian",
+    name: "Guardião de Elite",
+    hp: 800,
+    damage: 45,
+    defense: 30,
+    speed: 35,
+    xpReward: 150,
+    goldReward: 100,
+    aggroRange: 220,
+    lootTable: [
+      { itemId: "plate_armor", chance: 0.08 },
+      { itemId: "ring_of_power", chance: 0.05 },
+      { itemId: "greater_health_potion", chance: 0.25 },
+    ],
+  },
+  world_boss: {
+    type: "world_boss",
+    name: "Arauto das Trevas",
+    hp: 2000,
+    damage: 75,
+    defense: 50,
+    speed: 30,
+    xpReward: 500,
+    goldReward: 300,
+    aggroRange: 350,
+    lootTable: [
+      { itemId: "excalibur", chance: 0.05 },
+      { itemId: "dragon_armor", chance: 0.06 },
+      { itemId: "shadow_blade", chance: 0.08 },
+      { itemId: "greater_health_potion", chance: 0.4 },
+    ],
+  },
 };
 
 export function getEnemyConfig(type: EnemyType): EnemyConfig {

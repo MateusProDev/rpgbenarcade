@@ -143,6 +143,12 @@ export class BootScene extends Phaser.Scene {
     this.generateDragonTexture();
 
     // ========================
+    // CONFLICT ZONE ENEMIES
+    // ========================
+    this.generateEliteGuardianTexture();
+    this.generateWorldBossTexture();
+
+    // ========================
     // NPCs
     // ========================
     this.generateNpcTexture("npc_default", 0xccaa44);
@@ -2808,6 +2814,25 @@ export class BootScene extends Phaser.Scene {
     this.genDecoHouseSmall();
     this.genDecoChest();
     this.genDecoShrineGlow();
+
+    // Conflict Zone decorations
+    this.genDecoFortress();
+    this.genDecoAllianceBase("cz_base_red", 0xcc2222);
+    this.genDecoAllianceBase("cz_base_blue", 0x2255cc);
+    this.genDecoAllianceBase("cz_base_green", 0x22aa44);
+    this.genDecoAllianceBase("cz_base_purple", 0x8833cc);
+    this.genDecoAllianceBanner("cz_banner_red", 0xcc2222);
+    this.genDecoAllianceBanner("cz_banner_blue", 0x2255cc);
+    this.genDecoAllianceBanner("cz_banner_green", 0x22aa44);
+    this.genDecoAllianceBanner("cz_banner_purple", 0x8833cc);
+    this.genDecoMagicPortal("cz_portal_red", 0xcc2222);
+    this.genDecoMagicPortal("cz_portal_blue", 0x2255cc);
+    this.genDecoMagicPortal("cz_portal_green", 0x22aa44);
+    this.genDecoMagicPortal("cz_portal_purple", 0x8833cc);
+    this.genDecoDungeonRed();
+    this.genDecoDungeonBlack();
+    this.genDecoCorruptedGround();
+    this.genDecoBossAura();
   }
 
   genDecoTree() {
@@ -4650,7 +4675,371 @@ export class BootScene extends Phaser.Scene {
         break;
       }
     }
+
+    // --- Edge blend: 4-pixel inner-border fade on all 4 sides ---
+    // Makes adjacent tiles of the same type merge visually; removes harsh grid lines.
+    const eb = 4;
+    const eTop = ctx.createLinearGradient(0, 0, 0, eb);
+    eTop.addColorStop(0, 'rgba(0,0,0,0.14)'); eTop.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eTop; ctx.fillRect(0, 0, S, eb);
+
+    const eBot = ctx.createLinearGradient(0, S - eb, 0, S);
+    eBot.addColorStop(0, 'rgba(0,0,0,0)'); eBot.addColorStop(1, 'rgba(0,0,0,0.14)');
+    ctx.fillStyle = eBot; ctx.fillRect(0, S - eb, S, eb);
+
+    const eLft = ctx.createLinearGradient(0, 0, eb, 0);
+    eLft.addColorStop(0, 'rgba(0,0,0,0.11)'); eLft.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eLft; ctx.fillRect(0, 0, eb, S);
+
+    const eRgt = ctx.createLinearGradient(S - eb, 0, S, 0);
+    eRgt.addColorStop(0, 'rgba(0,0,0,0)'); eRgt.addColorStop(1, 'rgba(0,0,0,0.11)');
+    ctx.fillStyle = eRgt; ctx.fillRect(S - eb, 0, eb, S);
+
     tex.refresh();
+  }
+
+  // ========================
+  // CONFLICT ZONE — ELITE GUARDIAN
+  // ========================
+  generateEliteGuardianTexture() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 48;
+    // Shadow
+    g.fillStyle(0x000000, 0.2);
+    g.fillEllipse(S / 2, S - 4, 26, 6);
+    // Boots
+    g.fillStyle(0x333333, 1);
+    g.fillRect(16, 38, 6, 6);
+    g.fillRect(26, 38, 6, 6);
+    // Legs
+    g.fillStyle(0x444455, 1);
+    g.fillRect(17, 30, 5, 10);
+    g.fillRect(27, 30, 5, 10);
+    // Body — dark plate armor
+    g.fillStyle(0x555566, 1);
+    g.fillRoundedRect(14, 16, 20, 16, 3);
+    g.fillStyle(0x666688, 0.6);
+    g.fillRect(16, 18, 16, 4);
+    g.fillRect(16, 24, 16, 4);
+    // Shoulders
+    g.fillStyle(0x667788, 1);
+    g.fillCircle(14, 18, 5);
+    g.fillCircle(34, 18, 5);
+    // Head / Helmet
+    g.fillStyle(0x777799, 1);
+    g.fillCircle(S / 2, 12, 8);
+    g.fillStyle(0x8888aa, 0.8);
+    g.fillRect(18, 4, 12, 4);
+    // Red visor
+    g.fillStyle(0xff3333, 0.8);
+    g.fillRect(20, 10, 8, 3);
+    // Shield
+    g.fillStyle(0x888899, 1);
+    g.fillRoundedRect(8, 18, 8, 14, 2);
+    g.fillStyle(0xaaaa33, 0.8);
+    g.fillCircle(12, 24, 3);
+    // Sword
+    g.fillStyle(0xccccdd, 1);
+    g.fillRect(36, 8, 3, 24);
+    g.fillStyle(0x886633, 1);
+    g.fillRect(34, 28, 7, 3);
+    g.generateTexture("elite_guardian", S, S);
+    g.destroy();
+  }
+
+  // ========================
+  // CONFLICT ZONE — WORLD BOSS
+  // ========================
+  generateWorldBossTexture() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 64;
+    // Aura
+    g.fillStyle(0x8833cc, 0.15);
+    g.fillCircle(S / 2, S / 2, 30);
+    g.fillStyle(0x6622aa, 0.1);
+    g.fillCircle(S / 2, S / 2, 26);
+    // Shadow
+    g.fillStyle(0x000000, 0.3);
+    g.fillEllipse(S / 2, S - 4, 40, 8);
+    // Body — massive dark form
+    g.fillStyle(0x221133, 1);
+    g.fillRoundedRect(14, 14, 36, 38, 6);
+    g.fillStyle(0x331144, 0.8);
+    g.fillRoundedRect(18, 18, 28, 30, 4);
+    // Corrupted armor plates
+    g.fillStyle(0x554466, 1);
+    g.fillRect(16, 20, 32, 6);
+    g.fillRect(16, 30, 32, 6);
+    g.fillRect(16, 40, 32, 6);
+    // Crown of shadows
+    g.fillStyle(0x552288, 1);
+    g.fillTriangle(20, 14, 24, 2, 28, 14);
+    g.fillTriangle(28, 14, 32, 4, 36, 14);
+    g.fillTriangle(36, 14, 40, 2, 44, 14);
+    // Glowing eyes
+    g.fillStyle(0xff44ff, 1);
+    g.fillCircle(24, 18, 3);
+    g.fillCircle(40, 18, 3);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(24, 17, 1);
+    g.fillCircle(40, 17, 1);
+    // Arms
+    g.fillStyle(0x331144, 1);
+    g.fillRect(8, 20, 8, 20);
+    g.fillRect(48, 20, 8, 20);
+    // Weapon — dark scythe
+    g.fillStyle(0x888888, 1);
+    g.fillRect(52, 4, 3, 36);
+    g.fillStyle(0xcc44ff, 0.9);
+    g.fillTriangle(48, 4, 55, 4, 55, 16);
+    g.generateTexture("world_boss", S, S);
+    g.destroy();
+  }
+
+  // ========================
+  // CONFLICT ZONE DECORATIONS
+  // ========================
+
+  genDecoFortress() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 128;
+    // Base platform — corrupted stone
+    g.fillStyle(0x222233, 1);
+    g.fillRoundedRect(8, 40, 112, 80, 4);
+    g.fillStyle(0x333344, 0.8);
+    g.fillRect(12, 44, 104, 72);
+    // Cracks on ground
+    g.lineStyle(1, 0x663388, 0.4);
+    g.lineBetween(30, 80, 98, 90);
+    g.lineBetween(50, 60, 80, 110);
+    g.lineBetween(20, 100, 110, 70);
+    // Main tower — center
+    g.fillStyle(0x444455, 1);
+    g.fillRect(44, 10, 40, 80);
+    g.fillStyle(0x555566, 0.8);
+    g.fillRect(48, 14, 32, 72);
+    // Tower top — crenellations
+    g.fillStyle(0x555577, 1);
+    for (let i = 0; i < 5; i++) {
+      g.fillRect(44 + i * 9, 4, 6, 10);
+    }
+    // Side towers
+    g.fillStyle(0x3a3a4d, 1);
+    g.fillRect(10, 28, 28, 60);
+    g.fillRect(90, 28, 28, 60);
+    // Side tower crenellations
+    g.fillStyle(0x4a4a5d, 1);
+    for (let i = 0; i < 3; i++) {
+      g.fillRect(10 + i * 10, 22, 7, 10);
+      g.fillRect(90 + i * 10, 22, 7, 10);
+    }
+    // Gate
+    g.fillStyle(0x1a1a22, 1);
+    g.fillRoundedRect(52, 62, 24, 30, { tl: 12, tr: 12, bl: 0, br: 0 });
+    // Purple glow from gate
+    g.fillStyle(0x8833cc, 0.3);
+    g.fillRoundedRect(54, 64, 20, 26, { tl: 10, tr: 10, bl: 0, br: 0 });
+    // Purple aura cracks
+    g.lineStyle(2, 0x9944dd, 0.5);
+    g.lineBetween(20, 90, 44, 75);
+    g.lineBetween(84, 75, 108, 90);
+    g.lineBetween(64, 92, 64, 120);
+    // Flag pole on top
+    g.fillStyle(0x888888, 1);
+    g.fillRect(62, 0, 3, 12);
+    g.generateTexture("cz_fortress", S, S);
+    g.destroy();
+  }
+
+  genDecoAllianceBase(key: string, color: number) {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 80;
+    // Stone wall base
+    g.fillStyle(0x666677, 1);
+    g.fillRoundedRect(4, 20, 72, 52, 3);
+    g.fillStyle(0x555566, 0.8);
+    g.fillRect(8, 24, 64, 44);
+    // Alliance color trim
+    g.lineStyle(3, color, 0.9);
+    g.strokeRoundedRect(4, 20, 72, 52, 3);
+    // Tower left
+    g.fillStyle(0x777788, 1);
+    g.fillRect(2, 10, 18, 50);
+    g.fillStyle(color, 0.6);
+    g.fillRect(4, 12, 14, 4);
+    // Tower right
+    g.fillRect(60, 10, 18, 50);
+    g.fillStyle(color, 0.6);
+    g.fillRect(62, 12, 14, 4);
+    // Gate
+    g.fillStyle(0x333344, 1);
+    g.fillRoundedRect(28, 44, 24, 24, { tl: 12, tr: 12, bl: 0, br: 0 });
+    // Alliance glow
+    g.fillStyle(color, 0.2);
+    g.fillRoundedRect(30, 46, 20, 20, { tl: 10, tr: 10, bl: 0, br: 0 });
+    // Crenellations
+    g.fillStyle(0x888899, 1);
+    for (let i = 0; i < 4; i++) {
+      g.fillRect(2 + i * 6, 4, 4, 10);
+      g.fillRect(60 + i * 6, 4, 4, 10);
+    }
+    // Flag
+    g.fillStyle(0x888888, 1);
+    g.fillRect(38, 0, 2, 18);
+    g.fillStyle(color, 1);
+    g.fillTriangle(40, 2, 40, 14, 54, 8);
+    g.generateTexture(key, S, S);
+    g.destroy();
+  }
+
+  genDecoAllianceBanner(key: string, color: number) {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 32;
+    // Pole
+    g.fillStyle(0x886633, 1);
+    g.fillRect(14, 0, 4, 30);
+    // Cross beam
+    g.fillRect(10, 4, 12, 2);
+    // Banner fabric
+    g.fillStyle(color, 1);
+    g.fillRect(4, 6, 24, 18);
+    g.fillStyle(this.darken(color, 30), 0.5);
+    g.fillRect(6, 8, 20, 14);
+    // Banner wave effect
+    g.fillStyle(this.lighten(color, 40), 0.4);
+    g.fillRect(4, 6, 24, 3);
+    // Emblem center
+    g.fillStyle(0xffffff, 0.6);
+    g.fillCircle(16, 15, 4);
+    g.fillStyle(color, 0.9);
+    g.fillCircle(16, 15, 2);
+    // Shadow base
+    g.fillStyle(0x000000, 0.15);
+    g.fillEllipse(16, 30, 12, 3);
+    g.generateTexture(key, S, S);
+    g.destroy();
+  }
+
+  genDecoMagicPortal(key: string, color: number) {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 48;
+    // Stone frame
+    g.fillStyle(0x555566, 1);
+    g.fillRoundedRect(4, 2, 40, 44, 4);
+    g.fillStyle(0x444455, 1);
+    g.fillRoundedRect(8, 6, 32, 36, 3);
+    // Runes on frame
+    g.fillStyle(color, 0.6);
+    g.fillCircle(8, 10, 2);
+    g.fillCircle(40, 10, 2);
+    g.fillCircle(8, 30, 2);
+    g.fillCircle(40, 30, 2);
+    g.fillCircle(24, 4, 2);
+    g.fillCircle(24, 42, 2);
+    // Inner vortex
+    g.fillStyle(0x000000, 0.8);
+    g.fillCircle(S / 2, S / 2, 13);
+    g.fillStyle(color, 0.4);
+    g.fillCircle(S / 2, S / 2, 11);
+    g.fillStyle(this.lighten(color, 60), 0.5);
+    g.fillCircle(S / 2, S / 2, 7);
+    g.fillStyle(0xffffff, 0.6);
+    g.fillCircle(S / 2, S / 2, 3);
+    // Sparkles
+    g.fillStyle(color, 0.8);
+    g.fillCircle(16, 16, 1);
+    g.fillCircle(32, 20, 1);
+    g.fillCircle(20, 32, 1);
+    g.fillCircle(28, 14, 1);
+    g.generateTexture(key, S, S);
+    g.destroy();
+  }
+
+  genDecoDungeonRed() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 48;
+    // Cave mouth
+    g.fillStyle(0x443322, 1);
+    g.fillRoundedRect(4, 12, 40, 32, { tl: 16, tr: 16, bl: 2, br: 2 });
+    g.fillStyle(0x221100, 1);
+    g.fillRoundedRect(10, 18, 28, 24, { tl: 12, tr: 12, bl: 0, br: 0 });
+    // Red warm glow
+    g.fillStyle(0xff4422, 0.3);
+    g.fillCircle(S / 2, S / 2, 16);
+    g.fillStyle(0xff6633, 0.2);
+    g.fillCircle(S / 2, S / 2 + 4, 12);
+    g.fillStyle(0xffaa44, 0.15);
+    g.fillCircle(S / 2, S / 2 + 2, 8);
+    // Skull above entrance
+    g.fillStyle(0xeeeecc, 0.8);
+    g.fillCircle(S / 2, 14, 5);
+    g.fillStyle(0x221100, 0.9);
+    g.fillCircle(22, 13, 1.5);
+    g.fillCircle(26, 13, 1.5);
+    g.generateTexture("cz_dungeon_red", S, S);
+    g.destroy();
+  }
+
+  genDecoDungeonBlack() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 48;
+    // Dark cave mouth
+    g.fillStyle(0x222222, 1);
+    g.fillRoundedRect(4, 12, 40, 32, { tl: 16, tr: 16, bl: 2, br: 2 });
+    g.fillStyle(0x0a0a0a, 1);
+    g.fillRoundedRect(10, 18, 28, 24, { tl: 12, tr: 12, bl: 0, br: 0 });
+    // Blue-purple cold glow
+    g.fillStyle(0x6633aa, 0.3);
+    g.fillCircle(S / 2, S / 2, 16);
+    g.fillStyle(0x4422aa, 0.2);
+    g.fillCircle(S / 2, S / 2 + 4, 12);
+    g.fillStyle(0x8844dd, 0.15);
+    g.fillCircle(S / 2, S / 2 - 2, 8);
+    // Mist particles
+    g.fillStyle(0x6633aa, 0.2);
+    g.fillCircle(14, 22, 4);
+    g.fillCircle(34, 26, 3);
+    g.fillCircle(20, 36, 5);
+    g.fillCircle(30, 32, 3);
+    g.generateTexture("cz_dungeon_black", S, S);
+    g.destroy();
+  }
+
+  genDecoCorruptedGround() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 32;
+    // Dark cracked earth
+    g.fillStyle(0x1a1122, 1);
+    g.fillRect(0, 0, S, S);
+    // Cracks
+    g.lineStyle(1, 0x7733aa, 0.5);
+    g.lineBetween(4, 8, 28, 12);
+    g.lineBetween(8, 20, 24, 24);
+    g.lineBetween(16, 4, 12, 28);
+    // Purple glow in cracks
+    g.fillStyle(0x9944dd, 0.2);
+    g.fillCircle(16, 12, 6);
+    g.fillCircle(12, 24, 4);
+    g.generateTexture("cz_corrupted", S, S);
+    g.destroy();
+  }
+
+  genDecoBossAura() {
+    const g = this.make.graphics({ x: 0, y: 0 });
+    const S = 96;
+    // Large purple aura circle
+    g.fillStyle(0x8833cc, 0.08);
+    g.fillCircle(S / 2, S / 2, S / 2);
+    g.fillStyle(0x6622aa, 0.1);
+    g.fillCircle(S / 2, S / 2, S / 3);
+    g.fillStyle(0xaa44ff, 0.06);
+    g.fillCircle(S / 2, S / 2, S / 4);
+    g.lineStyle(2, 0x9944dd, 0.3);
+    g.strokeCircle(S / 2, S / 2, S / 2 - 4);
+    g.lineStyle(1, 0xaa55ff, 0.2);
+    g.strokeCircle(S / 2, S / 2, S / 3);
+    g.generateTexture("cz_boss_aura", S, S);
+    g.destroy();
   }
 
   // ========================
