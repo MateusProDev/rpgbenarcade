@@ -32,19 +32,19 @@ export function PauseMenu({ onClose }: { onClose: () => void }) {
       <div className="glass-panel w-80 p-5 space-y-4">
         {/* Title */}
         <div className="text-center">
-          <h2 className="text-lg font-bold text-[var(--color-gold-accent)]">⚙️ Menu</h2>
+          <h2 className="text-lg font-bold text-gold-accent">⚙️ Menu</h2>
           {player && (
-            <p className="text-xs text-[var(--color-text-dim)] mt-1">
+            <p className="text-xs text-text-dim mt-1">
               {player.name} · Lv.{player.level} {player.className}
             </p>
           )}
         </div>
 
-        <div className="h-px bg-[var(--color-border-dim)]" />
+        <div className="h-px bg-border-dim" />
 
         {/* Settings toggles */}
         <div className="space-y-2">
-          <h3 className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider">Configurações</h3>
+          <h3 className="text-xs text-text-dim uppercase tracking-wider">Configurações</h3>
 
           <ToggleRow
             label="Números de dano"
@@ -63,12 +63,12 @@ export function PauseMenu({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        <div className="h-px bg-[var(--color-border-dim)]" />
+        <div className="h-px bg-border-dim" />
 
         {/* Stats summary */}
         {player && (
           <div className="space-y-1">
-            <h3 className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider">Estatísticas</h3>
+            <h3 className="text-xs text-text-dim uppercase tracking-wider">Estatísticas</h3>
             <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
               <StatRow label="Ataque" value={player.stats.attack} />
               <StatRow label="Defesa" value={player.stats.defense} />
@@ -80,20 +80,20 @@ export function PauseMenu({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="h-px bg-[var(--color-border-dim)]" />
+        <div className="h-px bg-border-dim" />
 
         {/* Actions */}
         <div className="space-y-2">
           <button
             onClick={onClose}
-            className="w-full py-2 text-sm font-bold rounded bg-[var(--color-glow-gold)] text-[var(--color-gold-accent)] border border-[var(--color-border-gold)] hover:bg-[var(--color-gold-accent)]/30 transition-colors"
+            className="w-full py-2 text-sm font-bold rounded bg-glow-gold text-gold-accent border border-border-gold hover:bg-gold-accent/30 transition-colors"
           >
             ▶ Continuar jogando
           </button>
 
           <button
             onClick={handleLogout}
-            className="w-full py-2 text-sm font-bold rounded bg-[var(--color-accent-red)]/10 text-[var(--color-accent-red)] border border-[var(--color-accent-red)]/20 hover:bg-[var(--color-accent-red)]/20 transition-colors"
+            className="w-full py-2 text-sm font-bold rounded bg-accent-red/10 text-accent-red border border-accent-red/20 hover:bg-accent-red/20 transition-colors"
           >
             🚪 Sair
           </button>
@@ -111,11 +111,11 @@ function ToggleRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-[var(--color-text-light)]">{label}</span>
+      <span className="text-xs text-text-light">{label}</span>
       <button
         onClick={onChange}
         className={`w-9 h-5 rounded-full transition-colors relative ${
-          enabled ? 'bg-[var(--color-accent-green)]' : 'bg-[var(--color-border-dim)]'
+          enabled ? 'bg-accent-green' : 'bg-border-dim'
         }`}
       >
         <span
@@ -132,8 +132,8 @@ function ToggleRow({
 function StatRow({ label, value }: { label: string; value: string | number }) {
   return (
     <>
-      <span className="text-[var(--color-text-dim)]">{label}</span>
-      <span className="text-[var(--color-text-light)] text-right">{value}</span>
+      <span className="text-text-dim">{label}</span>
+      <span className="text-text-light text-right">{value}</span>
     </>
   );
 }

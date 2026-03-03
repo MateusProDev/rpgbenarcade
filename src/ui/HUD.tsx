@@ -22,14 +22,14 @@ export function HUD() {
           {/* Player name + level */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="text-[var(--color-gold-accent)] font-bold text-sm">
+              <span className="text-gold-accent font-bold text-sm">
                 Lv.{player.level}
               </span>
-              <span className="text-[var(--color-text-light)] font-bold text-sm truncate">
+              <span className="text-text-light font-bold text-sm truncate">
                 {player.name}
               </span>
             </div>
-            <span className="text-[var(--color-text-dim)] text-xs capitalize">
+            <span className="text-text-dim text-xs capitalize">
               {player.className}
             </span>
           </div>
@@ -67,8 +67,8 @@ export function HUD() {
 
           {/* Gold */}
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[var(--color-text-dim)] text-xs">🪙 {player.gold}</span>
-            <span className="text-[var(--color-text-dim)] text-xs">⚔️ {player.pvpRating}</span>
+            <span className="text-text-dim text-xs">🪙 {player.gold}</span>
+            <span className="text-text-dim text-xs">⚔️ {player.pvpRating}</span>
           </div>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function HUD() {
       {/* Top-center: Zone name */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
         <div className="glass-panel px-4 py-1.5">
-          <span className="text-[var(--color-text-dim)] text-xs uppercase tracking-wider">
+          <span className="text-text-dim text-xs uppercase tracking-wider">
             {currentZone.replace(/_/g, ' ')}
           </span>
         </div>
@@ -128,11 +128,11 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-[var(--color-glow-gold)] transition-all active:scale-95 relative group"
+      className="glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-glow-gold transition-all active:scale-95 relative group"
       title={`${label} (${shortcut})`}
     >
       {icon}
-      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] text-[var(--color-text-dim)] bg-black/80 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] text-text-dim bg-black/80 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
         {label} [{shortcut}]
       </span>
     </button>

@@ -76,7 +76,7 @@ export function ChatPanel() {
     return (
       <button
         onClick={toggleChat}
-        className="absolute bottom-20 right-3 z-10 glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-[var(--color-glow-gold)] transition-all active:scale-95"
+        className="absolute bottom-20 right-3 z-10 glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-glow-gold transition-all active:scale-95"
         title="Abrir chat (Enter)"
       >
         💬
@@ -88,8 +88,8 @@ export function ChatPanel() {
     <div className="absolute bottom-20 right-3 z-10 animate-fade-in w-80">
       <div className="glass-panel flex flex-col h-72">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--color-border-dim)]">
-          <span className="text-xs text-[var(--color-gold-accent)] font-bold">Chat</span>
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border-dim">
+          <span className="text-xs text-gold-accent font-bold">Chat</span>
 
           {/* Channel filter tabs */}
           <div className="flex gap-1">
@@ -107,7 +107,7 @@ export function ChatPanel() {
 
           <button
             onClick={toggleChat}
-            className="text-[var(--color-text-dim)] hover:text-[var(--color-text-light)] text-sm ml-1"
+            className="text-text-dim hover:text-text-light text-sm ml-1"
           >
             ✕
           </button>
@@ -116,7 +116,7 @@ export function ChatPanel() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
           {filteredMessages.length === 0 ? (
-            <p className="text-[var(--color-text-dim)] text-xs text-center mt-8">
+            <p className="text-text-dim text-xs text-center mt-8">
               Nenhuma mensagem ainda...
             </p>
           ) : (
@@ -127,15 +127,15 @@ export function ChatPanel() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-[var(--color-border-dim)] p-2 flex gap-1.5">
+        <div className="border-t border-border-dim p-2 flex gap-1.5">
           {/* Channel selector */}
           <select
             value={activeChannel}
             onChange={(e) => setActiveChannel(e.target.value as Channel)}
-            className="bg-transparent text-[10px] text-[var(--color-text-dim)] border border-[var(--color-border-dim)] rounded px-1 outline-none cursor-pointer"
+            className="bg-transparent text-[10px] text-text-dim border border-border-dim rounded px-1 outline-none cursor-pointer"
           >
             {CHANNELS.filter((c) => c !== 'system').map((ch) => (
-              <option key={ch} value={ch} className="bg-[var(--color-bg-dark)]">
+              <option key={ch} value={ch} className="bg-bg-dark">
                 {CHANNEL_LABELS[ch]}
               </option>
             ))}
@@ -148,12 +148,12 @@ export function ChatPanel() {
             onKeyDown={handleKeyDown}
             placeholder="Mensagem..."
             maxLength={200}
-            className="flex-1 bg-transparent text-sm text-[var(--color-text-light)] placeholder:text-[var(--color-text-dim)] outline-none border-b border-[var(--color-border-dim)] focus:border-[var(--color-gold-accent)] transition-colors px-1"
+            className="flex-1 bg-transparent text-sm text-text-light placeholder:text-text-dim outline-none border-b border-border-dim focus:border-gold-accent transition-colors px-1"
           />
 
           <button
             onClick={handleSend}
-            className="text-[var(--color-gold-accent)] hover:text-white text-sm px-2 transition-colors"
+            className="text-gold-accent hover:text-white text-sm px-2 transition-colors"
           >
             ➤
           </button>
@@ -173,13 +173,13 @@ function ChatBubble({ msg, isOwn }: { msg: ChatMessage; isOwn: boolean }) {
 
   return (
     <div className={`text-xs leading-relaxed ${isOwn ? 'text-right' : ''}`}>
-      <span className="text-[10px] text-[var(--color-text-dim)]">[{time}] </span>
+      <span className="text-[10px] text-text-dim">[{time}] </span>
       {msg.channel === 'system' ? (
         <span style={{ color }} className="italic">{msg.text}</span>
       ) : (
         <>
           <span style={{ color }} className="font-bold">{msg.senderName}: </span>
-          <span className="text-[var(--color-text-light)]">{msg.text}</span>
+          <span className="text-text-light">{msg.text}</span>
         </>
       )}
     </div>
@@ -197,8 +197,8 @@ function FilterTab({
       onClick={onClick}
       className={`text-[9px] px-1.5 py-0.5 rounded transition-all ${
         active
-          ? 'bg-[var(--color-glow-gold)] text-[var(--color-gold-accent)]'
-          : 'text-[var(--color-text-dim)] hover:text-[var(--color-text-light)]'
+          ? 'bg-glow-gold text-gold-accent'
+          : 'text-text-dim hover:text-text-light'
       }`}
       style={!active && color ? { color } : undefined}
     >

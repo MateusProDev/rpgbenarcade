@@ -28,8 +28,8 @@ export function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center w-full h-full bg-[var(--color-bg-dark)]">
-        <div className="text-[var(--color-border-gold)] text-lg animate-pulse font-[var(--font-display)]">
+      <div className="flex items-center justify-center w-full h-full bg-bg-dark">
+        <div className="text-border-gold text-lg animate-pulse font-display">
           Carregando...
         </div>
       </div>

@@ -78,8 +78,8 @@ export function GameView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center w-full h-full bg-[var(--color-bg-dark)]">
-        <div className="text-[var(--color-gold-accent)] text-lg animate-pulse">
+      <div className="flex items-center justify-center w-full h-full bg-bg-dark">
+        <div className="text-gold-accent text-lg animate-pulse">
           Carregando dados do personagem...
         </div>
       </div>

@@ -58,27 +58,27 @@ export function LandingPage({ onPlay }: LandingPageProps) {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-3xl">⚔️</span>
-            <span className="text-xl font-bold text-[var(--color-gold-accent)] font-[var(--font-display)] tracking-wide">
+            <span className="text-xl font-bold text-gold-accent font-display tracking-wide">
               RPG Benarcade
             </span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm">
-            <a href="#features" className="text-[var(--color-text-dim)] hover:text-[var(--color-gold-accent)] transition-colors">
+            <a href="#features" className="text-text-dim hover:text-gold-accent transition-colors">
               Features
             </a>
-            <a href="#classes" className="text-[var(--color-text-dim)] hover:text-[var(--color-gold-accent)] transition-colors">
+            <a href="#classes" className="text-text-dim hover:text-gold-accent transition-colors">
               Classes
             </a>
-            <a href="#world" className="text-[var(--color-text-dim)] hover:text-[var(--color-gold-accent)] transition-colors">
+            <a href="#world" className="text-text-dim hover:text-gold-accent transition-colors">
               Mundo
             </a>
-            <a href="#pvp" className="text-[var(--color-text-dim)] hover:text-[var(--color-gold-accent)] transition-colors">
+            <a href="#pvp" className="text-text-dim hover:text-gold-accent transition-colors">
               PvP
             </a>
           </div>
           <button
             onClick={onPlay}
-            className="px-6 py-2 bg-gradient-to-r from-[var(--color-gold-accent)] to-yellow-600 text-black font-bold rounded-lg hover:brightness-110 hover:scale-105 transition-all text-sm"
+            className="px-6 py-2 bg-gradient-to-r from-gold-accent to-yellow-600 text-black font-bold rounded-lg hover:brightness-110 hover:scale-105 transition-all text-sm"
           >
             🎮 Jogar Agora
           </button>
@@ -89,20 +89,20 @@ export function LandingPage({ onPlay }: LandingPageProps) {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-[var(--color-bg-dark)]" />
+          <div className="absolute inset-0 bg-bg-dark" />
           {/* Floating particles */}
           <div
             className="absolute inset-0"
             style={{ transform: `translateY(${scrollY * 0.3}px)` }}
           >
-            <div className="absolute top-[10%] left-[15%] w-2 h-2 bg-[var(--color-gold-accent)] rounded-full opacity-30 animate-float-slow" />
-            <div className="absolute top-[20%] right-[20%] w-1.5 h-1.5 bg-[var(--color-accent-purple)] rounded-full opacity-40 animate-float-medium" />
-            <div className="absolute top-[60%] left-[10%] w-1 h-1 bg-[var(--color-accent-blue)] rounded-full opacity-30 animate-float-fast" />
-            <div className="absolute top-[40%] right-[10%] w-2.5 h-2.5 bg-[var(--color-gold-accent)] rounded-full opacity-20 animate-float-slow" />
-            <div className="absolute top-[70%] left-[40%] w-1.5 h-1.5 bg-[var(--color-accent-green)] rounded-full opacity-30 animate-float-medium" />
-            <div className="absolute top-[15%] left-[60%] w-1 h-1 bg-[var(--color-accent-red)] rounded-full opacity-25 animate-float-fast" />
-            <div className="absolute top-[80%] right-[30%] w-2 h-2 bg-[var(--color-accent-purple)] rounded-full opacity-20 animate-float-slow" />
-            <div className="absolute top-[50%] left-[75%] w-1.5 h-1.5 bg-[var(--color-gold-accent)] rounded-full opacity-35 animate-float-medium" />
+            <div className="absolute top-[10%] left-[15%] w-2 h-2 bg-gold-accent rounded-full opacity-30 animate-float-slow" />
+            <div className="absolute top-[20%] right-[20%] w-1.5 h-1.5 bg-accent-purple rounded-full opacity-40 animate-float-medium" />
+            <div className="absolute top-[60%] left-[10%] w-1 h-1 bg-accent-blue rounded-full opacity-30 animate-float-fast" />
+            <div className="absolute top-[40%] right-[10%] w-2.5 h-2.5 bg-gold-accent rounded-full opacity-20 animate-float-slow" />
+            <div className="absolute top-[70%] left-[40%] w-1.5 h-1.5 bg-accent-green rounded-full opacity-30 animate-float-medium" />
+            <div className="absolute top-[15%] left-[60%] w-1 h-1 bg-accent-red rounded-full opacity-25 animate-float-fast" />
+            <div className="absolute top-[80%] right-[30%] w-2 h-2 bg-accent-purple rounded-full opacity-20 animate-float-slow" />
+            <div className="absolute top-[50%] left-[75%] w-1.5 h-1.5 bg-gold-accent rounded-full opacity-35 animate-float-medium" />
           </div>
           {/* Large glow orbs */}
           <div
@@ -132,16 +132,16 @@ export function LandingPage({ onPlay }: LandingPageProps) {
 
         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--color-border-gold)] bg-black/30 backdrop-blur-sm mb-8 animate-fade-in">
-            <span className="w-2 h-2 bg-[var(--color-accent-green)] rounded-full animate-pulse" />
-            <span className="text-[var(--color-text-dim)] text-xs uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border-gold bg-black/30 backdrop-blur-sm mb-8 animate-fade-in">
+            <span className="w-2 h-2 bg-accent-green rounded-full animate-pulse" />
+            <span className="text-text-dim text-xs uppercase tracking-widest">
               MMORPG 2D Online • Jogue Grátis
             </span>
           </div>
 
           {/* Title */}
           <h1
-            className="text-6xl md:text-8xl font-bold font-[var(--font-display)] mb-6 leading-tight animate-hero-title"
+            className="text-6xl md:text-8xl font-bold font-display mb-6 leading-tight animate-hero-title"
             style={{
               background: 'linear-gradient(135deg, #ddaa33 0%, #fff5d0 25%, #ddaa33 50%, #aa7722 75%, #ddaa33 100%)',
               backgroundSize: '200% 200%',
@@ -154,11 +154,11 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-[var(--color-text-dim)] mb-4 max-w-2xl mx-auto animate-hero-sub leading-relaxed">
-            Embarque em uma aventura épica no mundo de <span className="text-[var(--color-gold-accent)]">Benarcade</span>.
+          <p className="text-xl md:text-2xl text-text-dim mb-4 max-w-2xl mx-auto animate-hero-sub leading-relaxed">
+            Embarque em uma aventura épica no mundo de <span className="text-gold-accent">Benarcade</span>.
             Escolha sua classe, conquiste territórios e domine o PvP.
           </p>
-          <p className="text-base text-[var(--color-text-dim)] opacity-60 mb-10 animate-hero-sub-delay">
+          <p className="text-base text-text-dim opacity-60 mb-10 animate-hero-sub-delay">
             4 classes únicas • Mundo aberto • PvP em tempo real • Guildas e Alianças
           </p>
 
@@ -166,7 +166,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-hero-cta">
             <button
               onClick={onPlay}
-              className="group relative px-10 py-4 bg-gradient-to-r from-[var(--color-gold-accent)] to-yellow-600 text-black font-bold rounded-xl text-lg hover:scale-105 transition-all shadow-[0_0_40px_rgba(220,170,50,0.3)] hover:shadow-[0_0_60px_rgba(220,170,50,0.5)]"
+              className="group relative px-10 py-4 bg-gradient-to-r from-gold-accent to-yellow-600 text-black font-bold rounded-xl text-lg hover:scale-105 transition-all shadow-[0_0_40px_rgba(220,170,50,0.3)] hover:shadow-[0_0_60px_rgba(220,170,50,0.5)]"
             >
               <span className="relative z-10 flex items-center gap-2">
                 ⚔️ Começar Aventura
@@ -175,7 +175,7 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             </button>
             <a
               href="#features"
-              className="px-8 py-4 border border-[var(--color-border-gold)] text-[var(--color-gold-accent)] font-semibold rounded-xl hover:bg-[var(--color-glow-gold)] transition-all text-lg"
+              className="px-8 py-4 border border-border-gold text-gold-accent font-semibold rounded-xl hover:bg-glow-gold transition-all text-lg"
             >
               Saiba Mais ↓
             </a>
@@ -192,9 +192,9 @@ export function LandingPage({ onPlay }: LandingPageProps) {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce-slow">
-          <span className="text-[var(--color-text-dim)] text-xs uppercase tracking-widest">Scroll</span>
-          <div className="w-5 h-8 border-2 border-[var(--color-border-gold)] rounded-full flex items-start justify-center p-1">
-            <div className="w-1 h-2 bg-[var(--color-gold-accent)] rounded-full animate-scroll-dot" />
+          <span className="text-text-dim text-xs uppercase tracking-widest">Scroll</span>
+          <div className="w-5 h-8 border-2 border-border-gold rounded-full flex items-start justify-center p-1">
+            <div className="w-1 h-2 bg-gold-accent rounded-full animate-scroll-dot" />
           </div>
         </div>
       </section>
@@ -208,14 +208,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             data-animate
             className={`text-center mb-20 transition-all duration-700 ${isVisible('feat-header') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
           >
-            <span className="text-[var(--color-gold-accent)] text-sm uppercase tracking-[0.3em] font-semibold">
+            <span className="text-gold-accent text-sm uppercase tracking-[0.3em] font-semibold">
               Por que jogar
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold font-[var(--font-display)] mt-3 text-[var(--color-text-light)]">
+            <h2 className="text-4xl md:text-5xl font-bold font-display mt-3 text-text-light">
               Um RPG feito para{' '}
-              <span className="text-[var(--color-gold-accent)]">Lendas</span>
+              <span className="text-gold-accent">Lendas</span>
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-[var(--color-gold-accent)] to-transparent mx-auto mt-6" />
+            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-gold-accent to-transparent mx-auto mt-6" />
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -224,14 +224,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
                 key={f.title}
                 id={`feat-${i}`}
                 data-animate
-                className={`group glass-panel p-8 hover:border-[var(--color-gold-accent)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(180,150,90,0.15)] ${
+                className={`group glass-panel p-8 hover:border-gold-accent transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(180,150,90,0.15)] ${
                   isVisible(`feat-${i}`) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                 }`}
                 style={{ transitionDelay: `${i * 100}ms` }}
               >
                 <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{f.icon}</div>
-                <h3 className="text-xl font-bold text-[var(--color-text-light)] mb-3">{f.title}</h3>
-                <p className="text-[var(--color-text-dim)] leading-relaxed text-sm">{f.desc}</p>
+                <h3 className="text-xl font-bold text-text-light mb-3">{f.title}</h3>
+                <p className="text-text-dim leading-relaxed text-sm">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -246,14 +246,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             data-animate
             className={`text-center mb-20 transition-all duration-700 ${isVisible('class-header') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
           >
-            <span className="text-[var(--color-accent-purple)] text-sm uppercase tracking-[0.3em] font-semibold">
+            <span className="text-accent-purple text-sm uppercase tracking-[0.3em] font-semibold">
               Escolha seu destino
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold font-[var(--font-display)] mt-3">
+            <h2 className="text-4xl md:text-5xl font-bold font-display mt-3">
               4 Classes{' '}
-              <span className="text-[var(--color-accent-purple)]">Únicas</span>
+              <span className="text-accent-purple">Únicas</span>
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-purple)] to-transparent mx-auto mt-6" />
+            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-accent-purple to-transparent mx-auto mt-6" />
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -286,12 +286,12 @@ export function LandingPage({ onPlay }: LandingPageProps) {
                     <h3 className="text-2xl font-bold mb-1" style={{ color: c.color }}>
                       {c.name}
                     </h3>
-                    <p className="text-[var(--color-text-dim)] text-sm mb-4">{c.desc}</p>
+                    <p className="text-text-dim text-sm mb-4">{c.desc}</p>
                     {/* Stats bars */}
                     <div className="space-y-2">
                       {c.stats.map((s) => (
                         <div key={s.label} className="flex items-center gap-3">
-                          <span className="text-[var(--color-text-dim)] text-xs w-16">{s.label}</span>
+                          <span className="text-text-dim text-xs w-16">{s.label}</span>
                           <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-1000"
@@ -321,14 +321,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             data-animate
             className={`text-center mb-20 transition-all duration-700 ${isVisible('world-header') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
           >
-            <span className="text-[var(--color-accent-blue)] text-sm uppercase tracking-[0.3em] font-semibold">
+            <span className="text-accent-blue text-sm uppercase tracking-[0.3em] font-semibold">
               Explore
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold font-[var(--font-display)] mt-3">
+            <h2 className="text-4xl md:text-5xl font-bold font-display mt-3">
               Um Mundo{' '}
-              <span className="text-[var(--color-accent-blue)]">Vasto</span> te Espera
+              <span className="text-accent-blue">Vasto</span> te Espera
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-blue)] to-transparent mx-auto mt-6" />
+            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-accent-blue to-transparent mx-auto mt-6" />
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
@@ -337,20 +337,20 @@ export function LandingPage({ onPlay }: LandingPageProps) {
                 key={z.name}
                 id={`zone-${i}`}
                 data-animate
-                className={`group glass-panel p-6 hover:border-[var(--color-accent-blue)] transition-all duration-500 hover:-translate-y-1 ${
+                className={`group glass-panel p-6 hover:border-accent-blue transition-all duration-500 hover:-translate-y-1 ${
                   isVisible(`zone-${i}`) ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                 }`}
                 style={{ transitionDelay: `${i * 80}ms` }}
               >
                 <div className="text-3xl mb-3">{z.icon}</div>
-                <h3 className="text-lg font-bold text-[var(--color-text-light)] mb-1">{z.name}</h3>
+                <h3 className="text-lg font-bold text-text-light mb-1">{z.name}</h3>
                 <span
                   className="inline-block text-xs px-2 py-0.5 rounded-full mb-3"
                   style={{ background: `${z.color}20`, color: z.color }}
                 >
                   {z.type}
                 </span>
-                <p className="text-[var(--color-text-dim)] text-sm leading-relaxed">{z.desc}</p>
+                <p className="text-text-dim text-sm leading-relaxed">{z.desc}</p>
               </div>
             ))}
           </div>
@@ -365,14 +365,14 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             data-animate
             className={`text-center mb-16 transition-all duration-700 ${isVisible('pvp-header') ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
           >
-            <span className="text-[var(--color-accent-red)] text-sm uppercase tracking-[0.3em] font-semibold">
+            <span className="text-accent-red text-sm uppercase tracking-[0.3em] font-semibold">
               Competição
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold font-[var(--font-display)] mt-3">
+            <h2 className="text-4xl md:text-5xl font-bold font-display mt-3">
               PvP em{' '}
-              <span className="text-[var(--color-accent-red)]">Tempo Real</span>
+              <span className="text-accent-red">Tempo Real</span>
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-red)] to-transparent mx-auto mt-6" />
+            <div className="w-24 h-1 bg-gradient-to-r from-transparent via-accent-red to-transparent mx-auto mt-6" />
           </div>
 
           <div
@@ -385,52 +385,52 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             {/* Left: PvP Arena visual */}
             <div className="relative">
               <div className="glass-panel p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-accent-red)]/5 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-br from-accent-red/5 to-transparent" />
                 <div className="relative z-10 space-y-6">
                   {/* Mock battle HUD */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--color-accent-red)]/20 border border-[var(--color-accent-red)]/30 flex items-center justify-center text-lg">⚔️</div>
+                      <div className="w-10 h-10 rounded-lg bg-accent-red/20 border border-accent-red/30 flex items-center justify-center text-lg">⚔️</div>
                       <div>
                         <div className="text-sm font-bold">DragonSlayer</div>
-                        <div className="text-xs text-[var(--color-text-dim)]">Guerreiro Lv.45</div>
+                        <div className="text-xs text-text-dim">Guerreiro Lv.45</div>
                       </div>
                     </div>
-                    <div className="text-2xl font-bold text-[var(--color-accent-red)] animate-pulse">VS</div>
+                    <div className="text-2xl font-bold text-accent-red animate-pulse">VS</div>
                     <div className="flex items-center gap-3">
                       <div>
                         <div className="text-sm font-bold text-right">ShadowBlade</div>
-                        <div className="text-xs text-[var(--color-text-dim)] text-right">Assassino Lv.43</div>
+                        <div className="text-xs text-text-dim text-right">Assassino Lv.43</div>
                       </div>
-                      <div className="w-10 h-10 rounded-lg bg-[var(--color-accent-purple)]/20 border border-[var(--color-accent-purple)]/30 flex items-center justify-center text-lg">🗡️</div>
+                      <div className="w-10 h-10 rounded-lg bg-accent-purple/20 border border-accent-purple/30 flex items-center justify-center text-lg">🗡️</div>
                     </div>
                   </div>
                   {/* HP bars mock */}
                   <div className="space-y-3">
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-[var(--color-text-dim)]">DragonSlayer</span>
-                        <span className="text-[var(--color-hp)]">1,840 / 2,400</span>
+                        <span className="text-text-dim">DragonSlayer</span>
+                        <span className="text-hp">1,840 / 2,400</span>
                       </div>
                       <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[var(--color-hp)] to-red-400 rounded-full" style={{ width: '76%' }} />
+                        <div className="h-full bg-gradient-to-r from-hp to-red-400 rounded-full" style={{ width: '76%' }} />
                       </div>
                     </div>
                     <div>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-[var(--color-text-dim)]">ShadowBlade</span>
-                        <span className="text-[var(--color-hp)]">620 / 1,100</span>
+                        <span className="text-text-dim">ShadowBlade</span>
+                        <span className="text-hp">620 / 1,100</span>
                       </div>
                       <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[var(--color-hp)] to-red-400 rounded-full" style={{ width: '56%' }} />
+                        <div className="h-full bg-gradient-to-r from-hp to-red-400 rounded-full" style={{ width: '56%' }} />
                       </div>
                     </div>
                   </div>
                   {/* Combat log */}
                   <div className="space-y-1 text-xs font-mono">
-                    <p className="text-[var(--color-accent-red)]">⚔️ DragonSlayer usou <span className="text-[var(--color-gold-accent)]">Investida Brutal</span> → 284 dmg</p>
-                    <p className="text-[var(--color-accent-purple)]">🗡️ ShadowBlade usou <span className="text-[var(--color-gold-accent)]">Golpe das Sombras</span> → 412 CRIT!</p>
-                    <p className="text-[var(--color-accent-red)]">⚔️ DragonSlayer usou <span className="text-[var(--color-gold-accent)]">Escudo Divino</span> → DEF +40%</p>
+                    <p className="text-accent-red">⚔️ DragonSlayer usou <span className="text-gold-accent">Investida Brutal</span> → 284 dmg</p>
+                    <p className="text-accent-purple">🗡️ ShadowBlade usou <span className="text-gold-accent">Golpe das Sombras</span> → 412 CRIT!</p>
+                    <p className="text-accent-red">⚔️ DragonSlayer usou <span className="text-gold-accent">Escudo Divino</span> → DEF +40%</p>
                   </div>
                 </div>
               </div>
@@ -440,12 +440,12 @@ export function LandingPage({ onPlay }: LandingPageProps) {
             <div className="space-y-6">
               {pvpFeatures.map((f) => (
                 <div key={f.title} className="flex gap-4 items-start">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[var(--color-accent-red)]/10 border border-[var(--color-accent-red)]/20 flex items-center justify-center text-xl">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-accent-red/10 border border-accent-red/20 flex items-center justify-center text-xl">
                     {f.icon}
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-[var(--color-text-light)] mb-1">{f.title}</h3>
-                    <p className="text-[var(--color-text-dim)] text-sm">{f.desc}</p>
+                    <h3 className="text-lg font-bold text-text-light mb-1">{f.title}</h3>
+                    <p className="text-text-dim text-sm">{f.desc}</p>
                   </div>
                 </div>
               ))}
@@ -470,44 +470,44 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           }`}
         >
           <div className="text-6xl mb-6">🏰</div>
-          <h2 className="text-4xl md:text-6xl font-bold font-[var(--font-display)] mb-6">
+          <h2 className="text-4xl md:text-6xl font-bold font-display mb-6">
             Sua Lenda{' '}
-            <span className="text-[var(--color-gold-accent)]">Começa Agora</span>
+            <span className="text-gold-accent">Começa Agora</span>
           </h2>
-          <p className="text-lg text-[var(--color-text-dim)] mb-10 max-w-xl mx-auto">
+          <p className="text-lg text-text-dim mb-10 max-w-xl mx-auto">
             Junte-se a centenas de jogadores, escolha sua classe, forme alianças e conquiste o mundo de Benarcade.
             É grátis para jogar.
           </p>
           <button
             onClick={onPlay}
-            className="group relative px-12 py-5 bg-gradient-to-r from-[var(--color-gold-accent)] to-yellow-600 text-black font-bold rounded-xl text-xl hover:scale-105 transition-all shadow-[0_0_60px_rgba(220,170,50,0.3)] hover:shadow-[0_0_80px_rgba(220,170,50,0.5)]"
+            className="group relative px-12 py-5 bg-gradient-to-r from-gold-accent to-yellow-600 text-black font-bold rounded-xl text-xl hover:scale-105 transition-all shadow-[0_0_60px_rgba(220,170,50,0.3)] hover:shadow-[0_0_80px_rgba(220,170,50,0.5)]"
           >
             <span className="relative z-10 flex items-center gap-3">
               ⚔️ Jogar Gratuitamente
             </span>
           </button>
-          <p className="text-[var(--color-text-dim)] text-xs mt-6 opacity-50">
+          <p className="text-text-dim text-xs mt-6 opacity-50">
             Sem downloads • Jogue direto no navegador • Crie sua conta em segundos
           </p>
         </div>
       </section>
 
       {/* ======== FOOTER ======== */}
-      <footer className="border-t border-[var(--color-border-gold)]/20 py-12 px-6">
+      <footer className="border-t border-border-gold/20 py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚔️</span>
-            <span className="text-[var(--color-gold-accent)] font-bold font-[var(--font-display)]">
+            <span className="text-gold-accent font-bold font-display">
               RPG Benarcade
             </span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-[var(--color-text-dim)]">
-            <a href="#features" className="hover:text-[var(--color-gold-accent)] transition-colors">Features</a>
-            <a href="#classes" className="hover:text-[var(--color-gold-accent)] transition-colors">Classes</a>
-            <a href="#world" className="hover:text-[var(--color-gold-accent)] transition-colors">Mundo</a>
-            <a href="#pvp" className="hover:text-[var(--color-gold-accent)] transition-colors">PvP</a>
+          <div className="flex items-center gap-6 text-sm text-text-dim">
+            <a href="#features" className="hover:text-gold-accent transition-colors">Features</a>
+            <a href="#classes" className="hover:text-gold-accent transition-colors">Classes</a>
+            <a href="#world" className="hover:text-gold-accent transition-colors">Mundo</a>
+            <a href="#pvp" className="hover:text-gold-accent transition-colors">PvP</a>
           </div>
-          <div className="text-[var(--color-text-dim)] text-xs opacity-50">
+          <div className="text-text-dim text-xs opacity-50">
             © 2026 RPG Benarcade. Todos os direitos reservados.
           </div>
         </div>
@@ -521,8 +521,8 @@ function StatCounter({ icon, value, label }: { icon: string; value: string; labe
   return (
     <div className="text-center">
       <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold text-[var(--color-gold-accent)]">{value}</div>
-      <div className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider">{label}</div>
+      <div className="text-2xl font-bold text-gold-accent">{value}</div>
+      <div className="text-xs text-text-dim uppercase tracking-wider">{label}</div>
     </div>
   );
 }

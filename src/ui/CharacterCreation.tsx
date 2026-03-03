@@ -74,22 +74,22 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="flex items-center justify-center w-full h-full bg-[var(--color-bg-dark)]">
+    <div className="flex items-center justify-center w-full h-full bg-bg-dark">
       <div className="glass-panel p-8 w-[480px] animate-fade-in">
-        <h2 className="text-2xl font-bold text-[var(--color-gold-accent)] text-center mb-6 font-[var(--font-display)]">
+        <h2 className="text-2xl font-bold text-gold-accent text-center mb-6 font-display">
           Criar Personagem
         </h2>
 
         {/* Name */}
         <div className="mb-6">
-          <label className="block text-[var(--color-text-dim)] text-xs mb-1 uppercase tracking-wider">
+          <label className="block text-text-dim text-xs mb-1 uppercase tracking-wider">
             Nome do Personagem
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 bg-black/40 border border-[var(--color-border-gold)] rounded-md text-[var(--color-text-light)] focus:outline-none focus:border-[var(--color-gold-accent)]"
+            className="w-full px-3 py-2 bg-black/40 border border-border-gold rounded-md text-text-light focus:outline-none focus:border-gold-accent"
             placeholder="Seu nome no mundo..."
             maxLength={16}
           />
@@ -97,7 +97,7 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
 
         {/* Class Selection */}
         <div className="mb-6">
-          <label className="block text-[var(--color-text-dim)] text-xs mb-2 uppercase tracking-wider">
+          <label className="block text-text-dim text-xs mb-2 uppercase tracking-wider">
             Classe
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -107,12 +107,12 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
                 onClick={() => setSelectedClass(c.id)}
                 className={`p-3 rounded-lg border transition-all text-left ${
                   selectedClass === c.id
-                    ? 'border-[var(--color-gold-accent)] bg-[var(--color-glow-gold)]'
-                    : 'border-[var(--color-border-dim)] hover:border-[var(--color-border-gold)]'
+                    ? 'border-gold-accent bg-glow-gold'
+                    : 'border-border-dim hover:border-border-gold'
                 }`}
               >
                 <div className="text-lg">{c.icon} {c.label}</div>
-                <div className="text-[var(--color-text-dim)] text-xs mt-1">{c.desc}</div>
+                <div className="text-text-dim text-xs mt-1">{c.desc}</div>
               </button>
             ))}
           </div>
@@ -120,7 +120,7 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
 
         {/* Stats Preview */}
         <div className="mb-6 p-3 bg-black/30 rounded-lg">
-          <div className="text-xs text-[var(--color-text-dim)] uppercase tracking-wider mb-2">
+          <div className="text-xs text-text-dim uppercase tracking-wider mb-2">
             Atributos Base
           </div>
           <div className="grid grid-cols-3 gap-2 text-sm">
@@ -134,7 +134,7 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
         </div>
 
         {error && (
-          <div className="text-[var(--color-accent-red)] text-sm bg-red-900/20 px-3 py-2 rounded mb-4">
+            <div className="text-accent-red text-sm bg-red-900/20 px-3 py-2 rounded mb-4">
             {error}
           </div>
         )}
@@ -142,7 +142,7 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
         <button
           onClick={handleCreate}
           disabled={loading || name.trim().length < 3}
-          className="w-full py-3 bg-gradient-to-r from-[var(--color-gold-accent)] to-yellow-600 text-black font-bold rounded-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+          className="w-full py-3 bg-gradient-to-r from-gold-accent to-yellow-600 text-black font-bold rounded-md hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg"
         >
           {loading ? '⏳ Criando...' : '✨ Criar Personagem'}
         </button>
@@ -154,7 +154,7 @@ export function CharacterCreation({ onComplete }: { onComplete: () => void }) {
 function Stat({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div className="flex justify-between items-center">
-      <span className="text-[var(--color-text-dim)]">{label}</span>
+      <span className="text-text-dim">{label}</span>
       <span style={{ color }} className="font-bold">{value}</span>
     </div>
   );

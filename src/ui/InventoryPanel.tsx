@@ -86,15 +86,15 @@ export function InventoryPanel() {
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 animate-fade-in">
       <div className="glass-panel w-[520px] max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-dim)]">
-          <h2 className="text-sm font-bold text-[var(--color-gold-accent)]">🎒 Inventário</h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-dim">
+          <h2 className="text-sm font-bold text-gold-accent">🎒 Inventário</h2>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-[var(--color-text-dim)]">
+            <span className="text-xs text-text-dim">
               {inventory.length} itens · 🪙 {player.gold}
             </span>
             <button
               onClick={() => openPanel(null)}
-              className="text-[var(--color-text-dim)] hover:text-[var(--color-accent-red)] text-sm transition-colors"
+              className="text-text-dim hover:text-accent-red text-sm transition-colors"
             >
               ✕
             </button>
@@ -102,7 +102,7 @@ export function InventoryPanel() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-1 px-4 py-2 border-b border-[var(--color-border-dim)]">
+        <div className="flex gap-1 px-4 py-2 border-b border-border-dim">
           <SlotFilter label="Todos" active={filterSlot === 'all'} onClick={() => setFilterSlot('all')} />
           {(['weapon', 'armor', 'helmet', 'boots', 'accessory', 'consumable'] as ItemSlot[]).map((slot) => (
             <SlotFilter
@@ -118,7 +118,7 @@ export function InventoryPanel() {
           {/* Item grid */}
           <div className="flex-1 overflow-y-auto p-3">
             {filtered.length === 0 ? (
-              <p className="text-[var(--color-text-dim)] text-xs text-center mt-8">
+              <p className="text-text-dim text-xs text-center mt-8">
                 Nenhum item encontrado.
               </p>
             ) : (
@@ -136,7 +136,7 @@ export function InventoryPanel() {
           </div>
 
           {/* Item detail sidebar */}
-          <div className="w-48 border-l border-[var(--color-border-dim)] p-3 overflow-y-auto">
+          <div className="w-48 border-l border-border-dim p-3 overflow-y-auto">
             {selected ? (
               <ItemDetail
                 item={selected}
@@ -144,7 +144,7 @@ export function InventoryPanel() {
                 onEquip={() => handleEquip(selected)}
               />
             ) : (
-              <p className="text-[var(--color-text-dim)] text-xs text-center mt-8">
+              <p className="text-text-dim text-xs text-center mt-8">
                 Selecione um item
               </p>
             )}
@@ -167,23 +167,23 @@ function ItemSlotCell({
       onClick={onClick}
       className={`relative w-full aspect-square rounded-lg border flex flex-col items-center justify-center text-base transition-all hover:scale-105 active:scale-95 ${
         isSelected
-          ? 'border-[var(--color-gold-accent)] bg-[var(--color-glow-gold)]'
-          : 'border-[var(--color-border-dim)] hover:border-[var(--color-border-gold)]'
-      } ${item.equipped ? 'ring-1 ring-[var(--color-accent-green)]' : ''}`}
+          ? 'border-gold-accent bg-glow-gold'
+          : 'border-border-dim hover:border-border-gold'
+      } ${item.equipped ? 'ring-1 ring-accent-green' : ''}`}
     >
       {/* Icon */}
       <span className="text-lg">{ITEM_TEMPLATES[item.templateId]?.icon ?? '❓'}</span>
 
       {/* Quantity badge */}
       {item.quantity > 1 && (
-        <span className="absolute bottom-0.5 right-1 text-[9px] font-bold text-[var(--color-text-light)]">
+        <span className="absolute bottom-0.5 right-1 text-[9px] font-bold text-text-light">
           {item.quantity}
         </span>
       )}
 
       {/* Equipped badge */}
       {item.equipped && (
-        <span className="absolute top-0.5 right-0.5 text-[8px] text-[var(--color-accent-green)]">E</span>
+        <span className="absolute top-0.5 right-0.5 text-[8px] text-accent-green">E</span>
       )}
 
       {/* Rarity bar */}
@@ -214,12 +214,12 @@ function ItemDetail({
       {/* Rarity + Slot */}
       <div className="flex items-center gap-2 text-[10px]">
         <span style={{ color: rarityColor }}>{RARITY_LABELS[item.rarity]}</span>
-        <span className="text-[var(--color-text-dim)]">{SLOT_LABELS[item.slot]}</span>
+        <span className="text-text-dim">{SLOT_LABELS[item.slot]}</span>
       </div>
 
       {/* Description */}
       {template?.description && (
-        <p className="text-[11px] text-[var(--color-text-dim)] leading-relaxed">
+        <p className="text-[11px] text-text-dim leading-relaxed">
           {template.description}
         </p>
       )}
@@ -229,8 +229,8 @@ function ItemDetail({
         <div className="space-y-0.5 mt-1">
           {Object.entries(item.stats).map(([key, value]) => (
             <div key={key} className="flex justify-between text-[10px]">
-              <span className="text-[var(--color-text-dim)] capitalize">{key}</span>
-              <span className={value > 0 ? 'text-[var(--color-accent-green)]' : 'text-[var(--color-accent-red)]'}>
+              <span className="text-text-dim capitalize">{key}</span>
+              <span className={value > 0 ? 'text-accent-green' : 'text-accent-red'}>
                 {value > 0 ? '+' : ''}{value}
               </span>
             </div>
@@ -239,13 +239,13 @@ function ItemDetail({
       )}
 
       {/* Quantity */}
-      <div className="text-[10px] text-[var(--color-text-dim)]">
+      <div className="text-[10px] text-text-dim">
         Quantidade: {item.quantity}
       </div>
 
       {/* Price */}
       {template && (
-        <div className="text-[10px] text-[var(--color-text-dim)]">
+        <div className="text-[10px] text-text-dim">
           💰 Valor: {template.price} ouro
         </div>
       )}
@@ -255,7 +255,7 @@ function ItemDetail({
         {item.slot === 'consumable' ? (
           <button
             onClick={onUse}
-            className="w-full py-1.5 text-xs font-bold rounded bg-[var(--color-accent-green)]/20 text-[var(--color-accent-green)] border border-[var(--color-accent-green)]/30 hover:bg-[var(--color-accent-green)]/30 transition-colors"
+            className="w-full py-1.5 text-xs font-bold rounded bg-accent-green/20 text-accent-green border border-accent-green/30 hover:bg-accent-green/30 transition-colors"
           >
             Usar
           </button>
@@ -264,8 +264,8 @@ function ItemDetail({
             onClick={onEquip}
             className={`w-full py-1.5 text-xs font-bold rounded border transition-colors ${
               item.equipped
-                ? 'bg-[var(--color-accent-red)]/20 text-[var(--color-accent-red)] border-[var(--color-accent-red)]/30 hover:bg-[var(--color-accent-red)]/30'
-                : 'bg-[var(--color-accent-blue)]/20 text-[var(--color-accent-blue)] border-[var(--color-accent-blue)]/30 hover:bg-[var(--color-accent-blue)]/30'
+                ? 'bg-accent-red/20 text-accent-red border-accent-red/30 hover:bg-accent-red/30'
+                : 'bg-accent-blue/20 text-accent-blue border-accent-blue/30 hover:bg-accent-blue/30'
             }`}
           >
             {item.equipped ? 'Desequipar' : 'Equipar'}
@@ -287,8 +287,8 @@ function SlotFilter({
       onClick={onClick}
       className={`text-[10px] px-2 py-0.5 rounded transition-all ${
         active
-          ? 'bg-[var(--color-glow-gold)] text-[var(--color-gold-accent)]'
-          : 'text-[var(--color-text-dim)] hover:text-[var(--color-text-light)]'
+          ? 'bg-glow-gold text-gold-accent'
+          : 'text-text-dim hover:text-text-light'
       }`}
     >
       {label}

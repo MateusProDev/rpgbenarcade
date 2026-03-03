@@ -34,8 +34,8 @@ export function SkillBar() {
               <button
                 className={`w-12 h-12 rounded-lg border flex items-center justify-center text-xl transition-all ${
                   isOnCd
-                    ? 'border-[var(--color-border-dim)] opacity-50 cursor-not-allowed'
-                    : 'border-[var(--color-border-gold)] hover:border-[var(--color-gold-accent)] hover:bg-[var(--color-glow-gold)] active:scale-90'
+                    ? 'border-border-dim opacity-50 cursor-not-allowed'
+                    : 'border-border-gold hover:border-gold-accent hover:bg-glow-gold active:scale-90'
                 }`}
                 disabled={isOnCd}
               >
@@ -52,23 +52,23 @@ export function SkillBar() {
               </button>
 
               {/* Hotkey label */}
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-black/80 rounded text-[9px] flex items-center justify-center text-[var(--color-text-dim)]">
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-black/80 rounded text-[9px] flex items-center justify-center text-text-dim">
                 {SLOT_KEYS[idx]}
               </div>
 
               {/* Tooltip */}
               {skill && (
                 <div className="absolute bottom-14 left-1/2 -translate-x-1/2 glass-panel p-2 w-48 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
-                  <div className="text-sm font-bold text-[var(--color-gold-accent)]">
+                  <div className="text-sm font-bold text-gold-accent">
                     {skill.icon} {skill.name}
                   </div>
-                  <div className="text-[11px] text-[var(--color-text-dim)] mt-1">
+                  <div className="text-[11px] text-text-dim mt-1">
                     {skill.description}
                   </div>
                   <div className="flex gap-3 mt-1.5 text-[10px]">
-                    <span className="text-[var(--color-mana)]">💧 {skill.manaCost}</span>
-                    <span className="text-[var(--color-text-dim)]">⏱️ {skill.cooldown}s</span>
-                    <span className="text-[var(--color-accent-red)]">⚔️ {skill.baseDamage}</span>
+                    <span className="text-mana">💧 {skill.manaCost}</span>
+                    <span className="text-text-dim">⏱️ {skill.cooldown}s</span>
+                    <span className="text-accent-red">⚔️ {skill.baseDamage}</span>
                   </div>
                 </div>
               )}
@@ -80,7 +80,7 @@ export function SkillBar() {
         {Array.from({ length: Math.max(0, 5 - player.equippedSkills.length) }).map((_, i) => (
           <div
             key={`empty-${i}`}
-            className="w-12 h-12 rounded-lg border border-[var(--color-border-dim)] flex items-center justify-center text-[var(--color-text-dim)] opacity-30"
+            className="w-12 h-12 rounded-lg border border-border-dim flex items-center justify-center text-text-dim opacity-30"
           >
             <span className="text-xs">—</span>
           </div>
