@@ -22,6 +22,8 @@ export function LandingPage({ onPlay }: LandingPageProps) {
 
   // Intersection observer for scroll animations
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -30,9 +32,9 @@ export function LandingPage({ onPlay }: LandingPageProps) {
           }
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.15, root: container }
     );
-    document.querySelectorAll('[data-animate]').forEach((el) => observer.observe(el));
+    container.querySelectorAll('[data-animate]').forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, []);
 

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-:root {
+@theme {
   --color-bg-dark: #0a0c10;
   --color-bg-panel: rgba(12, 16, 24, 0.92);
   --color-border-gold: rgba(180, 150, 90, 0.4);
