@@ -15,7 +15,7 @@ export class MinimapRenderer {
   private dots: Graphics;
   private label: Text;
 
-  constructor(stage: Container, screenW: number, screenH: number) {
+  constructor(stage: Container, screenW: number, _screenH: number) {
     this.container = new Container();
     this.container.position.set(screenW - MAP_SIZE - MARGIN, MARGIN);
     this.container.zIndex = 1000;

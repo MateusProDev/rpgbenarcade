@@ -4,9 +4,10 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Camera } from './Camera';
 import { input } from './InputManager';
-import { resolveMovement, distance } from './Physics';
+import { resolveMovement } from './Physics';
 import { useGameStore } from '@/store/gameStore';
-import type { Vec2, Direction, PlayerClass, RemotePlayerState } from '@/store/types';
+import type { Vec2, Direction, PlayerClass } from '@/store/types';
+import { NPC_DEFS } from '@/data/npcs';
 import { ZONES } from '@/data/zones';
 
 /* ---- Color palette per class ---- */
@@ -25,12 +26,21 @@ class EntityVisual {
   private hpBar: Graphics;
   private shadowGfx: Graphics;
 
+  name: string;
+  className: PlayerClass;
+  maxHp: number;
+  private _isLocal: boolean;
+
   constructor(
-    public name: string,
-    public className: PlayerClass,
-    public maxHp: number,
-    private isLocal: boolean = false,
+    name: string,
+    className: PlayerClass,
+    maxHp: number,
+    isLocal: boolean = false,
   ) {
+    this.name = name;
+    this.className = className;
+    this.maxHp = maxHp;
+    this._isLocal = isLocal;
     const color = CLASS_COLORS[className] || 0xcccccc;
 
     // Shadow
@@ -56,7 +66,7 @@ class EntityVisual {
     this.container.addChild(this.body);
 
     // Local player indicator ring
-    if (isLocal) {
+    if (this._isLocal) {
       const ring = new Graphics();
       ring.circle(0, 0, 16);
       ring.stroke({ color: 0xddaa33, width: 1.5, alpha: 0.6 });
@@ -69,7 +79,7 @@ class EntityVisual {
       style: {
         fontSize: 11,
         fontFamily: 'Segoe UI, sans-serif',
-        fill: isLocal ? 0xddaa33 : 0xcccccc,
+        fill: this._isLocal ? 0xddaa33 : 0xcccccc,
         stroke: { color: 0x000000, width: 3 },
         align: 'center',
       },
@@ -123,10 +133,15 @@ class NpcVisual {
   private body: Graphics;
   private nameText: Text;
 
+  name: string;
+  type: 'enemy' | 'friendly' | 'boss' | 'merchant';
+
   constructor(
-    public name: string,
-    public type: 'enemy' | 'friendly' | 'boss' | 'merchant',
+    name: string,
+    type: 'enemy' | 'friendly' | 'boss' | 'merchant',
   ) {
+    this.name = name;
+    this.type = type;
     const colors = {
       enemy: 0xcc4444,
       friendly: 0x44bb66,
@@ -189,7 +204,6 @@ class NpcVisual {
 /* ---- Entity Manager ---- */
 export class EntityManager {
   private parent: Container;
-  private camera: Camera;
   private localPlayer: EntityVisual | null = null;
   private localPos: Vec2 = { x: 0, y: 0 };
   private localDir: Direction = 'down';
@@ -197,9 +211,8 @@ export class EntityManager {
   private npcs: NpcVisual[] = [];
   private walkAnim = 0;
 
-  constructor(parent: Container, camera: Camera) {
+  constructor(parent: Container, _camera: Camera) {
     this.parent = parent;
-    this.camera = camera;
   }
 
   spawnLocalPlayer(pos: Vec2): void {
@@ -226,8 +239,7 @@ export class EntityManager {
     const zone = ZONES[state.currentZone];
     if (!zone) return;
 
-    // Import NPC definitions — we'll use zone.npcs list
-    const { NPC_DEFS } = require('@/data/npcs');
+    // Use NPC definitions from zone.npcs list
     for (const npcId of zone.npcs) {
       const def = NPC_DEFS[npcId];
       if (!def) continue;
@@ -312,12 +324,13 @@ export class EntityManager {
         this.localPos.x >= px && this.localPos.x <= px + pw &&
         this.localPos.y >= py && this.localPos.y <= py + ph
       ) {
-        // Teleport to target zone
-        const { getEngine } = require('./GameEngine');
-        const engine = getEngine();
-        if (engine) {
-          engine.loadZone(portal.targetZone);
-        }
+        // Teleport to target zone (dynamic import to avoid circular dep)
+        import('./GameEngine').then(({ getEngine }) => {
+          const engine = getEngine();
+          if (engine) {
+            engine.loadZone(portal.targetZone);
+          }
+        });
         break;
       }
     }

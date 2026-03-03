@@ -46,11 +46,9 @@ export class TileMap {
 
         // Grid lines (very subtle)
         g.rect(px, py, tileSize, 1);
-        g.fill(0x000000);
-        g.globalAlpha = 0.08;
+        g.fill({ color: 0x000000, alpha: 0.08 });
         g.rect(px, py, 1, tileSize);
-        g.fill(0x000000);
-        g.globalAlpha = 1;
+        g.fill({ color: 0x000000, alpha: 0.08 });
       }
     }
 

@@ -6,7 +6,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type {
   PlayerData, RemotePlayerState, CombatEvent,
   ChatMessage, InventoryItem, UIState, PanelType,
-  Vec2, Direction, SkillDefinition, TerritoryData,
+  Vec2, Direction, TerritoryData,
 } from './types';
 
 /* ---- Skill cooldown tracking ---- */

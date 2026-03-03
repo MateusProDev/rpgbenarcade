@@ -175,7 +175,7 @@ export class CombatManager {
     this.globalCd = 0.5;
   }
 
-  private applyDamage(targetUid: string, targetPos: Vec2, baseDmg: number, isAoe: boolean): void {
+  private applyDamage(targetUid: string, targetPos: Vec2, baseDmg: number, _isAoe: boolean): void {
     const state = useGameStore.getState();
     const player = state.player;
     if (!player) return;

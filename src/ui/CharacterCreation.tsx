@@ -7,7 +7,6 @@ import { useGameStore } from '@/store/gameStore';
 import { savePlayer } from '@/services/firebase/firestore';
 import { CLASS_BASE_STATS, type PlayerClass, type PlayerData } from '@/store/types';
 import { getClassSkills } from '@/data/skills';
-import { nanoid } from 'nanoid';
 
 const classes: { id: PlayerClass; label: string; icon: string; desc: string }[] = [
   { id: 'warrior', label: 'Guerreiro', icon: '⚔️', desc: 'Alta defesa e HP. Combate corpo-a-corpo devastador.' },

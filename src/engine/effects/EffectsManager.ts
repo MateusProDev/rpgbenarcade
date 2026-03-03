@@ -40,8 +40,8 @@ function createDamageNumber(
     elapsed: 0,
     duration: 1.2,
     container: c,
-    update(dt, elapsed, progress) {
-      c.position.y -= dt * 40;
+    update(_dt, _elapsed, progress) {
+      c.position.y -= _dt * 40;
       c.alpha = 1 - progress * progress;
       if (isCrit) {
         c.scale.set(1 + Math.sin(progress * Math.PI) * 0.3);
@@ -68,7 +68,7 @@ function createSlashEffect(
     elapsed: 0,
     duration: 0.35,
     container: c,
-    update(dt, elapsed, progress) {
+    update(_dt, _elapsed, progress) {
       g.clear();
       const len = 40 + progress * 30;
       const width = (1 - progress) * 8;
@@ -111,7 +111,7 @@ function createEnergyBurst(
     elapsed: 0,
     duration: 0.6,
     container: c,
-    update(dt, elapsed, progress) {
+    update(_dt, _elapsed, progress) {
       g.clear();
       const r = radius * progress;
       const alpha = (1 - progress) * 0.5;
@@ -153,7 +153,7 @@ function createHealEffect(
     elapsed: 0,
     duration: 0.8,
     container: c,
-    update(dt, elapsed, progress) {
+    update(_dt, _elapsed, progress) {
       g.clear();
 
       // Rising green sparkles
@@ -194,7 +194,7 @@ function createImpactFlash(
     elapsed: 0,
     duration: 0.15,
     container: c,
-    update(dt, elapsed, progress) {
+    update(_dt, _elapsed, progress) {
       g.clear();
       const size = 30 * (1 - progress);
       g.circle(0, 0, size);

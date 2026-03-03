@@ -23,6 +23,7 @@ export function apiAttack(data: {
   return post<{
     valid: boolean; damage: number; isCrit: boolean;
     targetHp: number; killed: boolean; loot?: unknown[];
+    xpGained?: number; goldGained?: number;
   }>('/combat', data);
 }
 

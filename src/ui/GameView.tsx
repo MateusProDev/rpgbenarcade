@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useGameStore } from '@/store/gameStore';
 import { loadPlayer } from '@/services/firebase/firestore';
-import { GameEngine, setEngine, getEngine } from '@/engine/GameEngine';
+import { GameEngine, setEngine } from '@/engine/GameEngine';
 import { CharacterCreation } from './CharacterCreation';
 import { HUD } from './HUD';
 import { SkillBar } from './SkillBar';

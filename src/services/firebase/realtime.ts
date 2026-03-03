@@ -1,6 +1,6 @@
 // Realtime Database — fast position sync (100ms throttle)
 import { rtdb } from './config';
-import { ref, set, onValue, off, onDisconnect, serverTimestamp } from 'firebase/database';
+import { ref, set, onValue, off, onDisconnect } from 'firebase/database';
 import type { SyncPayload } from '@/store/types';
 
 const THROTTLE_MS = 100;
