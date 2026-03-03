@@ -30,6 +30,28 @@ const TILE_KEYS = [
 const TILE_IDX: Record<string, number> = {};
 TILE_KEYS.forEach((k, i) => { TILE_IDX[k] = i; });
 
+// Color lookup for the canvas-drawn minimap (hex CSS colors per tile type)
+const TILE_MINIMAP_COLORS: Record<string, string> = {
+  tile_grass:       '#3a6b3a',
+  tile_grass_lush:  '#4a8a3a',
+  tile_grass_dark:  '#2a4a2a',
+  tile_dirt:        '#6b5a3a',
+  tile_dirt_dark:   '#4a3a2a',
+  tile_cobble:      '#7a7a7a',
+  tile_path:        '#8a7a5a',
+  tile_water:       '#2a5a9a',
+  tile_water_deep:  '#1a2a6a',
+  tile_stone:       '#5a5a5a',
+  tile_stone_mossy: '#4a6a4a',
+  tile_dark:        '#1a1a2a',
+  tile_wall:        '#3a3a3a',
+  tile_lava:        '#aa3a1a',
+  tile_sand:        '#c0b080',
+  tile_arena:       '#b0a068',
+  tile_swamp:       '#3a4a2a',
+  tile_wood:        '#6a4a2a',
+};
+
 interface EnemySprite extends Phaser.Physics.Arcade.Sprite {
   enemyType: EnemyType;
   hp: number;
@@ -93,13 +115,11 @@ export class WorldScene extends Phaser.Scene {
   // Blocking decoration colliders
   private decoColliders!: Phaser.Physics.Arcade.StaticGroup;
 
-  // === MINIMAP ===
-  private minimapCam: Phaser.Cameras.Scene2D.Camera | null = null;
-  private minimapBorder!: Phaser.GameObjects.Graphics;
-  private minimapPlayerDot!: Phaser.GameObjects.Arc;
-  private minimapEnemyDots: Phaser.GameObjects.Arc[] = [];
-  private minimapPortalDots: Phaser.GameObjects.Arc[] = [];
-  private minimapNpcDots: Phaser.GameObjects.Arc[] = [];
+  // === MINIMAP (canvas-texture approach — zero per-frame GPU cost) ===
+  private minimapContainer: Phaser.GameObjects.Container | null = null;
+  private minimapPlayerDot: Phaser.GameObjects.Arc | null = null;
+  private minimapScaleX = 0;
+  private minimapScaleY = 0;
 
   // === TILEMAP SYSTEM ===
   // TilemapLayer renders ALL visible tiles in ONE WebGL draw call
@@ -294,98 +314,139 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ========================
-  // MINIMAP — Secondary Phaser Camera
-  // Renders full map zoomed out in top-right corner
+  // MINIMAP — Canvas-texture approach
+  // Renders map overview ONCE to a small texture, zero ongoing GPU cost.
+  // Dynamic player dot moves each frame (1 lightweight arc).
   // ========================
   setupMinimap(mapW: number, mapH: number) {
-    const MINIMAP_SIZE = 180;  // px viewport size
-    const PADDING = 12;
+    const SIZE = 174;   // interior pixels
+    const PAD = 15;     // screen padding
 
-    // Screen position — top-right with padding
+    this.minimapScaleX = SIZE / mapW;
+    this.minimapScaleY = SIZE / mapH;
+
+    // ---- 1. Create canvas texture with map overview ----
+    if (this.textures.exists('minimap_tex')) this.textures.remove('minimap_tex');
+    const canvasTex = this.textures.createCanvas('minimap_tex', SIZE, SIZE)!;
+    const ctx = canvasTex.getContext();
+
+    // Dark background
+    ctx.fillStyle = '#0e140e';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    // Sample at minimap-pixel resolution (efficient: ~87×87 iterations max)
+    const step = 2;
+    const tileSize = 32;
+    for (let mx = 0; mx < SIZE; mx += step) {
+      for (let my = 0; my < SIZE; my += step) {
+        const worldX = mx / this.minimapScaleX;
+        const worldY = my / this.minimapScaleY;
+        const tx = Math.floor(worldX / tileSize);
+        const ty = Math.floor(worldY / tileSize);
+
+        let color: string | null = null;
+        // Deco layer tiles (roads, water features) override base
+        if (this.decoLayer) {
+          const dt = this.decoLayer.getTileAt(tx, ty);
+          if (dt && dt.index >= 0) color = TILE_MINIMAP_COLORS[TILE_KEYS[dt.index]] || null;
+        }
+        if (!color && this.baseLayer) {
+          const bt = this.baseLayer.getTileAt(tx, ty);
+          if (bt && bt.index >= 0) color = TILE_MINIMAP_COLORS[TILE_KEYS[bt.index]] || '#1a2a1a';
+        }
+        if (color) {
+          ctx.fillStyle = color;
+          ctx.fillRect(mx, my, step + 0.5, step + 0.5);
+        }
+      }
+    }
+
+    // ---- 2. Draw static POI markers ----
+    const mapConfig = getMapConfig(this.currentMap);
+
+    // Portals (purple)
+    ctx.fillStyle = '#bb77ff';
+    mapConfig.portals.forEach(p => {
+      const px = (p.x + p.width / 2) * this.minimapScaleX;
+      const py = (p.y + p.height / 2) * this.minimapScaleY;
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // NPCs (yellow)
+    ctx.fillStyle = '#ffdd44';
+    mapConfig.npcs.forEach(n => {
+      ctx.beginPath(); ctx.arc(n.x * this.minimapScaleX, n.y * this.minimapScaleY, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // Enemy spawns (dim red)
+    ctx.fillStyle = '#ff4444';
+    ctx.globalAlpha = 0.45;
+    mapConfig.enemies.forEach(e => {
+      ctx.beginPath(); ctx.arc(e.x * this.minimapScaleX, e.y * this.minimapScaleY, 1.5, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // ---- 3. Conflict Zone — 5 highlighted POIs (center + 4 corners) ----
+    if (this.currentMap === 'conflict_zone') {
+      const BO = 1600;
+      const pois = [
+        { x: mapW / 2, y: mapH / 2, color: '#ff44ff', r: 7, glow: '#ff88ff', label: 'FORTALEZA' },
+        { x: BO, y: BO, color: '#ff4444', r: 5, glow: '#ff8888', label: 'CHAMA' },
+        { x: mapW - BO, y: BO, color: '#4488ff', r: 5, glow: '#88aaff', label: 'GELO' },
+        { x: BO, y: mapH - BO, color: '#44ff44', r: 5, glow: '#88ff88', label: 'NATUREZA' },
+        { x: mapW - BO, y: mapH - BO, color: '#aa44ff', r: 5, glow: '#cc88ff', label: 'SOMBRIO' },
+      ];
+      pois.forEach(poi => {
+        const px = poi.x * this.minimapScaleX;
+        const py = poi.y * this.minimapScaleY;
+        // Outer glow ring
+        ctx.strokeStyle = poi.glow;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.arc(px, py, poi.r + 3, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Solid circle
+        ctx.fillStyle = poi.color;
+        ctx.beginPath(); ctx.arc(px, py, poi.r, 0, Math.PI * 2); ctx.fill();
+        // White center
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill();
+        // Label
+        ctx.fillStyle = poi.color;
+        ctx.font = 'bold 7px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(poi.label, px, py + poi.r + 9);
+      });
+    }
+
+    canvasTex.refresh();
+
+    // ---- 4. Display minimap on screen (fixed position, scrollFactor 0) ----
     const screenW = this.cameras.main.width;
-    const mx = screenW - MINIMAP_SIZE - PADDING;
-    const my = PADDING;
+    this.minimapContainer = this.add.container(screenW - SIZE - PAD - 3, PAD + 3);
+    this.minimapContainer.setScrollFactor(0);
+    this.minimapContainer.setDepth(100);
 
-    // Calculate zoom to fit entire map into the minimap viewport
-    const zoomX = MINIMAP_SIZE / mapW;
-    const zoomY = MINIMAP_SIZE / mapH;
-    const zoom = Math.min(zoomX, zoomY);
+    const bgImg = this.add.image(SIZE / 2, SIZE / 2, 'minimap_tex');
+    this.minimapContainer.add(bgImg);
 
-    // Create secondary camera
-    this.minimapCam = this.cameras.add(mx, my, MINIMAP_SIZE, MINIMAP_SIZE, false, "minimap");
-    this.minimapCam.setBounds(0, 0, mapW, mapH);
-    this.minimapCam.setZoom(zoom);
-    this.minimapCam.scrollX = (mapW - MINIMAP_SIZE / zoom) / 2;
-    this.minimapCam.scrollY = (mapH - MINIMAP_SIZE / zoom) / 2;
-    this.minimapCam.setBackgroundColor(0x0a0e0a);
-    this.minimapCam.setRoundPixels(true);
+    // Player dot (only dynamic element — moves each frame)
+    this.minimapPlayerDot = this.add.circle(0, 0, 4, 0x44ff44, 1);
+    this.minimapContainer.add(this.minimapPlayerDot);
 
-    // The minimap camera should NOT render UI-depth objects (scrollFactor=0 text, etc.)
-    // We ignore specific game objects from minimap that clutter it:
-    this.minimapCam.ignore([
-      this.nameText,
-      this.hpBarBg,
-      this.hpBarFg,
-      this.dayNightOverlay,
-    ]);
-
-    // Player dot — large bright dot on minimap (rendered in world-space)
-    this.minimapPlayerDot = this.add.circle(
-      this.player.x, this.player.y, Math.max(60, mapW * 0.006), 0x44ff44, 1
-    );
-    this.minimapPlayerDot.setDepth(60);
-    // Main camera should not show the dot (it's too big in world coords)
-    this.cameras.main.ignore(this.minimapPlayerDot);
-
-    // Add a pulsing effect to the player dot
     this.tweens.add({
       targets: this.minimapPlayerDot,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      alpha: 0.6,
-      yoyo: true,
-      repeat: -1,
-      duration: 800,
-      ease: "Sine.easeInOut",
+      scaleX: 1.6, scaleY: 1.6,
+      alpha: 0.5,
+      yoyo: true, repeat: -1,
+      duration: 700,
+      ease: 'Sine.easeInOut',
     });
 
-    // Enemy dots (red) — static markers for spawn locations
-    const mapConfig = getMapConfig(this.currentMap);
-    this.minimapEnemyDots = [];
-    mapConfig.enemies.forEach((e) => {
-      const dotR = Math.max(40, mapW * 0.004);
-      const dot = this.add.circle(e.x, e.y, dotR, 0xff4444, 0.7);
-      dot.setDepth(59);
-      this.cameras.main.ignore(dot);
-      this.minimapEnemyDots.push(dot);
-    });
-
-    // Portal dots (purple glow)
-    this.minimapPortalDots = [];
-    mapConfig.portals.forEach((p) => {
-      const dotR = Math.max(50, mapW * 0.005);
-      const dot = this.add.circle(
-        p.x + p.width / 2, p.y + p.height / 2, dotR, 0xaa66ff, 0.8
-      );
-      dot.setDepth(59);
-      this.cameras.main.ignore(dot);
-      this.minimapPortalDots.push(dot);
-    });
-
-    // NPC dots (yellow)
-    this.minimapNpcDots = [];
-    mapConfig.npcs.forEach((n) => {
-      const dotR = Math.max(45, mapW * 0.0045);
-      const dot = this.add.circle(n.x, n.y, dotR, 0xffdd44, 0.8);
-      dot.setDepth(59);
-      this.cameras.main.ignore(dot);
-      this.minimapNpcDots.push(dot);
-    });
-
-    // Handle resize — reposition minimap
-    this.scale.on("resize", (gameSize: { width: number; height: number }) => {
-      if (this.minimapCam) {
-        this.minimapCam.setPosition(gameSize.width - MINIMAP_SIZE - PADDING, PADDING);
+    // ---- 5. Handle window resize ----
+    this.scale.on('resize', (gameSize: { width: number; height: number }) => {
+      if (this.minimapContainer) {
+        this.minimapContainer.setPosition(gameSize.width - SIZE - PAD - 3, PAD + 3);
       }
     });
   }
@@ -546,37 +607,34 @@ export class WorldScene extends Phaser.Scene {
     gardenAreas.forEach(([gx, gy]) => {
       for (let i = 0; i < 5; i++) this.addDeco(gx + i * 32, gy, "deco_fence", false);
       for (let i = 0; i < 5; i++) this.addDeco(gx + i * 32, gy + 80, "deco_fence", false);
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 5; i++) {
         const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
         this.addDeco(gx + Math.random() * 150, gy + 10 + Math.random() * 60, flowers[Math.floor(Math.random() * 4)], false);
       }
-      // Add bushes
-      this.addDeco(gx - 10, gy + 40, "deco_bush_berry", false);
-      this.addDeco(gx + 160, gy + 40, "deco_bush", false);
+      this.addDeco(gx + 80, gy + 40, "deco_bush_berry", false);
     });
 
-    // === TREES — Dense coverage along edges and parks ===
-    // Border trees (all 4 sides)
-    for (let x = 100; x < w - 100; x += 120 + Math.floor(Math.random() * 60)) {
+    // === TREES — Coverage along edges and parks (optimized counts) ===
+    for (let x = 100; x < w - 100; x += 240 + Math.floor(Math.random() * 100)) {
       const ty = 80 + Math.random() * 40;
       const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
-    for (let x = 100; x < w - 100; x += 120 + Math.floor(Math.random() * 60)) {
+    for (let x = 100; x < w - 100; x += 240 + Math.floor(Math.random() * 100)) {
       const ty = h - 80 - Math.random() * 40;
       const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
-    for (let y = 150; y < h - 150; y += 120 + Math.floor(Math.random() * 60)) {
+    for (let y = 150; y < h - 150; y += 240 + Math.floor(Math.random() * 100)) {
       const tree = this.addDeco(80, y, "deco_tree", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
-    for (let y = 150; y < h - 150; y += 120 + Math.floor(Math.random() * 60)) {
+    for (let y = 150; y < h - 150; y += 240 + Math.floor(Math.random() * 100)) {
       const tree = this.addDeco(w - 80, y, "deco_tree", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
     // Park trees (scattered interior)
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 12; i++) {
       const tx = 200 + Math.random() * (w - 400);
       const ty = 200 + Math.random() * (h - 400);
       // Skip if near roads
@@ -585,8 +643,8 @@ export class WorldScene extends Phaser.Scene {
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
 
-    // === BUSHES everywhere ===
-    for (let i = 0; i < 40; i++) {
+    // === BUSHES ===
+    for (let i = 0; i < 15; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
         Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
     }
@@ -598,11 +656,11 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(200, cy, "deco_signpost", false);
 
     // === LANTERNS along roads ===
-    for (let x = 200; x < w - 200; x += 250) {
+    for (let x = 200; x < w - 200; x += 500) {
       this.addDeco(x, cy - 60, "deco_lantern", false);
       this.addDeco(x, cy + 80, "deco_lantern", false);
     }
-    for (let y = 200; y < h - 200; y += 250) {
+    for (let y = 200; y < h - 200; y += 500) {
       this.addDeco(cx - 60, y, "deco_lantern", false);
       this.addDeco(cx + 80, y, "deco_lantern", false);
     }
@@ -625,7 +683,7 @@ export class WorldScene extends Phaser.Scene {
     });
 
     // === ROCKS scattered ===
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 6; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_rock", false);
     }
 
@@ -706,7 +764,7 @@ export class WorldScene extends Phaser.Scene {
     });
 
     // === HAYSTACKS in clusters ===
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 12; i++) {
       const hx = 200 + Math.random() * (w - 400);
       const hy = 200 + Math.random() * (h - 400);
       this.addDeco(hx, hy, "deco_haystack", false);
@@ -775,21 +833,21 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
-    // === TREES — massive forest borders ===
+    // === TREES — forest borders (optimized) ===
     // Northern tree line
-    for (let x = 100; x < w - 100; x += 80 + Math.floor(Math.random() * 60)) {
+    for (let x = 100; x < w - 100; x += 200 + Math.floor(Math.random() * 100)) {
       const ty = 80 + Math.random() * 60;
       const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
     // Southern tree line
-    for (let x = 100; x < w - 100; x += 80 + Math.floor(Math.random() * 60)) {
+    for (let x = 100; x < w - 100; x += 200 + Math.floor(Math.random() * 100)) {
       const ty = h - 80 - Math.random() * 60;
       const tree = this.addDeco(x, ty, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
     // Scattered trees across fields
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 20; i++) {
       const tx = 200 + Math.random() * (w - 400);
       const ty = 200 + Math.random() * (h - 400);
       const tree = this.addDeco(tx, ty, Math.random() > 0.6 ? "deco_tree" : "deco_pine", true);
@@ -797,7 +855,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // === BOULDERS AND ROCKS ===
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       const rx = 200 + Math.random() * (w - 400);
       const ry = 200 + Math.random() * (h - 400);
       this.addDeco(rx, ry, Math.random() > 0.5 ? "deco_rock" : "deco_boulder", Math.random() > 0.5);
@@ -825,31 +883,31 @@ export class WorldScene extends Phaser.Scene {
       }
     };
     // Northern mountain range (dense)
-    mountainCluster(w * 0.15, 80,  110, 14);
-    mountainCluster(w * 0.35, 70,  100, 12);
-    mountainCluster(w * 0.55, 90,  120, 16);
-    mountainCluster(w * 0.78, 75,  100, 13);
+    mountainCluster(w * 0.15, 80,  110, 8);
+    mountainCluster(w * 0.35, 70,  100, 7);
+    mountainCluster(w * 0.55, 90,  120, 9);
+    mountainCluster(w * 0.78, 75,  100, 8);
     // Western mountain backdrop
-    mountainCluster(60, h * 0.3, 90, 10, 0.5);
-    mountainCluster(60, h * 0.6, 80, 9,  0.5);
+    mountainCluster(60, h * 0.3, 90, 6, 0.5);
+    mountainCluster(60, h * 0.6, 80, 5,  0.5);
     // Interior rocky rise (east-center)
-    mountainCluster(w * 0.72, h * 0.55, 130, 11);
+    mountainCluster(w * 0.72, h * 0.55, 130, 7);
 
     // === BUSHES ===
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 15; i++) {
       this.addDeco(150 + Math.random() * (w - 300), 150 + Math.random() * (h - 300),
         Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
     }
 
-    // === FLOWERS everywhere ===
-    for (let i = 0; i < 60; i++) {
+    // === FLOWERS ===
+    for (let i = 0; i < 20; i++) {
       const flowers = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
         flowers[Math.floor(Math.random() * 4)], false);
     }
 
     // === STUMPS ===
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       this.addDeco(300 + Math.random() * (w - 600), 300 + Math.random() * (h - 600), "deco_stump", false);
     }
 
@@ -928,27 +986,27 @@ export class WorldScene extends Phaser.Scene {
       }
     };
 
-    // --- 8 distinct forest biome clumps ---
+    // --- 8 distinct forest biome clumps (optimized counts) ---
     // NW: dense pine grove
-    forestClump(w * 0.12, h * 0.20, 180, ["deco_pine", "deco_pine_large", "deco_pine"], 28);
+    forestClump(w * 0.12, h * 0.20, 180, ["deco_pine", "deco_pine_large", "deco_pine"], 14);
     // NE: mixed deciduous
-    forestClump(w * 0.75, h * 0.18, 200, ["deco_tree_large", "deco_tree", "deco_tree_large"], 30);
+    forestClump(w * 0.75, h * 0.18, 200, ["deco_tree_large", "deco_tree", "deco_tree_large"], 16);
     // W center: ancient oaks (large + willow mix)
-    forestClump(w * 0.08, h * 0.52, 160, ["deco_tree_large", "deco_tree_willow", "deco_tree"], 24);
+    forestClump(w * 0.08, h * 0.52, 160, ["deco_tree_large", "deco_tree_willow", "deco_tree"], 12);
     // E center: dark hollow (dead + pine)
-    forestClump(w * 0.85, h * 0.55, 170, ["deco_tree_dead", "deco_pine", "deco_tree_dead"], 26);
+    forestClump(w * 0.85, h * 0.55, 170, ["deco_tree_dead", "deco_pine", "deco_tree_dead"], 14);
     // SW: young mixed forest
-    forestClump(w * 0.18, h * 0.78, 190, ["deco_tree", "deco_pine", "deco_tree_large"], 28);
+    forestClump(w * 0.18, h * 0.78, 190, ["deco_tree", "deco_pine", "deco_tree_large"], 14);
     // SE: deep pine forest
-    forestClump(w * 0.78, h * 0.80, 200, ["deco_pine_large", "deco_pine", "deco_pine_large"], 32);
+    forestClump(w * 0.78, h * 0.80, 200, ["deco_pine_large", "deco_pine", "deco_pine_large"], 18);
     // Center-north: enchanted willow grove
-    forestClump(w * 0.50, h * 0.14, 150, ["deco_tree_willow", "deco_tree_large", "deco_tree"], 22);
+    forestClump(w * 0.50, h * 0.14, 150, ["deco_tree_willow", "deco_tree_large", "deco_tree"], 12);
     // Center-south: glade edge trees
-    forestClump(w * 0.48, h * 0.82, 160, ["deco_tree", "deco_pine", "deco_tree_willow"], 24);
+    forestClump(w * 0.48, h * 0.82, 160, ["deco_tree", "deco_pine", "deco_tree_willow"], 12);
 
-    // Sparse connector trees between clumps (fill without crowding paths)
+    // Sparse connector trees between clumps
     const placed2: { x: number; y: number }[] = [];
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 40; i++) {
       const seed = i * 6271 + 17;
       const tx = 80 + ((seed * 7411) % (w - 200));
       const ty = 80 + ((seed * 5381) % (h - 200));
@@ -962,11 +1020,11 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Dense border tree wall (all 4 edges)
-    for (let x = 64; x < w - 64; x += 56 + (x * 37) % 40) {
+    for (let x = 64; x < w - 64; x += 120 + (x * 37) % 60) {
       placeTree(x, 64 + (x % 3) * 18, "deco_pine");
       placeTree(x, h - 64 - (x % 3) * 18, "deco_tree_large");
     }
-    for (let y = 100; y < h - 100; y += 56 + (y * 41) % 40) {
+    for (let y = 100; y < h - 100; y += 120 + (y * 41) % 60) {
       placeTree(64 + (y % 3) * 14, y, "deco_tree");
       placeTree(w - 64 - (y % 3) * 14, y, "deco_pine_large");
     }
@@ -982,10 +1040,10 @@ export class WorldScene extends Phaser.Scene {
         if (mt) { mt.body.setSize(20, 12); mt.body.setOffset(6, 24); mt.refreshBody(); }
       }
     };
-    forestMtnCluster(w * 0.10, 70, 100, 10);
-    forestMtnCluster(w * 0.35, 65, 110, 12);
-    forestMtnCluster(w * 0.62, 75, 100, 11);
-    forestMtnCluster(w * 0.88, 68, 90, 10);
+    forestMtnCluster(w * 0.10, 70, 100, 6);
+    forestMtnCluster(w * 0.35, 65, 110, 7);
+    forestMtnCluster(w * 0.62, 75, 100, 6);
+    forestMtnCluster(w * 0.88, 68, 90, 6);
 
 
     // === WILLOW GROVE (center-east, near water) ===
@@ -1039,20 +1097,20 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     // Dead trees in swamp
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 8; i++) {
       const tree = this.addDeco(10800 + Math.random() * 3600, 9600 + Math.random() * 2400, "deco_tree_dead", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
     }
 
     // === MUSHROOM GROVES ===
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 10; i++) {
       const mx = 300 + Math.random() * (w - 600);
       const my = 300 + Math.random() * (h - 600);
       this.addDeco(mx, my, "deco_mushroom", false);
       this.addDeco(mx + 15, my + 10, "deco_mushroom", false);
     }
     // Glowing mushrooms (deeper forest, north)
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 10; i++) {
       this.addDeco(4500 + Math.random() * 6000, 1500 + Math.random() * 3600, "deco_mushroom_glow", false);
     }
 
@@ -1101,37 +1159,37 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(fairyX, fairyY, "deco_lantern", false);
 
     // === SPIDER DEN (east) ===
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
       this.addDeco(13200 + Math.random() * 2400, 3000 + Math.random() * 3000, "deco_web", false);
     }
 
     // === VINES on trees ===
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_vine", false);
     }
 
     // === LOGS and STUMPS ===
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 8; i++) {
       this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_log", false);
     }
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 6; i++) {
       this.addDeco(200 + Math.random() * (w - 400), 200 + Math.random() * (h - 400), "deco_stump", false);
     }
 
     // === BUSHES ===
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 20; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200),
         Math.random() > 0.5 ? "deco_bush" : "deco_bush_berry", false);
     }
 
     // === ROCKS AND BOULDERS ===
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       this.addDeco(150 + Math.random() * (w - 300), 150 + Math.random() * (h - 300),
         Math.random() > 0.5 ? "deco_rock" : "deco_boulder", Math.random() > 0.5);
     }
 
     // === FLOWERS ===
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 12; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_flower_blue", false);
     }
 
@@ -1144,8 +1202,8 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(campX + 40, campY + 30, "deco_log", false);
     this.addDeco(campX - 30, campY - 40, "deco_barrel", false);
 
-    // === MOUNTAIN RANGE (far north edge) ===
-    for (let x = 200; x < w - 200; x += 150 + Math.floor(Math.random() * 80)) {
+    // Mountain range (north edge)
+    for (let x = 200; x < w - 200; x += 300 + Math.floor(Math.random() * 120)) {
       this.addDeco(x, 50 + Math.random() * 30, "deco_mountain", true);
     }
     // Cliffs near stream
@@ -1153,7 +1211,7 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(2 * w / 3 - 60, 300, "deco_cliff", true);
 
     // === MOSSY DARK PATCHES ===
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 6; i++) {
       const dx = 200 + Math.random() * (w - 400);
       const dy = 200 + Math.random() * (h - 400);
       for (let px = 0; px < 2; px++) {
@@ -1240,13 +1298,13 @@ export class WorldScene extends Phaser.Scene {
       });
     });
 
-    // === TORCHES — along all corridors ===
-    for (let x = 128; x < w - 128; x += 100) {
+    // === TORCHES — along corridors (optimized spacing) ===
+    for (let x = 128; x < w - 128; x += 200) {
       this.addDeco(x, h / 2 - 90, "deco_torch", false);
       this.addDeco(x, h / 2 + 90, "deco_torch", false);
     }
     vCorrX.forEach(cx => {
-      for (let y = 128; y < h - 128; y += 120) {
+      for (let y = 128; y < h - 128; y += 240) {
         this.addDeco(cx - 40, y, "deco_torch", false);
       }
     });
@@ -1336,17 +1394,17 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(w - 1050, h / 2 - 300, "deco_lantern", false);
 
     // === SCATTERED BONES throughout ===
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 8; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_bones", false);
     }
 
     // === SCATTERED ROCKS ===
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 8; i++) {
       this.addDeco(100 + Math.random() * (w - 200), 100 + Math.random() * (h - 200), "deco_rock", false);
     }
 
     // === WEBS in dark corners ===
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       this.addDeco(80 + Math.random() * (w - 160), 80 + Math.random() * (h - 160), "deco_web", false);
     }
   }
@@ -1606,10 +1664,10 @@ export class WorldScene extends Phaser.Scene {
     // 3) CENTRAL FORTRESS — Corrupted ground + massive structure
     // ============================================
 
-    // Corrupted ground ring around fortress
+    // Corrupted ground ring around fortress (optimized step)
     const corruptR = 1200;
-    for (let angle = 0; angle < Math.PI * 2; angle += 0.02) {
-      for (let r = 400; r < corruptR; r += 32) {
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.06) {
+      for (let r = 400; r < corruptR; r += 64) {
         const fx = cx + Math.cos(angle) * r;
         const fy = cy + Math.sin(angle) * r;
         this.drawTile("tile_dark", fx, fy);
@@ -1617,9 +1675,9 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Purple crack lines radiating from center
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      for (let r = 200; r < corruptR + 200; r += 48) {
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      for (let r = 200; r < corruptR + 200; r += 120) {
         const fx = cx + Math.cos(angle) * r;
         const fy = cy + Math.sin(angle) * r;
         this.addDeco(fx, fy, "cz_corrupted", false);
@@ -1664,7 +1722,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Bones scattered around fortress
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       const angle = Math.random() * Math.PI * 2;
       const dist = 300 + Math.random() * 600;
       this.addDeco(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, "deco_bones", false);
@@ -1818,22 +1876,22 @@ export class WorldScene extends Phaser.Scene {
     // ============================================
     const treePatches = [
       // NW quadrant forests
-      { cx: 3200, cy: 3600, count: 30, radius: 800 },
-      { cx: 4800, cy: 2000, count: 20, radius: 600 },
+      { cx: 3200, cy: 3600, count: 18, radius: 800 },
+      { cx: 4800, cy: 2000, count: 12, radius: 600 },
       // NE quadrant forests
-      { cx: 15200, cy: 3600, count: 30, radius: 800 },
-      { cx: 13600, cy: 2000, count: 20, radius: 600 },
+      { cx: 15200, cy: 3600, count: 18, radius: 800 },
+      { cx: 13600, cy: 2000, count: 12, radius: 600 },
       // SW quadrant forests
-      { cx: 3200, cy: 15600, count: 30, radius: 800 },
-      { cx: 4800, cy: 17200, count: 20, radius: 600 },
+      { cx: 3200, cy: 15600, count: 18, radius: 800 },
+      { cx: 4800, cy: 17200, count: 12, radius: 600 },
       // SE quadrant forests
-      { cx: 15200, cy: 15600, count: 30, radius: 800 },
-      { cx: 13600, cy: 17200, count: 20, radius: 600 },
+      { cx: 15200, cy: 15600, count: 18, radius: 800 },
+      { cx: 13600, cy: 17200, count: 12, radius: 600 },
       // Mid-zone scattered trees
-      { cx: 6400, cy: 9600, count: 15, radius: 500 },
-      { cx: 12800, cy: 9600, count: 15, radius: 500 },
-      { cx: 9600, cy: 6400, count: 15, radius: 500 },
-      { cx: 9600, cy: 12800, count: 15, radius: 500 },
+      { cx: 6400, cy: 9600, count: 8, radius: 500 },
+      { cx: 12800, cy: 9600, count: 8, radius: 500 },
+      { cx: 9600, cy: 6400, count: 8, radius: 500 },
+      { cx: 9600, cy: 12800, count: 8, radius: 500 },
     ];
 
     treePatches.forEach((patch) => {
@@ -1888,7 +1946,7 @@ export class WorldScene extends Phaser.Scene {
     // 9) SCATTERED ENVIRONMENT — Rocks, mushrooms, ruins
     // ============================================
     // Rocks scattered across map
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 15; i++) {
       const rx = 200 + Math.random() * (w - 400);
       const ry = 200 + Math.random() * (h - 400);
       const dist = Math.sqrt((rx - cx) ** 2 + (ry - cy) ** 2);
@@ -1897,7 +1955,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Ruined walls scattered (battle remnants)
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 6; i++) {
       const rx = 1000 + Math.random() * (w - 2000);
       const ry = 1000 + Math.random() * (h - 2000);
       const dist = Math.sqrt((rx - cx) ** 2 + (ry - cy) ** 2);
@@ -1926,10 +1984,10 @@ export class WorldScene extends Phaser.Scene {
     this.addDeco(cx + 1400, cy, "deco_signpost", false);
 
     // ============================================
-    // 11) GRASS VARIATION — Additional flower spots
+    // 11) GRASS VARIATION (reduced)
     // ============================================
     const flowerTypes = ["deco_flower_red", "deco_flower_yellow", "deco_flower_blue", "deco_flower_purple"];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 20; i++) {
       const fx = 500 + Math.random() * (w - 1000);
       const fy = 500 + Math.random() * (h - 1000);
       const dist = Math.sqrt((fx - cx) ** 2 + (fy - cy) ** 2);
@@ -1938,15 +1996,15 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // ============================================
-    // 12) BORDER TREES — Dense tree line at map edges
+    // 12) BORDER TREES (optimized spacing)
     // ============================================
-    for (let x = 100; x < w - 100; x += 100 + Math.floor(Math.random() * 60)) {
+    for (let x = 100; x < w - 100; x += 250 + Math.floor(Math.random() * 100)) {
       const tree = this.addDeco(x, 80 + Math.random() * 40, Math.random() > 0.5 ? "deco_tree" : "deco_pine", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
       const tree2 = this.addDeco(x, h - 80 - Math.random() * 40, Math.random() > 0.5 ? "deco_tree" : "deco_tree_large", true);
       if (tree2) { tree2.body.setSize(8, 8); tree2.body.setOffset(12, 38); tree2.refreshBody(); }
     }
-    for (let y = 150; y < h - 150; y += 100 + Math.floor(Math.random() * 60)) {
+    for (let y = 150; y < h - 150; y += 250 + Math.floor(Math.random() * 100)) {
       const tree = this.addDeco(80, y, "deco_tree", true);
       if (tree) { tree.body.setSize(8, 8); tree.body.setOffset(12, 38); tree.refreshBody(); }
       const tree2 = this.addDeco(w - 80, y, "deco_pine", true);
@@ -3003,7 +3061,10 @@ export class WorldScene extends Phaser.Scene {
     // MINIMAP PLAYER DOT
     // ============================
     if (this.minimapPlayerDot && this.minimapPlayerDot.active) {
-      this.minimapPlayerDot.setPosition(this.player.x, this.player.y);
+      this.minimapPlayerDot.setPosition(
+        this.player.x * this.minimapScaleX,
+        this.player.y * this.minimapScaleY
+      );
     }
 
     // ============================
@@ -3065,18 +3126,12 @@ export class WorldScene extends Phaser.Scene {
     }
 
     // Clean up minimap
-    if (this.minimapCam) {
-      this.cameras.remove(this.minimapCam, true);
-      this.minimapCam = null;
+    if (this.minimapContainer) {
+      this.minimapContainer.destroy(true);
+      this.minimapContainer = null;
     }
-    this.minimapBorder?.destroy();
-    this.minimapPlayerDot?.destroy();
-    this.minimapEnemyDots.forEach(d => d.destroy());
-    this.minimapEnemyDots = [];
-    this.minimapPortalDots.forEach(d => d.destroy());
-    this.minimapPortalDots = [];
-    this.minimapNpcDots.forEach(d => d.destroy());
-    this.minimapNpcDots = [];
+    this.minimapPlayerDot = null;
+    if (this.textures.exists('minimap_tex')) this.textures.remove('minimap_tex');
 
     // Clean up tilemap
     if (this.tileMap) { this.tileMap.destroy(); this.tileMap = null; }
