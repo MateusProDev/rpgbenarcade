@@ -431,8 +431,7 @@ export function drawNpcBody(
   spriteKey: string,
   frame: number = 0,
 ): void {
-  const _pal = NPC_PALETTES[type];
-  const _bobY = Math.sin(frame * 0.06) * 1;
+  const pal = NPC_PALETTES[type];
   const isBoss = type === 'boss';
   const scale = isBoss ? 1.5 : 1;
 
