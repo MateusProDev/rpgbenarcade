@@ -243,10 +243,14 @@ export function drawCharacterBody(
     }
   };
 
-  drawLeg(-6, leg2, true);
-  drawLeg(6, leg1, true);
-  drawLeg(-6, leg1, false);
-  drawLeg(6, leg2, false);
+  // Z-order: perna que recua vai por baixo, perna que avanca fica por cima
+  if (leg1 >= 0) {
+    drawLeg(6, leg2, true);    // perna direita recuando (desenhada primeiro)
+    drawLeg(-6, leg1, false);  // perna esquerda avancando (por cima)
+  } else {
+    drawLeg(-6, leg1, true);   // perna esquerda recuando (desenhada primeiro)
+    drawLeg(6, leg2, false);   // perna direita avancando (por cima)
+  }
 
   // ========================================================
   // TRONCO (proporcoes heroicas: ombros +/-14, cintura +/-8)
@@ -490,10 +494,14 @@ export function drawCharacterBody(
     }
   };
 
-  drawArm(-1, arm2, true);
-  drawArm(1, arm1, true);
-  drawArm(-1, arm1, false);
-  drawArm(1, arm2, false);
+  // Z-order: braco que recua vai por baixo do torso, braco que avanca fica por cima
+  if (arm1 > 0) {
+    drawArm(1, arm2, true);    // braco direito recuando (desenhado primeiro)
+    drawArm(-1, arm1, false);  // braco esquerdo avancando (por cima)
+  } else {
+    drawArm(-1, arm1, true);   // braco esquerdo recuando (desenhado primeiro)
+    drawArm(1, arm2, false);   // braco direito avancando (por cima)
+  }
 
   // ========================================================
   // PESCOCO FORTE E CURTO
@@ -658,19 +666,27 @@ function drawHair(
     // Cabelo longo prateado/branco ondulado
     g.arc(0, headY, 10.5, -Math.PI, 0.1); g.fill(p.hair);
     const wave = Math.sin(frame * 0.04) * 2.5;
-    // Mecha esquerda
-    g.moveTo(-9, headY + 2);
-    g.bezierCurveTo(-13, headY + 9 + wave, -12, headY + 20, -8, headY + 22);
-    g.lineTo(-5.5, headY + 22);
-    g.bezierCurveTo(-8.5, headY + 18, -9, headY + 10, -5.5, headY + 2);
+    // Mecha esquerda -- cai pelo lado externo, NAO entra na area do rosto
+    g.moveTo(-9.5, headY - 1);
+    g.bezierCurveTo(-13.5, headY + 5 + wave, -13, headY + 11, -10.5, headY + 14);
+    g.lineTo(-8.5, headY + 14);
+    g.bezierCurveTo(-10, headY + 9, -10, headY + 3, -7, headY - 1);
     g.fill(p.hair);
-    // Mecha direita
+    // reflexo no fio esquerdo
+    g.moveTo(-10, headY);
+    g.bezierCurveTo(-13, headY + 6 + wave, -12.5, headY + 10, -10, headY + 13);
+    g.stroke({ color: lgt(p.hair, 40), width: 0.9, alpha: 0.45 });
+    // Mecha direita -- cai pelo lado direito
     if (dir !== 'up') {
-      g.moveTo(9, headY + 2);
-      g.bezierCurveTo(13, headY + 9 + wave, 12, headY + 20, 8, headY + 22);
-      g.lineTo(5.5, headY + 22);
-      g.bezierCurveTo(8.5, headY + 18, 9, headY + 10, 5.5, headY + 2);
+      g.moveTo(9.5, headY - 1);
+      g.bezierCurveTo(13.5, headY + 5 + wave, 13, headY + 11, 10.5, headY + 14);
+      g.lineTo(8.5, headY + 14);
+      g.bezierCurveTo(10, headY + 9, 10, headY + 3, 7, headY - 1);
       g.fill(p.hair);
+      // reflexo no fio direito
+      g.moveTo(10, headY);
+      g.bezierCurveTo(13, headY + 6 + wave, 12.5, headY + 10, 10, headY + 13);
+      g.stroke({ color: lgt(p.hair, 40), width: 0.9, alpha: 0.45 });
     }
     // Chapeu pontudo basico (antes do capacete)
     g.moveTo(-9, headY - 8);
