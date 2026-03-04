@@ -21,6 +21,9 @@ export function GameView() {
   const engineReady = useGameStore((s) => s.engineReady);
   const openPanel = useGameStore((s) => s.ui.openPanel);
 
+  // Boolean-only selector: doesn't change reference on every position/stat update
+  const hasPlayer = useGameStore((s) => s.player !== null);
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [needsCreation, setNeedsCreation] = useState(false);
@@ -39,22 +42,36 @@ export function GameView() {
     });
   }, [user, setPlayer]);
 
-  // Init engine after player loaded AND canvas is in DOM
+  // Init engine after player loaded AND canvas is in DOM.
+  // CRITICAL: Use `hasPlayer` (boolean) NOT `player` (object) as dep.
+  // The player object reference changes on every position/stat update
+  // (Zustand spread). If we used `player`, the effect would destroy &
+  // recreate the engine on every frame → permanent black screen.
   useEffect(() => {
-    if (!player || !canvasRef.current || engineReady || needsCreation) return;
+    if (!hasPlayer || needsCreation) return;
+    // Canvas ref is only available after the game div renders
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Don't re-init if already running (handles StrictMode double mount)
+    if (useGameStore.getState().engineReady) return;
 
+    let cancelled = false;
     const engine = new GameEngine();
     setEngine(engine);
 
-    engine.init(canvasRef.current).catch((err) => {
-      console.error('Engine init failed:', err);
+    engine.init(canvas).then(() => {
+      if (cancelled || engine.isDestroyed) return;
+      console.log('[GameView] Engine initialised ✓');
+    }).catch((err) => {
+      if (!cancelled) console.error('[GameView] Engine init failed:', err);
     });
 
     return () => {
+      cancelled = true;
       engine.destroy();
       setEngine(null);
     };
-  }, [player, engineReady, needsCreation]);
+  }, [hasPlayer, needsCreation]);
 
   // Handle keyboard shortcuts for UI
   useEffect(() => {

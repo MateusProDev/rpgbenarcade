@@ -34,14 +34,16 @@ export class GameEngine {
 
   private _currentZone: ZoneDefinition | null = null;
   private _running = false;
+  private _destroyed = false;
   private _canvasParent: HTMLElement | null = null;
 
   get currentZone(): ZoneDefinition | null { return this._currentZone; }
+  get isDestroyed(): boolean { return this._destroyed; }
 
   async init(parent: HTMLElement): Promise<void> {
     this._canvasParent = parent;
-    const w = parent.clientWidth;
-    const h = parent.clientHeight;
+    const w = parent.clientWidth  || window.innerWidth;
+    const h = parent.clientHeight || window.innerHeight;
 
     this.app = new Application();
     await this.app.init({
@@ -52,6 +54,12 @@ export class GameEngine {
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     });
+
+    // If destroy() was called while we awaited, bail out immediately
+    if (this._destroyed) {
+      try { this.app.destroy(true, { children: true }); } catch { /* */ }
+      return;
+    }
 
     parent.appendChild(this.app.canvas as HTMLCanvasElement);
 
@@ -85,6 +93,9 @@ export class GameEngine {
     // Load initial zone
     const zone = useGameStore.getState().currentZone;
     this.loadZone(zone);
+
+    // Final destroyed check (re-entrance guard)
+    if (this._destroyed) return;
 
     useGameStore.getState().setEngineReady(true);
     this._running = true;
@@ -159,12 +170,13 @@ export class GameEngine {
   };
 
   destroy(): void {
+    this._destroyed = true;
     this._running = false;
-    this.app.ticker.remove(this.gameLoop);
+    try { this.app?.ticker?.remove(this.gameLoop); } catch { /* not yet initialised */ }
     window.removeEventListener('resize', this.onResize);
-    input.destroy();
-    this.sync.destroy();
-    this.app.destroy(true, { children: true });
+    try { input.destroy(); } catch { /* */ }
+    try { this.sync?.destroy(); } catch { /* */ }
+    try { this.app?.destroy(true, { children: true }); } catch { /* */ }
     useGameStore.getState().setEngineReady(false);
   }
 }
