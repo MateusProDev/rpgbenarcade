@@ -1,16 +1,27 @@
 // ============================================
 // Entity Manager — player, NPCs, remote players
+// Uses detailed procedural character rendering
 // ============================================
 import { Container, Graphics, Text } from 'pixi.js';
 import { Camera } from './Camera';
 import { input } from './InputManager';
 import { resolveMovement } from './Physics';
 import { useGameStore } from '@/store/gameStore';
+import { drawCharacterBody, drawNpcBody, CLASS_PALETTE } from './rendering/CharacterRenderer';
 import type { Vec2, Direction, PlayerClass } from '@/store/types';
 import { NPC_DEFS } from '@/data/npcs';
 import { ZONES } from '@/data/zones';
+import { CRAFTING_STATIONS, type CraftingStation } from '@/data/crafting';
 
-/* ---- Color palette per class ---- */
+/* ---- Map NPC IDs to crafting stations ---- */
+const NPC_CRAFTING_MAP: Record<string, CraftingStation> = {};
+for (const station of Object.values(CRAFTING_STATIONS)) {
+  if (station.npcId) {
+    NPC_CRAFTING_MAP[station.npcId] = station.id;
+  }
+}
+
+/* ---- Color palette per class (for HP bar accent) ---- */
 const CLASS_COLORS: Record<PlayerClass, number> = {
   warrior: 0xcc4444,
   mage: 0x4488dd,
@@ -18,18 +29,23 @@ const CLASS_COLORS: Record<PlayerClass, number> = {
   assassin: 0x9966cc,
 };
 
-/* ---- Entity visual (simple graphics-based sprite) ---- */
+/* ---- Entity visual (detailed procedural sprite) ---- */
 class EntityVisual {
   container = new Container();
-  private body: Graphics;
+  private bodyContainer = new Container();
+  private bodyGfx: Graphics;
   private nameText: Text;
   private hpBar: Graphics;
   private shadowGfx: Graphics;
+  private classLabel: Text;
+  private frame = 0;
 
   name: string;
   className: PlayerClass;
   maxHp: number;
+  direction: Direction = 'down';
   private _isLocal: boolean;
+  private _lastDir: Direction = 'down';
 
   constructor(
     name: string,
@@ -41,39 +57,38 @@ class EntityVisual {
     this.className = className;
     this.maxHp = maxHp;
     this._isLocal = isLocal;
-    const color = CLASS_COLORS[className] || 0xcccccc;
 
     // Shadow
     this.shadowGfx = new Graphics();
-    this.shadowGfx.ellipse(0, 10, 12, 5);
-    this.shadowGfx.fill({ color: 0x000000, alpha: 0.3 });
+    this.shadowGfx.ellipse(0, 18, 14, 5);
+    this.shadowGfx.fill({ color: 0x000000, alpha: 0.25 });
     this.container.addChild(this.shadowGfx);
 
-    // Body (rounded rectangle character)
-    this.body = new Graphics();
-    this.body.roundRect(-10, -20, 20, 28, 4);
-    this.body.fill(color);
-    this.body.roundRect(-8, -18, 16, 24, 3);
-    this.body.fill(color + 0x222222);
-    // Head
-    this.body.circle(0, -26, 8);
-    this.body.fill(0xeeddbb);
-    // Eyes
-    this.body.circle(-3, -27, 1.5);
-    this.body.fill(0x222222);
-    this.body.circle(3, -27, 1.5);
-    this.body.fill(0x222222);
-    this.container.addChild(this.body);
+    // Body
+    this.bodyGfx = new Graphics();
+    this.bodyContainer.addChild(this.bodyGfx);
+    this.container.addChild(this.bodyContainer);
+    this.redrawBody();
 
     // Local player indicator ring
     if (this._isLocal) {
       const ring = new Graphics();
-      ring.circle(0, 0, 16);
-      ring.stroke({ color: 0xddaa33, width: 1.5, alpha: 0.6 });
+      ring.circle(0, 0, 20);
+      ring.stroke({ color: 0xddaa33, width: 1.5, alpha: 0.5 });
       this.container.addChild(ring);
+
+      // Arrow above head
+      const arrow = new Graphics();
+      arrow.moveTo(0, -52);
+      arrow.lineTo(-4, -46);
+      arrow.lineTo(4, -46);
+      arrow.closePath();
+      arrow.fill({ color: 0xddaa33, alpha: 0.7 });
+      this.container.addChild(arrow);
     }
 
     // Name tag
+    const palette = CLASS_PALETTE[className];
     this.nameText = new Text({
       text: name,
       style: {
@@ -85,8 +100,22 @@ class EntityVisual {
       },
     });
     this.nameText.anchor.set(0.5, 1);
-    this.nameText.position.set(0, -38);
+    this.nameText.position.set(0, -46);
     this.container.addChild(this.nameText);
+
+    // Class indicator
+    this.classLabel = new Text({
+      text: this.classIcon(),
+      style: {
+        fontSize: 10,
+        fontFamily: 'Segoe UI, sans-serif',
+        fill: palette.accent,
+        stroke: { color: 0x000000, width: 3 },
+      },
+    });
+    this.classLabel.anchor.set(0.5, 1);
+    this.classLabel.position.set(0, -54);
+    this.container.addChild(this.classLabel);
 
     // HP bar
     this.hpBar = new Graphics();
@@ -94,22 +123,52 @@ class EntityVisual {
     this.updateHp(maxHp);
   }
 
+  private classIcon(): string {
+    switch (this.className) {
+      case 'warrior': return '⚔️';
+      case 'mage': return '🔮';
+      case 'archer': return '🏹';
+      case 'assassin': return '🗡️';
+    }
+  }
+
+  private redrawBody(): void {
+    this.bodyGfx.clear();
+    drawCharacterBody(this.bodyGfx, this.className, this.direction, this.frame);
+  }
+
+  /** Call each frame to animate */
+  animate(dt: number, moving: boolean): void {
+    if (moving) {
+      this.frame += dt * 60; // ~60fps animation speed
+    }
+    // Only redraw every few frames for performance
+    if (moving || this.direction !== this._lastDir) {
+      this.redrawBody();
+      this._lastDir = this.direction;
+    }
+  }
+
   updateHp(hp: number): void {
     this.hpBar.clear();
     const ratio = Math.max(0, Math.min(1, hp / this.maxHp));
-    const barW = 24;
+    const barW = 28;
     const barH = 3;
     const x = -barW / 2;
-    const y = -42;
+    const y = -58;
 
     // Background
-    this.hpBar.rect(x, y, barW, barH);
-    this.hpBar.fill({ color: 0x000000, alpha: 0.6 });
+    this.hpBar.rect(x - 1, y - 1, barW + 2, barH + 2);
+    this.hpBar.fill({ color: 0x000000, alpha: 0.5 });
 
     // Fill
     const hpColor = ratio > 0.5 ? 0x44bb66 : ratio > 0.25 ? 0xddaa33 : 0xcc3344;
     this.hpBar.rect(x, y, barW * ratio, barH);
     this.hpBar.fill(hpColor);
+
+    // Border
+    this.hpBar.rect(x - 1, y - 1, barW + 2, barH + 2);
+    this.hpBar.stroke({ color: 0x333333, width: 0.5 });
   }
 
   setPosition(x: number, y: number): void {
@@ -118,8 +177,8 @@ class EntityVisual {
   }
 
   flash(color: number = 0xffffff): void {
-    this.body.tint = color;
-    setTimeout(() => { this.body.tint = 0xffffff; }, 120);
+    this.bodyGfx.tint = color;
+    setTimeout(() => { this.bodyGfx.tint = 0xffffff; }, 120);
   }
 
   destroy(): void {
@@ -127,68 +186,104 @@ class EntityVisual {
   }
 }
 
-/* ---- NPC Visual ---- */
+/* ---- NPC Visual (detailed) ---- */
 class NpcVisual {
   container = new Container();
-  private body: Graphics;
+  private bodyGfx: Graphics;
   private nameText: Text;
+  private interactPrompt: Container;
+  private frame = 0;
 
+  npcId: string;
   name: string;
   type: 'enemy' | 'friendly' | 'boss' | 'merchant';
+  spriteKey: string;
 
   constructor(
+    npcId: string,
     name: string,
     type: 'enemy' | 'friendly' | 'boss' | 'merchant',
+    spriteKey: string,
   ) {
+    this.npcId = npcId;
     this.name = name;
     this.type = type;
-    const colors = {
+    this.spriteKey = spriteKey;
+
+    this.bodyGfx = new Graphics();
+    drawNpcBody(this.bodyGfx, name, type, spriteKey, 0);
+    this.container.addChild(this.bodyGfx);
+
+    const nameColor = {
       enemy: 0xcc4444,
       friendly: 0x44bb66,
       boss: 0xaa22aa,
       merchant: 0xddaa33,
-    };
-    const color = colors[type] || 0xcccccc;
+    }[type] || 0xcccccc;
 
-    this.body = new Graphics();
-    if (type === 'boss') {
-      // Boss is larger
-      this.body.roundRect(-14, -28, 28, 36, 5);
-      this.body.fill(color);
-      this.body.circle(0, -36, 10);
-      this.body.fill(0xcc5555);
-      // Crown
-      this.body.moveTo(-6, -46);
-      this.body.lineTo(0, -52);
-      this.body.lineTo(6, -46);
-      this.body.fill(0xddaa33);
-    } else {
-      this.body.roundRect(-8, -16, 16, 22, 3);
-      this.body.fill(color);
-      this.body.circle(0, -22, 6);
-      this.body.fill(0xddccaa);
-    }
-    this.container.addChild(this.body);
+    const typeLabel = {
+      enemy: '',
+      friendly: '💬',
+      boss: '💀',
+      merchant: '🛒',
+    }[type];
 
     this.nameText = new Text({
-      text: name,
+      text: `${typeLabel} ${name}`,
       style: {
         fontSize: 10,
         fontFamily: 'Segoe UI, sans-serif',
-        fill: color,
+        fill: nameColor,
         stroke: { color: 0x000000, width: 3 },
         align: 'center',
       },
     });
     this.nameText.anchor.set(0.5, 1);
-    this.nameText.position.set(0, type === 'boss' ? -56 : -32);
+    this.nameText.position.set(0, type === 'boss' ? -60 : -36);
     this.container.addChild(this.nameText);
 
     // Shadow
     const shadow = new Graphics();
-    shadow.ellipse(0, 8, type === 'boss' ? 16 : 10, type === 'boss' ? 6 : 4);
-    shadow.fill({ color: 0x000000, alpha: 0.3 });
+    const size = type === 'boss' ? 1.5 : 1;
+    shadow.ellipse(0, 18 * size, 14 * size, 5 * size);
+    shadow.fill({ color: 0x000000, alpha: 0.25 });
     this.container.addChildAt(shadow, 0);
+
+    // Interact prompt for friendly/merchants
+    this.interactPrompt = new Container();
+    if (type === 'merchant' || type === 'friendly') {
+      const bg = new Graphics();
+      bg.roundRect(-22, -14, 44, 16, 4);
+      bg.fill({ color: 0x000000, alpha: 0.7 });
+      bg.roundRect(-22, -14, 44, 16, 4);
+      bg.stroke({ color: 0xDDAA33, width: 1, alpha: 0.6 });
+      this.interactPrompt.addChild(bg);
+      const pText = new Text({
+        text: type === 'merchant' ? '[E] 🛒' : '[E] 💬',
+        style: { fontSize: 9, fontFamily: 'Segoe UI, sans-serif', fill: 0xDDAA33 },
+      });
+      pText.anchor.set(0.5, 0.5);
+      pText.position.set(0, -6);
+      this.interactPrompt.addChild(pText);
+      this.interactPrompt.position.set(0, type === 'boss' ? -70 : -44);
+      this.interactPrompt.visible = false;
+      this.container.addChild(this.interactPrompt);
+    }
+  }
+
+  animate(dt: number): void {
+    this.frame += dt * 30;
+    this.bodyGfx.clear();
+    drawNpcBody(this.bodyGfx, this.name, this.type, this.spriteKey, this.frame);
+  }
+
+  showInteract(show: boolean): void {
+    if (this.interactPrompt) {
+      this.interactPrompt.visible = show;
+      if (show) {
+        this.interactPrompt.alpha = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
+      }
+    }
   }
 
   setPosition(x: number, y: number): void {
@@ -210,6 +305,7 @@ export class EntityManager {
   private remotePlayers = new Map<string, EntityVisual>();
   private npcs: NpcVisual[] = [];
   private walkAnim = 0;
+  private isMoving = false;
 
   constructor(parent: Container, _camera: Camera) {
     this.parent = parent;
@@ -239,11 +335,10 @@ export class EntityManager {
     const zone = ZONES[state.currentZone];
     if (!zone) return;
 
-    // Use NPC definitions from zone.npcs list
     for (const npcId of zone.npcs) {
       const def = NPC_DEFS[npcId];
       if (!def) continue;
-      const visual = new NpcVisual(def.name, def.type);
+      const visual = new NpcVisual(def.id, def.name, def.type, def.spriteKey);
       visual.setPosition(def.position.x, def.position.y);
       this.parent.addChild(visual.container);
       this.npcs.push(visual);
@@ -258,6 +353,28 @@ export class EntityManager {
     this.updateLocalMovement(dt);
     this.updateRemotePlayers();
     this.updateLocalHp();
+    this.animateAll(dt);
+  }
+
+  private animateAll(dt: number): void {
+    // Animate local player
+    if (this.localPlayer) {
+      this.localPlayer.direction = this.localDir;
+      this.localPlayer.animate(dt, this.isMoving);
+    }
+
+    // Animate NPCs (only those near player for performance)
+    const pp = this.localPos;
+    for (const npc of this.npcs) {
+      const nx = npc.container.position.x;
+      const ny = npc.container.position.y;
+      const dist = Math.abs(nx - pp.x) + Math.abs(ny - pp.y);
+      if (dist < 600) {
+        npc.animate(dt);
+        // Show interact prompt when close
+        npc.showInteract(dist < 80);
+      }
+    }
   }
 
   private updateLocalMovement(dt: number): void {
@@ -281,7 +398,9 @@ export class EntityManager {
       dx *= inv; dy *= inv;
     }
 
-    if (dx !== 0 || dy !== 0) {
+    this.isMoving = dx !== 0 || dy !== 0;
+
+    if (this.isMoving) {
       const velocity = { x: dx * speed * dt, y: dy * speed * dt };
       const zone = ZONES[state.currentZone];
       if (zone) {
@@ -307,6 +426,36 @@ export class EntityManager {
 
     // Check portal collisions
     this.checkPortals();
+
+    // Check interact with E key
+    if (input.wasPressed('interact')) {
+      // First: check NPC interaction (crafting stations, merchants)
+      let npcHandled = false;
+      for (const npc of this.npcs) {
+        const nx = npc.container.position.x;
+        const ny = npc.container.position.y;
+        const dist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
+        if (dist < 80) {
+          const station = NPC_CRAFTING_MAP[npc.npcId];
+          if (station) {
+            useGameStore.getState().openCraftingStation(station);
+            npcHandled = true;
+            break;
+          }
+          // Other NPC types (merchant shop, etc) can go here
+        }
+      }
+
+      // Second: if no NPC, try resource harvest
+      if (!npcHandled) {
+        import('./GameEngine').then(({ getEngine }) => {
+          const engine = getEngine();
+          if (engine) {
+            engine.resourceNodes?.tryHarvest(this.localPos);
+          }
+        });
+      }
+    }
   }
 
   private checkPortals(): void {
@@ -324,7 +473,6 @@ export class EntityManager {
         this.localPos.x >= px && this.localPos.x <= px + pw &&
         this.localPos.y >= py && this.localPos.y <= py + ph
       ) {
-        // Teleport to target zone (dynamic import to avoid circular dep)
         import('./GameEngine').then(({ getEngine }) => {
           const engine = getEngine();
           if (engine) {
@@ -341,7 +489,6 @@ export class EntityManager {
     const remotes = state.remotePlayers;
     const myUid = state.player?.uid;
 
-    // Remove gone players
     for (const [uid, visual] of this.remotePlayers) {
       if (!remotes[uid] || uid === myUid) {
         visual.destroy();
@@ -349,7 +496,6 @@ export class EntityManager {
       }
     }
 
-    // Add / update remote players
     for (const [uid, rp] of Object.entries(remotes)) {
       if (uid === myUid) continue;
 
@@ -365,7 +511,6 @@ export class EntityManager {
         this.remotePlayers.set(uid, visual);
       }
 
-      // Interpolate position
       visual.setPosition(rp.x, rp.y);
       visual.updateHp(rp.hp);
     }
@@ -379,12 +524,10 @@ export class EntityManager {
     }
   }
 
-  /** Flash local player (hit effect) */
   flashLocalPlayer(color?: number): void {
     this.localPlayer?.flash(color);
   }
 
-  /** Flash remote player */
   flashRemote(uid: string, color?: number): void {
     this.remotePlayers.get(uid)?.flash(color);
   }

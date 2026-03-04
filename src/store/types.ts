@@ -249,7 +249,7 @@ export interface ChatMessage {
 }
 
 // ---- UI State ----
-export type PanelType = 'inventory' | 'skills' | 'alliance' | 'quest' | 'shop' | 'settings' | null;
+export type PanelType = 'inventory' | 'skills' | 'alliance' | 'quest' | 'shop' | 'crafting' | 'settings' | null;
 
 export interface UIState {
   openPanel: PanelType;

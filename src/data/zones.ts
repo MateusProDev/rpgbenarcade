@@ -67,7 +67,7 @@ export const ZONES: Record<string, ZoneDefinition> = {
         label: 'Masmorra',
       },
     ],
-    npcs: ['merchant_anna', 'guard_captain'],
+    npcs: ['merchant_anna', 'guard_captain', 'blacksmith_drake', 'alchemist_luna', 'carpenter_oak', 'enchanter_mira'],
     bgColor: 0x2a3a2a,
     pvpEnabled: false,
     levelReq: 1,

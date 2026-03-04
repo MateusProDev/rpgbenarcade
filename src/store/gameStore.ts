@@ -8,11 +8,21 @@ import type {
   ChatMessage, InventoryItem, UIState, PanelType,
   Vec2, Direction, TerritoryData,
 } from './types';
+import type { CraftingStation } from '@/data/crafting';
+import type { QuestStatus } from '@/data/quests';
 
 /* ---- Skill cooldown tracking ---- */
 interface SkillCooldown {
   skillId: string;
   readyAt: number; // timestamp
+}
+
+/* ---- Quest tracking ---- */
+interface QuestProgress {
+  questId: string;
+  status: QuestStatus;
+  progress: Record<string, number>; // objectiveTargetId -> current count
+  startedAt: number;
 }
 
 /* ---- Game State Shape ---- */
@@ -64,6 +74,25 @@ interface GameState {
   // Engine reference (set after PixiJS boots)
   engineReady: boolean;
   setEngineReady: (v: boolean) => void;
+
+  // Quests
+  quests: QuestProgress[];
+  startQuest: (questId: string) => void;
+  updateQuestProgress: (questId: string, targetId: string, amount?: number) => void;
+  completeQuest: (questId: string) => void;
+  isQuestComplete: (questId: string) => boolean;
+  getQuestProgress: (questId: string) => QuestProgress | undefined;
+
+  // Crafting
+  activeCraftingStation: CraftingStation | null;
+  openCraftingStation: (station: CraftingStation) => void;
+  closeCraftingStation: () => void;
+
+  // Tutorial
+  tutorialStep: number;
+  setTutorialStep: (step: number) => void;
+  tutorialDismissed: boolean;
+  dismissTutorial: () => void;
 }
 
 /* ---- Level XP curve ---- */
@@ -201,5 +230,59 @@ export const useGameStore = create<GameState>()(
     // ---- Engine ----
     engineReady: false,
     setEngineReady: (engineReady) => set({ engineReady }),
+
+    // ---- Quests ----
+    quests: [],
+    startQuest: (questId) => {
+      const existing = get().quests.find((q) => q.questId === questId);
+      if (existing) return;
+      set((s) => ({
+        quests: [...s.quests, {
+          questId,
+          status: 'active' as QuestStatus,
+          progress: {},
+          startedAt: Date.now(),
+        }],
+      }));
+    },
+    updateQuestProgress: (questId, targetId, amount = 1) => {
+      set((s) => ({
+        quests: s.quests.map((q) => {
+          if (q.questId !== questId || q.status !== 'active') return q;
+          const cur = q.progress[targetId] || 0;
+          return { ...q, progress: { ...q.progress, [targetId]: cur + amount } };
+        }),
+      }));
+    },
+    completeQuest: (questId) => {
+      set((s) => ({
+        quests: s.quests.map((q) =>
+          q.questId === questId ? { ...q, status: 'completed' as QuestStatus } : q
+        ),
+      }));
+    },
+    isQuestComplete: (questId) => {
+      return get().quests.some((q) => q.questId === questId && q.status === 'completed');
+    },
+    getQuestProgress: (questId) => {
+      return get().quests.find((q) => q.questId === questId);
+    },
+
+    // ---- Crafting ----
+    activeCraftingStation: null,
+    openCraftingStation: (station) => set({
+      activeCraftingStation: station,
+      ui: { ...get().ui, openPanel: 'crafting' },
+    }),
+    closeCraftingStation: () => set({
+      activeCraftingStation: null,
+      ui: { ...get().ui, openPanel: null },
+    }),
+
+    // ---- Tutorial ----
+    tutorialStep: 0,
+    setTutorialStep: (tutorialStep) => set({ tutorialStep }),
+    tutorialDismissed: false,
+    dismissTutorial: () => set({ tutorialDismissed: true }),
   })),
 );

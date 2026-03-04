@@ -1,5 +1,5 @@
 // ============================================
-// HUD — HP, Mana, XP bars + player info
+// HUD — HP, Mana, XP bars + player info + action bar
 // ============================================
 import { useGameStore } from '@/store/gameStore';
 
@@ -7,6 +7,7 @@ export function HUD() {
   const player = useGameStore((s) => s.player);
   const openPanel = useGameStore((s) => s.openPanel);
   const currentZone = useGameStore((s) => s.currentZone);
+  const engineReady = useGameStore((s) => s.engineReady);
 
   if (!player) return null;
 
@@ -87,9 +88,28 @@ export function HUD() {
         <ActionButton icon="🎒" label="Inventário" shortcut="I" onClick={() => openPanel('inventory')} />
         <ActionButton icon="👥" label="Aliança" shortcut="G" onClick={() => openPanel('alliance')} />
         <ActionButton icon="📜" label="Quests" shortcut="Q" onClick={() => openPanel('quest')} />
+        <ActionButton icon="⚒️" label="Crafting" shortcut="C" onClick={() => openPanel('crafting')} />
         <ActionButton icon="⚙️" label="Config" shortcut="Esc" onClick={() => openPanel('settings')} />
       </div>
+
+      {/* Bottom-center: Control hints (show only first 20 seconds) */}
+      <ControlHints />
     </>
+  );
+}
+
+/* ---- Control Hints (fade out after some seconds) ---- */
+function ControlHints() {
+  return (
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+      <div className="glass-panel px-4 py-2 flex gap-4 text-text-dim text-[10px]">
+        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">WASD</kbd> Mover</span>
+        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">E</kbd> Interagir</span>
+        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">1-5</kbd> Skills</span>
+        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">I</kbd> Inventário</span>
+        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">ESC</kbd> Menu</span>
+      </div>
+    </div>
   );
 }
 

@@ -10,6 +10,7 @@ import { EffectsManager } from './effects/EffectsManager';
 import { CombatManager } from './combat/CombatManager';
 import { SyncManager } from './multiplayer/SyncManager';
 import { MinimapRenderer } from './MinimapRenderer';
+import { ResourceNodeManager } from './world/ResourceNodeManager';
 import { useGameStore } from '@/store/gameStore';
 import { ZONES } from '@/data/zones';
 import type { ZoneDefinition } from '@/store/types';
@@ -23,6 +24,7 @@ export class GameEngine {
   combat!: CombatManager;
   sync!: SyncManager;
   minimap!: MinimapRenderer;
+  resourceNodes!: ResourceNodeManager;
 
   // Layer containers (added to camera.pivot in order)
   layers = {
@@ -83,6 +85,7 @@ export class GameEngine {
     this.combat = new CombatManager(this);
     this.sync = new SyncManager(this);
     this.minimap = new MinimapRenderer(this.app.stage, w, h);
+    this.resourceNodes = new ResourceNodeManager(this.layers.entities);
 
     // Input
     input.init(this.app.canvas as HTMLElement);
@@ -114,8 +117,13 @@ export class GameEngine {
     this.combat.update(dt);
     this.sync.update(dt);
 
-    // Camera follows local player
+    // Update resource nodes (show/hide interact prompts, respawn)
     const playerPos = this.entities.getLocalPlayerPos();
+    if (playerPos) {
+      this.resourceNodes.update(dt, playerPos);
+    }
+
+    // Camera follows local player
     if (playerPos) {
       this.camera.setTarget(playerPos);
     }
@@ -145,10 +153,12 @@ export class GameEngine {
     this.tileMap.clear();
     this.entities.clear();
     this.effects.clear();
+    this.resourceNodes.clear();
 
     // Build new zone
     this.tileMap.build(this._currentZone);
     this.entities.spawnLocalPlayer(this._currentZone.spawnPoint);
+    this.resourceNodes.spawnForZone(zoneId);
 
     // Snap camera
     this.camera.snap();

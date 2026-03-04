@@ -106,7 +106,87 @@ export const ITEM_TEMPLATES: Record<string, ItemTemplate> = {
     stats: { hp: 30, maxHp: 30 },
   },
 
-  /* ---- Materials ---- */
+  /* ---- Tools ---- */
+  tool_axe: {
+    id: 'tool_axe', name: 'Machado Básico', description: 'Machado simples para cortar árvores.',
+    rarity: 'common', slot: 'consumable', icon: '🪓', dropRate: 0, levelReq: 1, price: 25,
+  },
+  tool_pickaxe: {
+    id: 'tool_pickaxe', name: 'Picareta Básica', description: 'Picareta para minerar pedras e minérios.',
+    rarity: 'common', slot: 'consumable', icon: '⛏️', dropRate: 0, levelReq: 1, price: 25,
+  },
+  tool_iron_axe: {
+    id: 'tool_iron_axe', name: 'Machado de Ferro', description: 'Machado resistente. Colhe 2x mais rápido.',
+    rarity: 'uncommon', slot: 'consumable', icon: '🪓', dropRate: 0, levelReq: 3, price: 80,
+  },
+  tool_iron_pickaxe: {
+    id: 'tool_iron_pickaxe', name: 'Picareta de Ferro', description: 'Picareta forte. Minera 2x mais rápido.',
+    rarity: 'uncommon', slot: 'consumable', icon: '⛏️', dropRate: 0, levelReq: 3, price: 80,
+  },
+
+  /* ---- Utility ---- */
+  torch: {
+    id: 'torch', name: 'Tocha', description: 'Ilumina áreas escuras.',
+    rarity: 'common', slot: 'consumable', icon: '🔥', dropRate: 0, levelReq: 1, price: 5,
+  },
+  bandage: {
+    id: 'bandage', name: 'Bandagem', description: 'Restaura 15 HP lentamente.',
+    rarity: 'common', slot: 'consumable', icon: '🩹', dropRate: 0, levelReq: 1, price: 8,
+    stats: { hp: 15 },
+  },
+
+  /* ---- Gathering Resources ---- */
+  wood_log: {
+    id: 'wood_log', name: 'Tora de Madeira', description: 'Madeira básica para construção.',
+    rarity: 'common', slot: 'consumable', icon: '🪵', dropRate: 0, levelReq: 1, price: 2,
+  },
+  dark_wood: {
+    id: 'dark_wood', name: 'Madeira Sombria', description: 'Madeira rara da Floresta Sombria.',
+    rarity: 'uncommon', slot: 'consumable', icon: '🪵', dropRate: 0, levelReq: 5, price: 12,
+  },
+  tree_sap: {
+    id: 'tree_sap', name: 'Seiva de Árvore', description: 'Resina pegajosa e útil.',
+    rarity: 'common', slot: 'consumable', icon: '🍯', dropRate: 0, levelReq: 1, price: 4,
+  },
+  pine_resin: {
+    id: 'pine_resin', name: 'Resina de Pinheiro', description: 'Resina inflamável.',
+    rarity: 'common', slot: 'consumable', icon: '🟠', dropRate: 0, levelReq: 1, price: 3,
+  },
+  stone: {
+    id: 'stone', name: 'Pedra', description: 'Pedra bruta para construção.',
+    rarity: 'common', slot: 'consumable', icon: '🪨', dropRate: 0, levelReq: 1, price: 2,
+  },
+  flint: {
+    id: 'flint', name: 'Sílex', description: 'Material de corte para ferramentas.',
+    rarity: 'common', slot: 'consumable', icon: '🔷', dropRate: 0, levelReq: 1, price: 5,
+  },
+  iron_ore: {
+    id: 'iron_ore', name: 'Minério de Ferro', description: 'Minério para forjar equipamentos.',
+    rarity: 'uncommon', slot: 'consumable', icon: '⛏️', dropRate: 0, levelReq: 3, price: 8,
+  },
+  crystal_shard: {
+    id: 'crystal_shard', name: 'Fragmento de Cristal', description: 'Cristal mágico brilhante.',
+    rarity: 'rare', slot: 'consumable', icon: '💠', dropRate: 0, levelReq: 8, price: 30,
+  },
+  herb_green: {
+    id: 'herb_green', name: 'Erva Verde', description: 'Erva curativa comum.',
+    rarity: 'common', slot: 'consumable', icon: '🌿', dropRate: 0, levelReq: 1, price: 2,
+  },
+  herb_blue: {
+    id: 'herb_blue', name: 'Erva Azul', description: 'Erva que restaura energia mágica.',
+    rarity: 'uncommon', slot: 'consumable', icon: '💙', dropRate: 0, levelReq: 3, price: 5,
+  },
+  herb_dark: {
+    id: 'herb_dark', name: 'Erva Sombria', description: 'Erva rara com propriedades sombrias.',
+    rarity: 'uncommon', slot: 'consumable', icon: '🍄', dropRate: 0, levelReq: 5, price: 10,
+  },
+  berries: {
+    id: 'berries', name: 'Frutas Silvestres', description: 'Frutas frescas comestíveis.',
+    rarity: 'common', slot: 'consumable', icon: '🫐', dropRate: 0, levelReq: 1, price: 1,
+    stats: { hp: 5 },
+  },
+
+  /* ---- Monster Materials ---- */
   slime_gel: {
     id: 'slime_gel', name: 'Gel de Slime', description: 'Material viscoso de slime.',
     rarity: 'common', slot: 'consumable', icon: '🟢', dropRate: 0.6, levelReq: 1, price: 3,

@@ -12,6 +12,8 @@ import { SkillBar } from './SkillBar';
 import { ChatPanel } from './ChatPanel';
 import { InventoryPanel } from './InventoryPanel';
 import { PauseMenu } from './PauseMenu';
+import { TutorialPanel } from './TutorialPanel';
+import { CraftingPanel } from './CraftingPanel';
 import { input } from '@/engine/InputManager';
 
 export function GameView() {
@@ -118,9 +120,11 @@ export function GameView() {
           <HUD />
           <SkillBar />
           <ChatPanel />
+          <TutorialPanel />
 
           {/* Panels */}
           {openPanel === 'inventory' && <InventoryPanel />}
+          {openPanel === 'crafting' && <CraftingPanel />}
 
           {/* Pause menu */}
           {showPause && <PauseMenu onClose={() => setShowPause(false)} />}
