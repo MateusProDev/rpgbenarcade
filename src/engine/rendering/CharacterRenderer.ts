@@ -1,8 +1,22 @@
 ﻿// ============================================
-// Character Renderer â€” corpo humano detalhado
-// Roupas simples de inÃ­cio + visual evolui com equipamentos
-// ProporÃ§Ãµes realistas: cabeÃ§a, pescoÃ§o, tronco, braÃ§os articulados,
-// pernas com joelho e tornozelo, rosto com traÃ§os humanos
+// Character Renderer -- Miniatura Heroica
+// Proporcoes heroicas realistas: ombros largos, postura firme,
+// musculatura definida, sombreamento de volume,
+// rosto com tracos marcados, marca runica no ombro,
+// veias discretas nos antebracros, cicatriz na sobrancelha.
+//
+// Sistema de coordenadas (centro = pivot):
+//   topo cabeca  : y ~ -42
+//   centro cabeca: y ~ -30
+//   pescoco      : y ~ -22...-16
+//   ombros       : y ~ -16,  x ~ +/-14
+//   peito        : y ~ -8
+//   cintura      : y ~  0
+//   quadril      : y ~  4
+//   joelho       : y ~  12
+//   tornozelo    : y ~  18
+//   sola         : y ~  22
+//   sombra       : y ~  24
 // ============================================
 import { Graphics } from 'pixi.js';
 import type { PlayerClass, Direction, ItemRarity } from '@/store/types';
@@ -18,7 +32,7 @@ export interface EquipmentVisuals {
   helmetName?: string;
 }
 
-/* ---- Tier numÃ©rico por raridade (0 = sem item) ---- */
+/* ---- Tier numerico por raridade ---- */
 function tier(r?: ItemRarity): number {
   switch (r) {
     case 'common':    return 1;
@@ -30,6 +44,20 @@ function tier(r?: ItemRarity): number {
   }
 }
 
+/* ---- Helpers de cor ---- */
+function shd(c: number, amt: number): number {
+  const r = Math.max(0, ((c >> 16) & 0xFF) - amt);
+  const gv = Math.max(0, ((c >> 8) & 0xFF) - amt);
+  const b = Math.max(0, (c & 0xFF) - amt);
+  return (r << 16) | (gv << 8) | b;
+}
+function lgt(c: number, amt: number): number {
+  const r = Math.min(255, ((c >> 16) & 0xFF) + amt);
+  const gv = Math.min(255, ((c >> 8) & 0xFF) + amt);
+  const b = Math.min(255, (c & 0xFF) + amt);
+  return (r << 16) | (gv << 8) | b;
+}
+
 /* ---- Paleta por classe ---- */
 export const CLASS_PALETTE: Record<PlayerClass, {
   primary: number; secondary: number; accent: number;
@@ -37,72 +65,63 @@ export const CLASS_PALETTE: Record<PlayerClass, {
   cloth: number; pants: number;
 }> = {
   warrior: {
-    primary: 0x8B2222, secondary: 0xA63333, accent: 0xD4A444,
-    skin: 0xF0C89A,   hair: 0x5C3A1E, weapon: 0xBBBBCC, cape: 0x6B1111,
-    cloth: 0xD4C8A0,  pants: 0x7A5C3A,
+    primary:   0x8B2020, secondary: 0xA83030, accent: 0xD4A030,
+    skin:      0xC8854A, hair:      0x2E1A08, weapon: 0xCCCCDD,
+    cape:      0x601010, cloth:     0xC0B488, pants:  0x5A4226,
   },
   mage: {
-    primary: 0x2244AA, secondary: 0x3366CC, accent: 0x88CCFF,
-    skin: 0xF2DEAD,   hair: 0xE8E0D4, weapon: 0x7744CC, cape: 0x1A2266,
-    cloth: 0xC4C0CC,  pants: 0x8888AA,
+    primary:   0x1A3090, secondary: 0x2850CC, accent: 0x66AAFF,
+    skin:      0xD8BE8A, hair:      0xD8D0C0, weapon: 0x5522AA,
+    cape:      0x0E1A55, cloth:     0xB0ACC8, pants:  0x707098,
   },
   archer: {
-    primary: 0x2B6B3A, secondary: 0x3D8B4D, accent: 0xAADD66,
-    skin: 0xE8C890,   hair: 0xCC8844, weapon: 0x8B6B42, cape: 0x1A4422,
-    cloth: 0x7A8840,  pants: 0xBBA070,
+    primary:   0x1E5225, secondary: 0x2E6E38, accent: 0x88BB33,
+    skin:      0xBB8850, hair:      0xAA6622, weapon: 0x6A4C24,
+    cape:      0x102214, cloth:     0x5A6820, pants:  0x9A7840,
   },
   assassin: {
-    primary: 0x3A2255, secondary: 0x553377, accent: 0xCC66FF,
-    skin: 0xE0C8A0,   hair: 0x1A1A2E, weapon: 0x666688, cape: 0x221133,
-    cloth: 0x4A4A55,  pants: 0x2A2A35,
+    primary:   0x281440, secondary: 0x3E2260, accent: 0xAA44DD,
+    skin:      0xC09060, hair:      0x0E0E18, weapon: 0x44446A,
+    cape:      0x180A28, cloth:     0x343344, pants:  0x1E1E2C,
   },
 };
 
 /* ---- Cores de armadura por tier ---- */
 function armorTorsoColor(t: number, p: typeof CLASS_PALETTE.warrior): number {
   if (t === 0) return p.cloth;
-  if (t === 1) return 0x8B7355;
-  if (t === 2) return 0x7A6A58;
-  if (t === 3) return 0x6688AA;
+  if (t === 1) return 0x6E5030;
+  if (t === 2) return 0x5C5040;
+  if (t === 3) return 0x4A6890;
   if (t === 4) return p.primary;
-  return 0xCCAA44;
+  return 0xA88818;
 }
 function armorPantsColor(t: number, p: typeof CLASS_PALETTE.warrior): number {
   if (t === 0) return p.pants;
-  if (t === 1) return 0x6B5540;
-  if (t === 2) return 0x5A5A6A;
-  if (t === 3) return 0x5577AA;
+  if (t === 1) return 0x4A3820;
+  if (t === 2) return 0x404050;
+  if (t === 3) return 0x385580;
   if (t === 4) return p.secondary;
-  return 0xBB9933;
+  return 0x906E10;
 }
 function bootsColor(t: number): number {
-  if (t === 0) return 0x554433;
-  if (t === 1) return 0x6B4422;
-  if (t === 2) return 0x8B6644;
-  if (t === 3) return 0x445566;
-  if (t === 4) return 0x663388;
-  return 0xCCBB44;
+  if (t === 0) return 0x3C2C18;
+  if (t === 1) return 0x4E2C10;
+  if (t === 2) return 0x684C28;
+  if (t === 3) return 0x2E3C4A;
+  if (t === 4) return 0x441A66;
+  return 0xAA9422;
 }
 function shoulderColor(t: number, accent: number): number {
   if (t <= 1) return 0;
-  if (t === 2) return 0x776655;
-  if (t === 3) return 0x4466AA;
-  if (t === 4) return 0x663399;
+  if (t === 2) return 0x585030;
+  if (t === 3) return 0x2E4870;
+  if (t === 4) return 0x441A70;
   return accent;
 }
 
-/* ===================================================================
-   PERSONAGEM JOGADOR â€” corpo humano detalhado
-   Coordenadas relativas ao centro (0,0):
-     cabeÃ§a:    y â‰ˆ -27
-     pescoÃ§o:   y â‰ˆ -18
-     ombros:    y â‰ˆ -16
-     cintura:   y â‰ˆ  0
-     quadril:   y â‰ˆ  4
-     joelho:    y â‰ˆ 12
-     tornozelo: y â‰ˆ 19
-     sombra:    y â‰ˆ 22
-=================================================================== */
+/* ====================================================================
+   PERSONAGEM JOGADOR -- Miniatura Heroica Detalhada
+==================================================================== */
 export function drawCharacterBody(
   g: Graphics,
   cls: PlayerClass,
@@ -111,10 +130,11 @@ export function drawCharacterBody(
   equip: EquipmentVisuals = {},
 ): void {
   const p = CLASS_PALETTE[cls];
-  const bob  = Math.sin(frame * 0.08) * 1.2;
-  const leg1 = Math.sin(frame * 0.12) * 3.5;
+
+  const bob  = Math.sin(frame * 0.08) * 1.6;
+  const leg1 = Math.sin(frame * 0.11) * 5.0;
   const leg2 = -leg1;
-  const arm1 = Math.sin(frame * 0.12) * 3.0;
+  const arm1 = Math.sin(frame * 0.11) * 4.5;
   const arm2 = -arm1;
 
   const tArmor  = tier(equip.armorRarity);
@@ -122,474 +142,966 @@ export function drawCharacterBody(
   const tBoots  = tier(equip.bootsRarity);
   const tWeapon = tier(equip.weaponRarity);
 
-  const torsoC  = armorTorsoColor(tArmor, p);
-  const pantsC  = armorPantsColor(tArmor, p);
-  const bootC   = bootsColor(tBoots);
-  const shoulC  = shoulderColor(tArmor, p.accent);
+  const torsoC = armorTorsoColor(tArmor, p);
+  const pantsC = armorPantsColor(tArmor, p);
+  const bootC  = bootsColor(tBoots);
+  const shoulC = shoulderColor(tArmor, p.accent);
 
-  // â”€â”€ SOMBRA â”€â”€
-  g.ellipse(0, 22, 13, 4);
-  g.fill({ color: 0x000000, alpha: 0.28 });
+  // ========================================================
+  // SOMBRA PROJETADA (elipse seguindo silhueta do corpo)
+  // ========================================================
+  g.ellipse(2, 25, 18, 5.5);
+  g.fill({ color: 0x000000, alpha: 0.35 });
+  // sombra interna mais escura (centro do corpo)
+  g.ellipse(1, 24, 11, 3);
+  g.fill({ color: 0x000000, alpha: 0.15 });
 
-  // â”€â”€ CAPA (tier â‰¥ 2) â”€â”€
+  // ========================================================
+  // CAPA (tier >= 2)
+  // ========================================================
   if (tArmor >= 2 && dir !== 'up') {
-    const capeC    = tArmor >= 5 ? 0x9933CC : p.cape;
-    const capeWave = Math.sin(frame * 0.06) * 2.5;
-    g.moveTo(-9, -14 + bob);
-    g.bezierCurveTo(-12, 2 + bob, -8 + capeWave, 14 + bob, -3, 18 + bob);
-    g.lineTo(3, 18 + bob);
-    g.bezierCurveTo(8 - capeWave, 14 + bob, 12, 2 + bob, 9, -14 + bob);
-    g.fill({ color: capeC, alpha: 0.82 });
-    g.moveTo(-5, -8 + bob);
-    g.bezierCurveTo(-6, 4 + bob, -4, 11 + bob, 0, 16 + bob);
-    g.fill({ color: capeC + 0x181818, alpha: 0.2 });
+    const capeC = tArmor >= 5 ? 0x771AAA : p.cape;
+    const cw    = Math.sin(frame * 0.05) * 3.5;
+    g.moveTo(-11, -14 + bob);
+    g.bezierCurveTo(-16, 0 + bob, -13 + cw, 18 + bob, -4, 23 + bob);
+    g.lineTo(4, 23 + bob);
+    g.bezierCurveTo(13 - cw, 18 + bob, 16, 0 + bob, 11, -14 + bob);
+    g.fill({ color: capeC, alpha: 0.88 });
+    // dobra central da capa
+    g.moveTo(-2, -10 + bob);
+    g.bezierCurveTo(-3, 2 + bob, -2 + cw * 0.3, 14 + bob, 0, 21 + bob);
+    g.fill({ color: shd(capeC, 35), alpha: 0.28 });
+    // borda lateral iluminada
+    g.moveTo(-11, -14 + bob);
+    g.bezierCurveTo(-14, -2 + bob, -12 + cw, 10 + bob, -4, 23 + bob);
+    g.stroke({ color: lgt(capeC, 30), width: 0.8, alpha: 0.4 });
   }
 
-  // â”€â”€ PERNAS â”€â”€
+  // ========================================================
+  // PERNAS (coxas robustas + panturrilhas definidas)
+  // ========================================================
   const drawLeg = (offX: number, swing: number, isBack: boolean): void => {
-    const alpha  = isBack ? 0.72 : 1.0;
-    const shade  = isBack ? -0x181416 : 0;
-    const kneeX  = offX + swing * 0.35;
-    const ankleX = offX + swing * 0.6;
-    const footX  = ankleX + (offX < 0 ? -2 : 2);
+    const al  = isBack ? 0.62 : 1.0;
+    const sdV = isBack ? -38 : 0;
+    const tw  = 5.8; // largura da coxa
+    const knX = offX + swing * 0.42;
+    const anX = offX + swing * 0.68;
+    const fxB = anX + (offX < 0 ? -1.5 : 2);
 
-    // coxa
-    g.moveTo(offX - 3, 4 + bob);
-    g.bezierCurveTo(offX - 4, 8 + bob, kneeX - 3, 10 + bob, kneeX - 2, 12 + bob + swing * 0.15);
-    g.bezierCurveTo(kneeX + 2, 12 + bob + swing * 0.15, offX + 4, 8 + bob, offX + 3, 4 + bob);
-    g.fill({ color: pantsC + shade, alpha });
-    // canela
-    g.moveTo(kneeX - 2, 12 + bob + swing * 0.15);
-    g.bezierCurveTo(kneeX - 3, 15 + bob, ankleX - 2, 18 + bob, ankleX - 1.5, 19 + bob);
-    g.bezierCurveTo(ankleX + 2, 18 + bob, kneeX + 2, 15 + bob, kneeX + 2, 12 + bob + swing * 0.15);
-    g.fill({ color: pantsC + shade - 0x0A080A, alpha });
-    // bota / pÃ©
-    g.moveTo(ankleX - 2, 19 + bob);
-    g.bezierCurveTo(ankleX - 3, 21 + bob, footX - 2, 22 + bob, footX + 5, 22 + bob);
-    g.bezierCurveTo(footX + 6, 22 + bob, footX + 6, 20 + bob, ankleX + 2, 19 + bob);
-    g.fill({ color: bootC, alpha });
-    if (tBoots >= 3) { g.rect(ankleX - 1, 19.5 + bob, 3, 1.5); g.fill({ color: p.accent, alpha }); }
-    if (tBoots >= 5) { g.ellipse(ankleX, 21 + bob, 5, 2); g.fill({ color: 0xFFDD44, alpha: 0.25 * alpha }); }
+    // Coxa robusta
+    g.moveTo(offX - tw, 4 + bob);
+    g.bezierCurveTo(offX - tw - 1.5, 7 + bob, knX - 4, 10 + bob, knX - 3, 12.5 + bob + swing * 0.12);
+    g.bezierCurveTo(knX + 3.5, 12.5 + bob + swing * 0.12, offX + tw + 1.5, 7 + bob, offX + tw, 4 + bob);
+    g.fill({ color: pantsC + sdV, alpha: al });
+
+    // Linha muscular quadriceps (frente)
+    if (!isBack) {
+      g.moveTo(offX + 2, 5 + bob);
+      g.bezierCurveTo(offX + 3.5, 8 + bob, knX + 2, 11 + bob, knX + 2, 12.5 + bob);
+      g.stroke({ color: shd(pantsC, 38), width: 0.9, alpha: 0.5 });
+    }
+
+    // Rotula (joelho visivel)
+    g.ellipse(knX, 12.5 + bob + swing * 0.12, 3.2, 2.6);
+    g.fill({ color: shd(pantsC + sdV, 18), alpha: al });
+    if (!isBack) {
+      g.ellipse(knX - 0.5, 12 + bob, 1.5, 1.2);
+      g.fill({ color: lgt(pantsC, 10), alpha: 0.35 });
+    }
+
+    // Canela com panturrilha definida (gastrocnemio)
+    g.moveTo(knX - 3, 12.5 + bob + swing * 0.12);
+    g.bezierCurveTo(knX - 3.5, 14.5 + bob, anX - 2.8, 17 + bob, anX - 2, 18.5 + bob);
+    g.bezierCurveTo(anX + 3, 17.5 + bob, knX + 3.5, 14.5 + bob, knX + 3, 12.5 + bob + swing * 0.12);
+    g.fill({ color: shd(pantsC + sdV, 12), alpha: al });
+    // curva do gastrocnemio
+    if (!isBack) {
+      g.moveTo(knX + 3, 13 + bob);
+      g.bezierCurveTo(knX + 5, 15 + bob, anX + 3.5, 17 + bob, anX + 2, 18.5 + bob);
+      g.stroke({ color: shd(pantsC, 48), width: 0.8, alpha: 0.55 });
+    }
+
+    // Bota / pe
+    g.moveTo(anX - 2.5, 18.5 + bob);
+    g.bezierCurveTo(anX - 3, 20.5 + bob, fxB - 1.5, 22.5 + bob, fxB + 7, 22.5 + bob);
+    g.bezierCurveTo(fxB + 8.5, 22.5 + bob, fxB + 8, 19.5 + bob, anX + 2.5, 18.5 + bob);
+    g.fill({ color: bootC, alpha: al });
+    // sola
+    if (!isBack) {
+      g.moveTo(fxB, 23 + bob); g.lineTo(fxB + 7.5, 23 + bob);
+      g.stroke({ color: shd(bootC, 55), width: 1.2, alpha: 0.8 });
+    }
+    // fivela da bota
+    if (tBoots >= 2 && !isBack) {
+      g.roundRect(anX - 2, 19.5 + bob, 4, 2.5, 0.8);
+      g.fill({ color: p.accent, alpha: al });
+    }
+    // brilho lendario
+    if (tBoots >= 5) {
+      g.ellipse(anX, 21 + bob, 7, 3);
+      g.fill({ color: 0xFFCC22, alpha: 0.28 * al });
+    }
   };
 
-  drawLeg(-5, leg2, true);
-  drawLeg(5,  leg1, true);
-  drawLeg(-5, leg1, false);
-  drawLeg(5,  leg2, false);
+  drawLeg(-6, leg2, true);
+  drawLeg(6, leg1, true);
+  drawLeg(-6, leg1, false);
+  drawLeg(6, leg2, false);
 
-  // â”€â”€ TRONCO â”€â”€
-  // Quadril
-  g.moveTo(-9, 2 + bob);
-  g.bezierCurveTo(-10, 4 + bob, -9, 6 + bob, -7, 6 + bob);
-  g.lineTo(7, 6 + bob);
-  g.bezierCurveTo(9, 6 + bob, 10, 4 + bob, 9, 2 + bob);
-  g.bezierCurveTo(7, 0 + bob, -7, 0 + bob, -9, 2 + bob);
-  g.fill(pantsC - 0x080608);
+  // ========================================================
+  // TRONCO (proporcoes heroicas: ombros +/-14, cintura +/-8)
+  // ========================================================
 
-  // Cinto
-  const beltY = 0 + bob;
-  g.roundRect(-8, beltY - 1.5, 16, 3.5, 1.5);
-  g.fill(tArmor >= 1 ? 0x5C3A1E : 0x8B6644);
+  // Quadril levemente alargado
+  g.moveTo(-11, 2 + bob);
+  g.bezierCurveTo(-12, 4.5 + bob, -11, 7.5 + bob, -8.5, 7.5 + bob);
+  g.lineTo(8.5, 7.5 + bob);
+  g.bezierCurveTo(11, 7.5 + bob, 12, 4.5 + bob, 11, 2 + bob);
+  g.bezierCurveTo(9, 0.5 + bob, -9, 0.5 + bob, -11, 2 + bob);
+  g.fill(shd(pantsC, 18));
+
+  // Cinto com fivela central
+  const beltY = 0.5 + bob;
+  g.roundRect(-10, beltY - 2.5, 20, 5, 2.5);
+  g.fill(tArmor >= 1 ? 0x3A2408 : 0x6A4820);
   if (tArmor >= 2) {
-    g.roundRect(-3, beltY - 2, 6, 4, 1); g.fill(p.accent);
-    g.roundRect(-2, beltY - 1, 4, 2, 0.5); g.fill(0x333322);
+    g.roundRect(-4.5, beltY - 3.5, 9, 7, 2.5); g.fill(p.accent);
+    g.roundRect(-3, beltY - 2, 6, 4, 1.5);     g.fill(shd(p.accent, 70));
+    g.circle(0, beltY, 2);                       g.fill(lgt(p.accent, 30));
+  } else {
+    g.roundRect(-3, beltY - 2, 6, 4, 1.5); g.fill(0x5A3C18);
   }
 
-  // Torso (camisa/armadura)
-  g.moveTo(-9, -2 + bob);
-  g.bezierCurveTo(-11, -8 + bob, -11, -14 + bob, -8, -16 + bob);
-  g.lineTo(8, -16 + bob);
-  g.bezierCurveTo(11, -14 + bob, 11, -8 + bob, 9, -2 + bob);
-  g.bezierCurveTo(7, 0 + bob, -7, 0 + bob, -9, -2 + bob);
+  // TORSO BASE -- cintura ~+-8, alarga progressivavmente
+  //   ate ombros ~+-14 (silhueta heroica em V)
+  g.moveTo(-8.5, 0.5 + bob);             // cintura esq
+  g.bezierCurveTo(-10, -5 + bob, -13, -11 + bob, -14.5, -16 + bob); // flanco esq ate ombro
+  g.lineTo(14.5, -16 + bob);             // linha do ombro
+  g.bezierCurveTo(13, -11 + bob, 10, -5 + bob, 8.5, 0.5 + bob);    // flanco dir
+  g.bezierCurveTo(6, 2 + bob, -6, 2 + bob, -8.5, 0.5 + bob);
   g.fill(torsoC);
 
-  // Detalhes do torso por classe
+  // Sombreamento lateral direito (iluminacao da esq)
+  g.moveTo(7.5, 0.5 + bob);
+  g.bezierCurveTo(9, -5 + bob, 12, -11 + bob, 14.5, -16 + bob);
+  g.lineTo(11, -16 + bob);
+  g.bezierCurveTo(10, -11 + bob, 8, -5 + bob, 6.5, 0.5 + bob);
+  g.fill({ color: shd(torsoC, 32), alpha: 0.6 });
+
+  // Highlight lateral esquerdo
+  g.moveTo(-7.5, 0.5 + bob);
+  g.bezierCurveTo(-9, -6 + bob, -11.5, -11 + bob, -13, -16 + bob);
+  g.lineTo(-10.5, -16 + bob);
+  g.bezierCurveTo(-9, -11 + bob, -6.5, -6 + bob, -5.5, 0.5 + bob);
+  g.fill({ color: lgt(torsoC, 28), alpha: 0.38 });
+
+  // Definicao peitoral (musculos pec sob a roupa/armadura)
+  if (tArmor <= 2) {
+    // arco do peitoral esq
+    g.moveTo(-13, -15 + bob);
+    g.bezierCurveTo(-13, -8 + bob, -5, -4.5 + bob, 0, -5.5 + bob);
+    g.stroke({ color: shd(torsoC, 42), width: 1.2, alpha: 0.65 });
+    // arco peitoral dir
+    g.moveTo(13, -15 + bob);
+    g.bezierCurveTo(13, -8 + bob, 5, -4.5 + bob, 0, -5.5 + bob);
+    g.stroke({ color: shd(torsoC, 42), width: 1.2, alpha: 0.65 });
+    // linha esternal central
+    g.moveTo(0, -15 + bob); g.lineTo(0, -0.5 + bob);
+    g.stroke({ color: shd(torsoC, 28), width: 0.9, alpha: 0.45 });
+    // linha abdominal inferior (2 costelas)
+    g.moveTo(-7, -3 + bob); g.lineTo(7, -3 + bob);
+    g.stroke({ color: shd(torsoC, 22), width: 0.7, alpha: 0.35 });
+  }
+
+  // Detalhes por classe
   if (cls === 'warrior') {
     if (tArmor === 0) {
-      g.moveTo(0, -15 + bob); g.lineTo(0, -1 + bob);
-      g.stroke({ color: 0xBBAA88, width: 0.8, alpha: 0.5 });
-      g.moveTo(-4, -15 + bob); g.lineTo(0, -11 + bob); g.lineTo(4, -15 + bob);
-      g.stroke({ color: 0xBBAA88, width: 1, alpha: 0.6 });
+      // costura V da camisa de linho
+      g.moveTo(-6, -15 + bob); g.lineTo(0, -9 + bob); g.lineTo(6, -15 + bob);
+      g.stroke({ color: shd(torsoC, 30), width: 1.1, alpha: 0.6 });
     } else if (tArmor <= 2) {
-      g.moveTo(-6, -14 + bob); g.lineTo(6, -14 + bob); g.stroke({ color: 0x4A3322, width: 1.2 });
-      g.moveTo(-7, -8 + bob);  g.lineTo(7, -8 + bob);  g.stroke({ color: 0x4A3322, width: 1 });
+      // colete de couro com tiras horizontais
+      g.moveTo(-10, -13 + bob); g.lineTo(10, -13 + bob);
+      g.stroke({ color: shd(torsoC, 35), width: 1.5 });
+      g.moveTo(-11, -7.5 + bob); g.lineTo(11, -7.5 + bob);
+      g.stroke({ color: shd(torsoC, 28), width: 1.2 });
+      // rebites
+      for (const rx of [-7.5, 0, 7.5]) {
+        g.circle(rx, -13 + bob, 1.3); g.fill(shd(torsoC, 60));
+      }
     } else {
-      g.moveTo(-8, -6 + bob); g.lineTo(8, -6 + bob); g.stroke({ color: p.accent, width: 1.5, alpha: 0.7 });
-      g.moveTo(0, -15 + bob); g.lineTo(0, -1 + bob);  g.stroke({ color: p.accent, width: 1.5, alpha: 0.7 });
-      if (tArmor >= 3) { g.roundRect(-14, -14 + bob, 6, 8, 3); g.fill(0x888888); g.roundRect(8, -14 + bob, 6, 8, 3); g.fill(0x888888); }
+      // placa de armadura
+      g.moveTo(-5, -15.5 + bob); g.lineTo(5, -15.5 + bob);
+      g.stroke({ color: p.accent, width: 2.2 });
+      g.moveTo(-14, -7 + bob); g.lineTo(14, -7 + bob);
+      g.stroke({ color: p.accent, width: 1.6, alpha: 0.8 });
+      g.moveTo(0, -15 + bob); g.lineTo(0, 0 + bob);
+      g.stroke({ color: p.accent, width: 1.5, alpha: 0.75 });
     }
   } else if (cls === 'mage') {
     if (tArmor === 0) {
-      g.moveTo(-5, -15 + bob); g.lineTo(0, -10 + bob); g.lineTo(5, -15 + bob);
-      g.stroke({ color: 0xAAAABB, width: 1.2 });
-      g.moveTo(0, -10 + bob); g.lineTo(0, -2 + bob); g.stroke({ color: 0xAAAABB, width: 0.8, alpha: 0.5 });
+      // robe com decote rúnico bordado
+      g.moveTo(-7, -15 + bob); g.lineTo(0, -8 + bob); g.lineTo(7, -15 + bob);
+      g.stroke({ color: shd(torsoC, 25), width: 1.3, alpha: 0.7 });
+      g.moveTo(-1.5, -8 + bob); g.lineTo(-1.5, -0.5 + bob);
+      g.stroke({ color: shd(torsoC, 18), width: 0.8, alpha: 0.4 });
     } else {
-      drawStar(g, 0, -9 + bob, 3, 5, tArmor >= 5 ? 0xFFDD44 : p.accent);
-      g.moveTo(-8, -13 + bob); g.lineTo(-8, -2 + bob); g.stroke({ color: p.accent, width: 0.8, alpha: 0.4 });
-      g.moveTo(8, -13 + bob);  g.lineTo(8, -2 + bob);  g.stroke({ color: p.accent, width: 0.8, alpha: 0.4 });
+      drawStar(g, 0, -8.5 + bob, 2.5, 4.5, tArmor >= 5 ? 0xFFDD44 : p.accent);
+      g.moveTo(-11, -14 + bob); g.lineTo(-11, -0.5 + bob);
+      g.stroke({ color: p.accent, width: 0.9, alpha: 0.4 });
+      g.moveTo(11, -14 + bob);  g.lineTo(11, -0.5 + bob);
+      g.stroke({ color: p.accent, width: 0.9, alpha: 0.4 });
     }
   } else if (cls === 'archer') {
-    if (tArmor === 0) {
-      g.moveTo(-7, -14 + bob); g.lineTo(4, -1 + bob); g.stroke({ color: 0x5C3A1E, width: 1.5, alpha: 0.5 });
-      g.moveTo(7, -14 + bob);  g.lineTo(-4, -1 + bob); g.stroke({ color: 0x5C3A1E, width: 1.5, alpha: 0.5 });
-    } else {
-      g.moveTo(-7, -14 + bob); g.lineTo(4, -1 + bob); g.stroke({ color: 0x8B6B42, width: 2 });
-      g.moveTo(7, -14 + bob);  g.lineTo(-4, -1 + bob); g.stroke({ color: 0x8B6B42, width: 2 });
-      if (tArmor >= 3) { g.circle(0, -8 + bob, 3); g.fill({ color: p.accent, alpha: 0.6 }); }
+    // tirantes de couro cruzados
+    g.moveTo(-11, -15 + bob); g.lineTo(6, 0.5 + bob);
+    g.stroke({ color: shd(torsoC, 48), width: 2.2, alpha: 0.75 });
+    g.moveTo(11, -15 + bob); g.lineTo(-6, 0.5 + bob);
+    g.stroke({ color: shd(torsoC, 48), width: 2.2, alpha: 0.75 });
+    if (tArmor >= 3) {
+      g.circle(0, -7 + bob, 3.5); g.fill({ color: p.accent, alpha: 0.7 });
     }
-  } else if (cls === 'assassin') {
-    if (tArmor === 0) {
-      g.roundRect(-6, -15 + bob, 12, 5, 2); g.fill({ color: 0x000000, alpha: 0.2 });
-    } else {
-      g.roundRect(-9, -15 + bob, 18, 7, 2); g.fill({ color: 0x000000, alpha: 0.25 });
-      if (tArmor >= 3) {
-        g.rect(-7, -3 + bob, 4, 5); g.fill(0x443355);
-        g.rect(3,  -3 + bob, 4, 5); g.fill(0x443355);
+  } else {
+    // assassin: colete escuro com fivelas
+    g.roundRect(-11, -15 + bob, 22, 8, 2.5);
+    g.fill({ color: 0x000000, alpha: 0.25 });
+    if (tArmor >= 2) {
+      for (const fx of [-5.5, 5.5]) {
+        g.roundRect(fx - 2, -11 + bob, 4, 3, 1);
+        g.fill(0x7A7A8E);
       }
     }
-  }
-
-  if (tArmor >= 4) {
-    g.roundRect(-9, -16 + bob, 18, 18, 3);
-    g.stroke({ color: tArmor >= 5 ? 0xFFDD44 : p.accent, width: 1.2, alpha: tArmor >= 5 ? 0.7 : 0.35 });
-  }
-
-  // â”€â”€ OMBREIRAS (tier â‰¥ 2) â”€â”€
-  if (tArmor >= 2 && shoulC !== 0) {
-    g.ellipse(-12, -14 + bob, 5, 4); g.fill(shoulC);
-    g.ellipse( 12, -14 + bob, 5, 4); g.fill(shoulC);
-    g.circle(-12, -14 + bob, 1.3); g.fill(p.accent);
-    g.circle( 12, -14 + bob, 1.3); g.fill(p.accent);
-    if (tArmor >= 5) {
-      g.ellipse(-12, -14 + bob, 7, 5); g.fill({ color: p.accent, alpha: 0.2 });
-      g.ellipse( 12, -14 + bob, 7, 5); g.fill({ color: p.accent, alpha: 0.2 });
+    if (tArmor >= 3) {
+      g.roundRect(-10, -3 + bob, 4.5, 6, 1.5); g.fill(0x332244);
+      g.roundRect(5.5, -3 + bob, 4.5, 6, 1.5); g.fill(0x332244);
     }
   }
 
-  // â”€â”€ BRAÃ‡OS articulados â”€â”€
-  const drawArm = (side: -1 | 1, swing: number, isBack: boolean): void => {
-    const alpha  = isBack ? 0.68 : 1.0;
-    const shade  = isBack ? -0x181418 : 0;
-    const sx     = side * 10;
-    const elbX   = sx + swing * side * 0.5;
-    const wristX = sx + swing * side;
+  // Brilho de armadura alta
+  if (tArmor >= 4) {
+    g.moveTo(-14.5, -16 + bob); g.lineTo(14.5, -16 + bob);
+    g.stroke({ color: tArmor >= 5 ? 0xFFEE44 : lgt(p.accent, 50), width: 1.8, alpha: tArmor >= 5 ? 0.8 : 0.45 });
+    g.roundRect(-14, -16 + bob, 28, 17, 4);
+    g.stroke({ color: tArmor >= 5 ? 0xFFDD44 : p.accent, width: 1.1, alpha: 0.25 });
+  }
 
-    // manga / braÃ§o superior
-    g.moveTo(sx - 3 * side, -15 + bob);
-    g.bezierCurveTo(sx - 4 * side, -8 + bob, elbX - 3 * side, -3 + bob, elbX - 2, -4 + bob + swing * 0.1);
-    g.bezierCurveTo(elbX + 2, -4 + bob + swing * 0.1, sx + 4 * side, -8 + bob, sx + 3 * side, -15 + bob);
-    g.fill({ color: torsoC + shade, alpha });
-    // cotovelo
-    g.circle(elbX, -4 + bob + swing * 0.1, 2.5);
-    g.fill({ color: torsoC + shade - 0x080608, alpha });
-    // antebraÃ§o
-    g.moveTo(elbX - 2, -4 + bob + swing * 0.1);
-    g.bezierCurveTo(elbX - 3, 2 + bob, wristX - 2, 5 + bob, wristX - 1.5, 6 + bob + swing * 0.2);
-    g.bezierCurveTo(wristX + 2, 5 + bob, elbX + 2, 2 + bob, elbX + 2, -4 + bob + swing * 0.1);
-    g.fill({ color: torsoC + shade + 0x060408, alpha });
-    // mÃ£o (pele)
-    g.circle(wristX, 7 + bob + swing * 0.25, 2.8);
-    g.fill({ color: p.skin, alpha });
-    // luva em tiers altos
+  // ========================================================
+  // OMBREIRAS VOLUMOSAS (tier >= 2)
+  // ========================================================
+  if (tArmor >= 2 && shoulC !== 0) {
+    // ombreira esquerda -- com aresta iluminada
+    g.ellipse(-13.5, -15 + bob, 7, 5.5); g.fill(shoulC);
+    g.ellipse(-14, -15.5 + bob, 5.5, 3.5); g.fill(lgt(shoulC, 28));
+    g.circle(-13.5, -14.5 + bob, 1.8); g.fill(p.accent);
+    // sombra inferior da ombreira
+    g.moveTo(-18, -13 + bob); g.lineTo(-10, -13 + bob);
+    g.stroke({ color: shd(shoulC, 40), width: 0.9, alpha: 0.5 });
+    // ombreira direita
+    g.ellipse(13.5, -15 + bob, 7, 5.5); g.fill(shoulC);
+    g.ellipse(14, -15.5 + bob, 5.5, 3.5); g.fill(lgt(shoulC, 28));
+    g.circle(13.5, -14.5 + bob, 1.8); g.fill(p.accent);
+    g.moveTo(10, -13 + bob); g.lineTo(18, -13 + bob);
+    g.stroke({ color: shd(shoulC, 40), width: 0.9, alpha: 0.5 });
+    // aura lendaria
+    if (tArmor >= 5) {
+      g.ellipse(-13.5, -15 + bob, 11, 8); g.fill({ color: p.accent, alpha: 0.18 });
+      g.ellipse(13.5, -15 + bob, 11, 8); g.fill({ color: p.accent, alpha: 0.18 });
+    }
+  }
+
+  // ========================================================
+  // BRACOS MUSCULOSOS
+  // ========================================================
+  const drawArm = (side: -1 | 1, swing: number, isBack: boolean): void => {
+    const al  = isBack ? 0.62 : 1.0;
+    const sdV = isBack ? -40 : 0;
+    const sx  = side * 11.5;          // raiz no ombro
+    const elX = sx + swing * side * 0.58;  // cotovelo
+    const wrX = sx + swing * side * 1.1;   // pulso
+
+    // Bicep / braco superior (espesso, muscular)
+    g.moveTo(sx - 4 * side, -15.5 + bob);
+    g.bezierCurveTo(
+      sx - 6.5 * side, -9 + bob,
+      elX - 4.5,        -3.5 + bob + swing * 0.13,
+      elX - 3,          -4 + bob + swing * 0.13,
+    );
+    g.bezierCurveTo(
+      elX + 3,           -4 + bob + swing * 0.13,
+      sx + 5.5 * side,  -9 + bob,
+      sx + 3.5 * side,  -15.5 + bob,
+    );
+    g.fill({ color: torsoC + sdV, alpha: al });
+
+    // Highlight do bicep (crista muscular)
+    if (!isBack) {
+      g.moveTo(sx - 5 * side, -13.5 + bob);
+      g.bezierCurveTo(sx - 7 * side, -8 + bob, elX - 5.5, -5 + bob, elX - 3.5, -4 + bob);
+      g.stroke({ color: lgt(torsoC, 32), width: 0.9, alpha: 0.5 });
+    }
+
+    // Cotovelo articular
+    g.circle(elX, -4 + bob + swing * 0.13, 3.2);
+    g.fill({ color: shd(torsoC + sdV, 22), alpha: al });
+
+    // Antebraco (levemente mais espesso que a media = atletico)
+    g.moveTo(elX - 3, -4 + bob + swing * 0.13);
+    g.bezierCurveTo(elX - 3.8, 2.5 + bob, wrX - 3, 5.5 + bob, wrX - 2.5, 7 + bob + swing * 0.22);
+    g.bezierCurveTo(wrX + 3, 6.5 + bob, elX + 3.5, 2.5 + bob, elX + 3, -4 + bob + swing * 0.13);
+    g.fill({ color: lgt(torsoC + sdV, 10), alpha: al });
+
+    // Veias discretas no antebraco (apenas sem armadura)
+    if (!isBack && tArmor <= 1) {
+      const veinC = shd(p.skin, 30);
+      g.moveTo(elX - 0.5, -1 + bob + swing * 0.1);
+      g.bezierCurveTo(elX - 1, 2.5 + bob, wrX - 1.5, 5.5 + bob, wrX - 1.5, 7 + bob + swing * 0.18);
+      g.stroke({ color: veinC, width: 0.7, alpha: 0.52 });
+      g.moveTo(elX + 1, 0 + bob);
+      g.bezierCurveTo(elX + 0.5, 3 + bob, wrX + 0.8, 5.5 + bob, wrX + 0.5, 6.5 + bob);
+      g.stroke({ color: veinC, width: 0.5, alpha: 0.38 });
+    }
+
+    // MAO com proporco realista e dedos visiveis
+    g.ellipse(wrX, 9 + bob + swing * 0.3, 3.8, 3.2);
+    g.fill({ color: p.skin, alpha: al });
+    // knuckles (4 dedos)
+    if (!isBack) {
+      for (let fi = 0; fi < 4; fi++) {
+        const kx = wrX - 3.2 + fi * 2.2;
+        const ky = 10.5 + bob + swing * 0.32 + (fi === 0 || fi === 3 ? 0.6 : 0);
+        g.circle(kx, ky, 1.0); g.fill({ color: shd(p.skin, 22), alpha: 0.9 });
+      }
+      // polegar (lateral)
+      g.circle(wrX + 3.5 * side, 8.5 + bob + swing * 0.25, 1.1);
+      g.fill({ color: shd(p.skin, 18), alpha: 0.8 });
+    }
+
+    // Bracelete / luva tier >= 3
     if (tArmor >= 3) {
-      g.roundRect(wristX - 3, 3 + bob + swing * 0.2, 6, 5, 1.5);
-      g.fill({ color: tArmor >= 5 ? 0xCCBB44 : 0x778899, alpha });
+      g.roundRect(wrX - 4, 4.5 + bob + swing * 0.2, 8, 5.5, 2.5);
+      g.fill({ color: tArmor >= 5 ? 0xBBAA22 : 0x5A6878, alpha: al });
+      g.moveTo(wrX - 3.5, 6 + bob + swing * 0.2); g.lineTo(wrX + 3.5, 6 + bob + swing * 0.2);
+      g.stroke({ color: lgt(tArmor >= 5 ? 0xBBAA22 : 0x5A6878, 35), width: 0.8, alpha: al * 0.65 });
+    }
+
+    // Marca runica no ombro esquerdo (apenas sem armadura)
+    if (tArmor === 0 && side === -1 && !isBack) {
+      drawRune(g, sx - 0.5, -12 + bob, p.skin);
     }
   };
 
   drawArm(-1, arm2, true);
-  drawArm(1,  arm1, true);
+  drawArm(1, arm1, true);
   drawArm(-1, arm1, false);
-  drawArm(1,  arm2, false);
+  drawArm(1, arm2, false);
 
-  // â”€â”€ PESCOÃ‡O â”€â”€
-  const headY = -27 + bob;
-  g.moveTo(-3, -16 + bob);
-  g.bezierCurveTo(-3.2, -20 + bob, -2.5, -21 + bob, 0, -21 + bob);
-  g.bezierCurveTo(2.5, -21 + bob, 3.2, -20 + bob, 3, -16 + bob);
+  // ========================================================
+  // PESCOCO FORTE E CURTO
+  // ========================================================
+  const headY = -31 + bob;
+
+  // Corpo do pescoco (espesso)
+  g.moveTo(-5, -16 + bob);
+  g.bezierCurveTo(-5, -19.5 + bob, -4, -22 + bob, 0, -22 + bob);
+  g.bezierCurveTo(4, -22 + bob, 5, -19.5 + bob, 5, -16 + bob);
+  g.fill(p.skin);
+  // Musculos do trapezio (lateral do pescoco)
+  g.moveTo(-4.5, -16 + bob); g.lineTo(-7, -14 + bob); g.lineTo(-3, -22 + bob);
+  g.fill({ color: shd(p.skin, 28), alpha: 0.45 });
+  g.moveTo(4.5, -16 + bob); g.lineTo(7, -14 + bob); g.lineTo(3, -22 + bob);
+  g.fill({ color: shd(p.skin, 28), alpha: 0.45 });
+  // linha central do pescoco (esternocleidomastoideo)
+  g.moveTo(0, -16 + bob); g.lineTo(0, -22.5 + bob);
+  g.stroke({ color: shd(p.skin, 35), width: 0.9, alpha: 0.3 });
+
+  // ========================================================
+  // CABECA HEROICA (queixo marcado, mandibula estruturada)
+  // ========================================================
+
+  // Cranio (cabeca um pouco mais comprimida para top-down)
+  g.ellipse(0, headY, 9.5, 9.8);
   g.fill(p.skin);
 
-  // â”€â”€ CABEÃ‡A â”€â”€
-  g.ellipse(0, headY, 9, 10);
+  // Mandibula / bochecha
+  g.moveTo(-7.5, headY + 3);
+  g.bezierCurveTo(-9, headY + 6.5, -7, headY + 10, -3.5, headY + 12.5);
+  g.bezierCurveTo(-1.5, headY + 14, 1.5, headY + 14, 3.5, headY + 12.5);
+  g.bezierCurveTo(7, headY + 10, 9, headY + 6.5, 7.5, headY + 3);
   g.fill(p.skin);
-  // queixo
-  g.moveTo(-7, headY + 3);
-  g.bezierCurveTo(-8, headY + 7, -5, headY + 10, 0, headY + 11);
-  g.bezierCurveTo(5, headY + 10, 8, headY + 7, 7, headY + 3);
-  g.fill(p.skin);
-  // orelhas
-  if (tHelm === 0) {
-    if (dir === 'down' || dir === 'up') {
-      g.ellipse(-9.5, headY + 1, 1.8, 2.5); g.fill(p.skin - 0x101010);
-      g.ellipse( 9.5, headY + 1, 1.8, 2.5); g.fill(p.skin - 0x101010);
-    } else if (dir === 'left') {
-      g.ellipse(7, headY + 1, 1.6, 2.3); g.fill(p.skin - 0x101010);
-    } else {
-      g.ellipse(-7, headY + 1, 1.6, 2.3); g.fill(p.skin - 0x101010);
+
+  // Queixo marcado (plano central do queixo)
+  g.moveTo(-2.5, headY + 13.5);
+  g.bezierCurveTo(-2, headY + 15, 2, headY + 15, 2.5, headY + 13.5);
+  g.fill(shd(p.skin, 18));
+
+  // Linha da mandibula (estruturada)
+  g.moveTo(-7.5, headY + 3.5);
+  g.bezierCurveTo(-9, headY + 7, -7.5, headY + 11, -4, headY + 12);
+  g.stroke({ color: shd(p.skin, 38), width: 1, alpha: 0.6 });
+  g.moveTo(7.5, headY + 3.5);
+  g.bezierCurveTo(9, headY + 7, 7.5, headY + 11, 4, headY + 12);
+  g.stroke({ color: shd(p.skin, 38), width: 1, alpha: 0.6 });
+
+  // Sombreamento lateral (volume craniano)
+  g.ellipse(4.5, headY + 1, 4, 7.5);
+  g.fill({ color: shd(p.skin, 28), alpha: 0.32 });
+
+  // Textura de pele (microdetalhe)
+  if (dir !== 'up') {
+    for (let ti = 0; ti < 3; ti++) {
+      const tx = -3 + ti * 3;
+      g.circle(tx, headY + 8, 0.6);
+      g.fill({ color: shd(p.skin, 12), alpha: 0.28 });
     }
   }
 
-  // â”€â”€ CABELO â”€â”€
+  // Orelhas
+  if (tHelm === 0) {
+    if (dir === 'down' || dir === 'up') {
+      // orelha esq
+      g.ellipse(-10.5, headY + 0, 2.2, 3.2); g.fill(shd(p.skin, 18));
+      g.ellipse(-10.5, headY + 0, 1.2, 1.8); g.fill(shd(p.skin, 35));
+      // orelha dir
+      g.ellipse(10.5, headY + 0, 2.2, 3.2); g.fill(shd(p.skin, 18));
+      g.ellipse(10.5, headY + 0, 1.2, 1.8); g.fill(shd(p.skin, 35));
+    } else if (dir === 'left') {
+      g.ellipse(7.5, headY + 0, 2, 3); g.fill(shd(p.skin, 18));
+      g.ellipse(7.5, headY + 0, 1.1, 1.7); g.fill(shd(p.skin, 30));
+    } else {
+      g.ellipse(-7.5, headY + 0, 2, 3); g.fill(shd(p.skin, 18));
+      g.ellipse(-7.5, headY + 0, 1.1, 1.7); g.fill(shd(p.skin, 30));
+    }
+  }
+
+  // CABELO
   if (tHelm === 0) drawHair(g, cls, dir, headY, frame, p);
 
-  // â”€â”€ ROSTO â”€â”€
-  if (dir !== 'up') drawFace(g, cls, dir, headY, p);
-  else if (tHelm === 0) { g.arc(0, headY - 2, 9, -Math.PI, 0); g.fill(p.hair); }
+  // Vista traseira: topo do cabelo
+  if (dir === 'up' && tHelm === 0) {
+    g.arc(0, headY - 1, 10, -Math.PI, 0);
+    g.fill(p.hair);
+    if (cls === 'warrior') {
+      // espinhos na vista traseira
+      for (let si = -8; si <= 8; si += 4) {
+        g.moveTo(si, headY - 9); g.lineTo(si + 1, headY - 15); g.lineTo(si + 2.5, headY - 9);
+        g.fill(p.hair);
+      }
+    }
+  }
 
-  // â”€â”€ CAPACETE â”€â”€
+  // ROSTO
+  if (dir !== 'up') drawFace(g, cls, dir, headY, p);
+
+  // CAPACETE
   if (tHelm >= 1) drawHelmet(g, cls, dir, headY, tHelm, p, frame);
 
-  // â”€â”€ ARMA â”€â”€
+  // ARMA
   drawWeaponSprite(g, cls, dir, bob, arm2, frame, p, tWeapon);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
+//  MARCA RUNICA (entalhe na pele do ombro)
+// ======================================================
+function drawRune(
+  g: Graphics, cx: number, cy: number, skinC: number,
+): void {
+  const rc = shd(skinC, 62);
+  const rl = 0.7;
+  // Runa tipo Elder Futhark: 3 tracos verticais + 2 diagonais
+  g.moveTo(cx - 2.5, cy - 3); g.lineTo(cx - 2.5, cy + 3);
+  g.stroke({ color: rc, width: rl, alpha: 0.7 });
+  g.moveTo(cx,       cy - 3); g.lineTo(cx,       cy + 3);
+  g.stroke({ color: rc, width: rl, alpha: 0.7 });
+  g.moveTo(cx + 2.5, cy - 3); g.lineTo(cx + 2.5, cy + 3);
+  g.stroke({ color: rc, width: rl, alpha: 0.7 });
+  g.moveTo(cx - 2.5, cy - 3); g.lineTo(cx,       cy);
+  g.stroke({ color: rc, width: rl, alpha: 0.55 });
+  g.moveTo(cx,       cy - 3); g.lineTo(cx + 2.5, cy);
+  g.stroke({ color: rc, width: rl, alpha: 0.55 });
+  // ponto central
+  g.circle(cx, cy + 3.5, 0.7); g.fill({ color: rc, alpha: 0.5 });
+}
+
+// ======================================================
 //  CABELO por classe
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
 function drawHair(
   g: Graphics, cls: PlayerClass, dir: Direction,
   headY: number, frame: number, p: typeof CLASS_PALETTE.warrior,
 ): void {
   if (cls === 'warrior') {
-    g.arc(0, headY, 10, -Math.PI, 0.05); g.fill(p.hair);
-    const spikes = dir === 'up' ? [-5,-3,-1,1,3,5] : [-4,-2,0,2,4];
-    for (const sx of spikes) {
-      const h = 11 + Math.abs(sx) * 0.5;
-      g.moveTo(sx * 1.6, headY - 8); g.lineTo(sx * 1.6 + 1, headY - 8 - h);
-      g.lineTo(sx * 1.6 + 2.2, headY - 8); g.fill(p.hair);
-    }
+    // Cabelo curto com espinhos agressivos
+    g.arc(0, headY, 10.5, -Math.PI, 0.1); g.fill(p.hair);
+    // costeleta (sideburn)
     if (dir !== 'up') {
-      g.moveTo(-8, headY + 4); g.bezierCurveTo(-10, headY + 8, -8, headY + 12, -5, headY + 11); g.fill(p.hair);
-      g.moveTo( 8, headY + 4); g.bezierCurveTo( 10, headY + 8,  8, headY + 12,  5, headY + 11); g.fill(p.hair);
+      g.moveTo(-8.5, headY + 5); g.bezierCurveTo(-11, headY + 9, -9, headY + 14, -6, headY + 13);
+      g.fill(shd(p.hair, 20));
+      if (dir === 'down') {
+        g.moveTo(8.5, headY + 5); g.bezierCurveTo(11, headY + 9, 9, headY + 14, 6, headY + 13);
+        g.fill(shd(p.hair, 20));
+      }
+    }
+    // Espinhos no topo
+    const spikes = [-5, -3, -1, 1, 3, 5];
+    for (const sx of spikes) {
+      const h = 12 + Math.abs(sx) * 0.4;
+      g.moveTo(sx * 1.5, headY - 7);
+      g.lineTo(sx * 1.5 + 1.2, headY - 7 - h);
+      g.lineTo(sx * 1.5 + 2.8, headY - 7);
+      g.fill(p.hair);
+      // aresta brilhante no espinho
+      g.moveTo(sx * 1.5 + 1, headY - 7);
+      g.lineTo(sx * 1.5 + 1.6, headY - 7 - h * 0.75);
+      g.stroke({ color: lgt(p.hair, 25), width: 0.6, alpha: 0.5 });
     }
   } else if (cls === 'mage') {
-    g.arc(0, headY, 10, -Math.PI, 0.05); g.fill(p.hair);
-    const wave = Math.sin(frame * 0.05) * 2;
-    g.moveTo(-9, headY + 1);
-    g.bezierCurveTo(-12, headY + 8 + wave, -11, headY + 18, -7, headY + 20);
-    g.lineTo(-5, headY + 20);
-    g.bezierCurveTo(-9, headY + 16, -9, headY + 8, -6, headY + 1); g.fill(p.hair);
+    // Cabelo longo prateado/branco ondulado
+    g.arc(0, headY, 10.5, -Math.PI, 0.1); g.fill(p.hair);
+    const wave = Math.sin(frame * 0.04) * 2.5;
+    // Mecha esquerda
+    g.moveTo(-9, headY + 2);
+    g.bezierCurveTo(-13, headY + 9 + wave, -12, headY + 20, -8, headY + 22);
+    g.lineTo(-5.5, headY + 22);
+    g.bezierCurveTo(-8.5, headY + 18, -9, headY + 10, -5.5, headY + 2);
+    g.fill(p.hair);
+    // Mecha direita
     if (dir !== 'up') {
-      g.moveTo(9, headY + 1);
-      g.bezierCurveTo(12, headY + 8 + wave, 11, headY + 18, 7, headY + 20);
-      g.lineTo(5, headY + 20);
-      g.bezierCurveTo(9, headY + 16, 9, headY + 8, 6, headY + 1); g.fill(p.hair);
+      g.moveTo(9, headY + 2);
+      g.bezierCurveTo(13, headY + 9 + wave, 12, headY + 20, 8, headY + 22);
+      g.lineTo(5.5, headY + 22);
+      g.bezierCurveTo(8.5, headY + 18, 9, headY + 10, 5.5, headY + 2);
+      g.fill(p.hair);
     }
-    // ChapÃ©u simples (base sem equipamento)
-    g.moveTo(-8, headY - 7); g.lineTo(0, headY - 22); g.lineTo(8, headY - 7); g.fill(p.cloth);
-    g.moveTo(-10, headY - 6); g.lineTo(10, headY - 6); g.stroke({ color: p.accent, width: 2 });
-    drawStar(g, 2, headY - 15, 2, 4, p.accent);
+    // Chapeu pontudo basico (antes do capacete)
+    g.moveTo(-9, headY - 8);
+    g.lineTo(0, headY - 25);
+    g.lineTo(9, headY - 8);
+    g.fill(p.cloth);
+    // borda do chapeu
+    g.moveTo(-11, headY - 7); g.lineTo(11, headY - 7);
+    g.stroke({ color: p.accent, width: 2.2 });
+    drawStar(g, 1.5, headY - 17, 2, 3.5, p.accent);
+    // reflexo no chapeu
+    g.moveTo(-4, headY - 9); g.lineTo(-1, headY - 22);
+    g.stroke({ color: lgt(p.cloth, 28), width: 0.8, alpha: 0.4 });
   } else if (cls === 'archer') {
-    g.arc(0, headY, 10, -Math.PI, -0.15); g.fill(p.hair);
-    g.arc(0, headY - 2, 10.5, -Math.PI * 0.85, -Math.PI * 0.15); g.stroke({ color: p.accent, width: 2 });
-    const tailWave = Math.sin(frame * 0.07) * 4;
+    // Rabo de cavalo + bandana
+    g.arc(0, headY, 10.5, -Math.PI, -0.1); g.fill(p.hair);
+    // bandana
+    g.arc(0, headY - 2, 11, -Math.PI * 0.88, -Math.PI * 0.12);
+    g.stroke({ color: p.accent, width: 2.5 });
+    // rabo ondulante
+    const tailW = Math.sin(frame * 0.07) * 4.5;
     if (dir !== 'left') {
-      g.moveTo(7, headY - 4); g.bezierCurveTo(14, headY + 2, 16 + tailWave, headY + 12, 12 + tailWave, headY + 18);
-      g.stroke({ color: p.hair, width: 4 });
+      g.moveTo(7.5, headY - 5);
+      g.bezierCurveTo(15, headY + 1, 17 + tailW, headY + 12, 13 + tailW, headY + 20);
+      g.stroke({ color: p.hair, width: 4.5 });
+      // fio de destaque no rabo
+      g.moveTo(7, headY - 5);
+      g.bezierCurveTo(13, headY + 1, 15 + tailW * 0.8, headY + 12, 11 + tailW * 0.8, headY + 20);
+      g.stroke({ color: lgt(p.hair, 30), width: 1.2, alpha: 0.4 });
     } else {
-      g.moveTo(-7, headY - 4); g.bezierCurveTo(-14, headY + 2, -16 + tailWave, headY + 12, -12 + tailWave, headY + 18);
-      g.stroke({ color: p.hair, width: 4 });
+      g.moveTo(-7.5, headY - 5);
+      g.bezierCurveTo(-15, headY + 1, -17 + tailW, headY + 12, -13 + tailW, headY + 20);
+      g.stroke({ color: p.hair, width: 4.5 });
     }
   } else {
-    // assassin â€” capuz
-    g.arc(0, headY, 11, -Math.PI, 0.15); g.fill(p.primary);
-    g.arc(0, headY + 1, 11.5, -Math.PI * 0.85, -Math.PI * 0.05); g.stroke({ color: p.secondary, width: 1.8 });
-    g.arc(0, headY, 9.5, -Math.PI * 0.5, Math.PI * 0.15); g.fill({ color: 0x000000, alpha: 0.2 });
+    // Assassino: capuz escuro profundo
+    g.arc(0, headY, 11.5, -Math.PI, 0.22); g.fill(p.primary);
+    // volume do capuz
+    g.arc(0, headY - 1, 12, -Math.PI * 0.95, -Math.PI * 0.05);
+    g.stroke({ color: p.secondary, width: 2 });
+    // sombra interna do capuz
+    g.arc(0, headY, 10, -Math.PI * 0.55, Math.PI * 0.2);
+    g.fill({ color: 0x000000, alpha: 0.28 });
+    // dobra lateral do capuz
+    g.moveTo(-10, headY - 4); g.bezierCurveTo(-12, headY + 2, -11, headY + 8, -8, headY + 12);
+    g.stroke({ color: shd(p.primary, 25), width: 0.9, alpha: 0.5 });
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  ROSTO â€” traÃ§os humanos realistas
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
+//  ROSTO -- tracros marcados, simplificados para top-down
+// ======================================================
 function drawFace(
   g: Graphics, cls: PlayerClass, dir: Direction,
   headY: number, p: typeof CLASS_PALETTE.warrior,
 ): void {
-  const shift = dir === 'left' ? -2.5 : dir === 'right' ? 2 : 0;
+  const shift = dir === 'left' ? -3 : dir === 'right' ? 2.5 : 0;
+  const mirrorX = (x: number) => dir === 'left' ? -x + shift + 2 : x + shift;
 
   if (cls !== 'assassin') {
-    // Sobrancelhas
-    g.moveTo(-5.5 + shift, headY - 5);
-    g.bezierCurveTo(-3.5 + shift, headY - 5.5, -1.5 + shift, headY - 5.2, -0.5 + shift, headY - 4.8);
-    g.stroke({ color: p.hair, width: 1.3 });
-    g.moveTo(5.5 + shift, headY - 5);
-    g.bezierCurveTo(3.5 + shift, headY - 5.5, 1.5 + shift, headY - 5.2, 0.5 + shift, headY - 4.8);
-    g.stroke({ color: p.hair, width: 1.3 });
 
-    // Olhos (esclera + Ã­ris + pupila + brilho)
-    const eyeC = cls === 'warrior' ? 0x5C3A1E : cls === 'mage' ? 0x4488CC : cls === 'archer' ? 0x336633 : 0x553366;
-    for (const ex of [-3.2 + shift, 3.2 + shift]) {
-      g.ellipse(ex, headY - 1.5, 2.8, 2.3); g.fill(0xF8F4EE);
-      g.ellipse(ex + 0.3, headY - 1.3, 1.8, 1.8); g.fill(eyeC);
-      g.circle(ex + 0.5, headY - 1.2, 0.9); g.fill(0x111122);
-      g.circle(ex + 0.9, headY - 1.8, 0.5); g.fill(0xFFFFFF);
+    // --- Sobrancelhas anguladas (descendo para o centro) ---
+    // Sobrancelha esquerda (angulada = mais baixa no centro)
+    g.moveTo(-6 + shift, headY - 5.5);
+    g.bezierCurveTo(-4.5 + shift, headY - 6, -2.5 + shift, headY - 5.5, -1 + shift, headY - 4.8);
+    g.stroke({ color: p.hair, width: 1.6 });
+    // Sobrancelha direita
+    g.moveTo(6 + shift, headY - 5.5);
+    g.bezierCurveTo(4.5 + shift, headY - 6, 2.5 + shift, headY - 5.5, 1 + shift, headY - 4.8);
+    g.stroke({ color: p.hair, width: 1.6 });
+
+    // --- Cicatriz discreta na sobrancelha esquerda ---
+    // (independente de classe, marca de personagem real)
+    const scarX = mirrorX(-4.5);
+    g.moveTo(scarX - 0.5, headY - 6.5);
+    g.lineTo(scarX + 1, headY - 4.5);
+    g.stroke({ color: lgt(p.skin, 38), width: 0.9, alpha: 0.7 });
+
+    // --- Olhos pequenos e expressivos ---
+    const eyeC = cls === 'warrior' ? 0x4A2E0E
+               : cls === 'mage'   ? 0x3366BB
+               : cls === 'archer' ? 0x2A5520
+               :                    0x442255;
+    for (const isLeft of [true, false]) {
+      const ex = (isLeft ? -3.8 : 3.8) + shift;
+      // esclera
+      g.ellipse(ex, headY - 1.8, 2.6, 2.1); g.fill(0xF5F0E8);
+      // palpebra superior (sombra leve)
+      g.moveTo(ex - 2.5, headY - 2.5); g.lineTo(ex + 2.5, headY - 2.5);
+      g.stroke({ color: shd(p.skin, 18), width: 0.7, alpha: 0.4 });
+      // iris
+      g.ellipse(ex + 0.3, headY - 1.7, 1.7, 1.7); g.fill(eyeC);
+      // pupila
+      g.circle(ex + 0.5, headY - 1.6, 0.85); g.fill(0x0C0C1A);
+      // reflexo
+      g.circle(ex + 0.9, headY - 2.2, 0.5); g.fill({ color: 0xFFFFFF, alpha: 0.85 });
     }
 
-    // Nariz
-    g.moveTo(0.5 + shift, headY + 0.5);
-    g.bezierCurveTo(-1 + shift, headY + 2.5, -1.5 + shift, headY + 3.5, 0 + shift, headY + 4);
-    g.stroke({ color: p.skin - 0x1A1410, width: 0.9, alpha: 0.6 });
-    g.ellipse(-1 + shift, headY + 4, 0.9, 0.6); g.fill({ color: p.skin - 0x252018, alpha: 0.5 });
-    g.ellipse(1.5 + shift, headY + 4, 0.9, 0.6); g.fill({ color: p.skin - 0x252018, alpha: 0.5 });
+    // --- Nariz curto e bem definido ---
+    g.moveTo(0.5 + shift, headY + 0.8);
+    g.bezierCurveTo(-1.2 + shift, headY + 2.8, -1.8 + shift, headY + 4, -0.2 + shift, headY + 4.5);
+    g.stroke({ color: shd(p.skin, 22), width: 1.0, alpha: 0.65 });
+    // narina esq
+    g.ellipse(-1.2 + shift, headY + 4.5, 1.1, 0.8);
+    g.fill({ color: shd(p.skin, 32), alpha: 0.55 });
+    // narina dir
+    g.ellipse(1.2 + shift, headY + 4.5, 1.1, 0.8);
+    g.fill({ color: shd(p.skin, 32), alpha: 0.55 });
 
-    // Boca por classe
+    // --- Boca por classe ---
     if (cls === 'warrior') {
-      g.moveTo(-2.5 + shift, headY + 6.5); g.lineTo(2.5 + shift, headY + 6.5);
-      g.stroke({ color: p.skin - 0x302820, width: 1 });
-      g.moveTo(-2 + shift, headY + 5.8);
-      g.bezierCurveTo(-1 + shift, headY + 5.2, 1 + shift, headY + 5.2, 2 + shift, headY + 5.8);
-      g.stroke({ color: p.skin - 0x282020, width: 0.7, alpha: 0.6 });
+      // Expressao serena-determinada (linha fechada)
+      g.moveTo(-2.8 + shift, headY + 7.5); g.lineTo(2.8 + shift, headY + 7.5);
+      g.stroke({ color: shd(p.skin, 42), width: 1.1 });
+      // labio superior (linha discreta)
+      g.moveTo(-2.2 + shift, headY + 6.5);
+      g.bezierCurveTo(-0.8 + shift, headY + 6, 0.8 + shift, headY + 6, 2.2 + shift, headY + 6.5);
+      g.stroke({ color: shd(p.skin, 30), width: 0.8, alpha: 0.55 });
     } else if (cls === 'mage') {
-      g.moveTo(-2.5 + shift, headY + 6);
-      g.bezierCurveTo(-1 + shift, headY + 7.5, 1 + shift, headY + 7.5, 2.5 + shift, headY + 6);
-      g.stroke({ color: p.skin - 0x2A2015, width: 1, alpha: 0.8 });
+      // Leve sorriso arrogante
+      g.moveTo(-2.5 + shift, headY + 7);
+      g.bezierCurveTo(-1 + shift, headY + 8.5, 1 + shift, headY + 8.5, 2.5 + shift, headY + 7);
+      g.stroke({ color: shd(p.skin, 35), width: 1, alpha: 0.8 });
     } else {
-      g.moveTo(-2 + shift, headY + 6);
-      g.bezierCurveTo(-0.5 + shift, headY + 7, 0.5 + shift, headY + 7, 2 + shift, headY + 6);
-      g.stroke({ color: p.skin - 0x2A2015, width: 1, alpha: 0.75 });
+      // Neutro-amigavel
+      g.moveTo(-2.2 + shift, headY + 7);
+      g.bezierCurveTo(-0.8 + shift, headY + 8, 0.8 + shift, headY + 8, 2.2 + shift, headY + 7);
+      g.stroke({ color: shd(p.skin, 30), width: 1, alpha: 0.75 });
     }
+
+    // Contorno estetico do queixo na vista frontal
+    if (dir === 'down') {
+      g.moveTo(-1.5, headY + 13); g.lineTo(0, headY + 14.5); g.lineTo(1.5, headY + 13);
+      g.stroke({ color: shd(p.skin, 25), width: 0.8, alpha: 0.5 });
+    }
+
   } else {
-    // Assassino: olhos brilhantes + mÃ¡scara
-    g.circle(-3 + shift, headY - 1, 1.8); g.fill({ color: p.accent, alpha: 0.85 });
-    g.circle(-3 + shift, headY - 1, 0.8); g.fill({ color: 0xFFFFFF, alpha: 0.6 });
-    g.circle(3 + shift, headY - 1, 1.8);  g.fill({ color: p.accent, alpha: 0.85 });
-    g.circle(3 + shift, headY - 1, 0.8);  g.fill({ color: 0xFFFFFF, alpha: 0.6 });
-    g.roundRect(-6 + shift, headY + 1, 12, 8, 2); g.fill({ color: p.primary, alpha: 0.9 });
-    g.moveTo(-4 + shift, headY + 4); g.lineTo(4 + shift, headY + 4);
-    g.stroke({ color: p.secondary, width: 0.8, alpha: 0.6 });
+    // --- Assassino: olhos brilhantes + mascara lower-face ---
+    const sX1 = -3.5 + shift, sX2 = 3.5 + shift;
+    // olho esq
+    g.circle(sX1, headY - 1.5, 2); g.fill({ color: p.accent, alpha: 0.9 });
+    g.circle(sX1, headY - 1.5, 1.1); g.fill({ color: 0x000000, alpha: 0.8 });
+    g.circle(sX1 + 0.6, headY - 2.1, 0.55); g.fill({ color: 0xFFFFFF, alpha: 0.7 });
+    // olho dir
+    g.circle(sX2, headY - 1.5, 2); g.fill({ color: p.accent, alpha: 0.9 });
+    g.circle(sX2, headY - 1.5, 1.1); g.fill({ color: 0x000000, alpha: 0.8 });
+    g.circle(sX2 + 0.6, headY - 2.1, 0.55); g.fill({ color: 0xFFFFFF, alpha: 0.7 });
+    // mascara lower-face
+    g.roundRect(-7 + shift, headY + 1.5, 14, 10, 2);
+    g.fill({ color: p.primary, alpha: 0.92 });
+    // detalhe costura da mascara
+    g.moveTo(-5 + shift, headY + 5); g.lineTo(5 + shift, headY + 5);
+    g.stroke({ color: p.secondary, width: 0.9, alpha: 0.55 });
+    g.moveTo(-5 + shift, headY + 8); g.lineTo(5 + shift, headY + 8);
+    g.stroke({ color: p.secondary, width: 0.7, alpha: 0.4 });
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
 //  CAPACETE por tier
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
 function drawHelmet(
   g: Graphics, cls: PlayerClass, _dir: Direction,
   headY: number, t: number, p: typeof CLASS_PALETTE.warrior, frame: number,
 ): void {
   if (cls === 'warrior' || cls === 'assassin') {
     if (t === 1) {
-      g.arc(0, headY, 10.5, -Math.PI * 0.95, 0.05); g.fill(0x7A5C3A);
+      // Capacete de couro
+      g.arc(0, headY, 11, -Math.PI * 0.96, 0.08); g.fill(0x6A4E28);
+      g.arc(0, headY, 11.5, -Math.PI * 0.88, -Math.PI * 0.12);
+      g.stroke({ color: shd(0x6A4E28, 30), width: 1 });
     } else if (t === 2) {
-      g.arc(0, headY, 11, -Math.PI, 0.1); g.fill(0x8B7355);
-      g.rect(-1.5, headY - 2, 3, 8); g.fill(0x7A6340);
+      // Elmo aberto de ferro
+      g.arc(0, headY, 11.5, -Math.PI, 0.12); g.fill(0x7A7055);
+      g.rect(-2, headY - 2, 4, 10); g.fill(0x6A6045);
+      g.arc(0, headY, 12, -Math.PI * 0.92, -Math.PI * 0.08);
+      g.stroke({ color: lgt(0x7A7055, 25), width: 1.2 });
     } else if (t === 3) {
-      g.arc(0, headY, 11, -Math.PI, 0.1); g.fill(0x6688AA);
-      g.arc(0, headY - 1, 11.5, -Math.PI * 0.8, -Math.PI * 0.2); g.stroke({ color: p.accent, width: 1.5 });
+      // Elmo de cota de malha
+      g.arc(0, headY, 11.5, -Math.PI, 0.12); g.fill(0x5A7088);
+      g.arc(0, headY - 1, 12, -Math.PI * 0.9, -Math.PI * 0.1);
+      g.stroke({ color: p.accent, width: 1.6 });
+      // nasal
+      g.rect(-1.5, headY, 3, 9); g.fill(0x4A6078);
     } else if (t === 4) {
-      g.ellipse(0, headY, 11, 12); g.fill(p.primary);
-      g.rect(-1.5, headY - 4, 3, 12); g.fill(p.accent);
-      g.arc(0, headY - 1, 12, -Math.PI, 0.15); g.stroke({ color: p.accent, width: 1.2 });
+      // Elmo fechado epico
+      g.ellipse(0, headY, 11.5, 12.5); g.fill(p.primary);
+      g.rect(-2, headY - 4, 4, 14); g.fill(p.accent);
+      g.arc(0, headY - 1, 12.5, -Math.PI, 0.15);
+      g.stroke({ color: p.accent, width: 1.5 });
+      // viseira horizontal
+      g.moveTo(-10, headY + 1); g.lineTo(10, headY + 1);
+      g.stroke({ color: p.accent, width: 0.9 });
     } else {
-      g.ellipse(0, headY, 11, 12); g.fill(p.primary);
-      g.ellipse(0, headY, 14, 15); g.fill({ color: 0xFFDD44, alpha: 0.18 });
-      g.moveTo(-6, headY - 10); g.bezierCurveTo(-10, headY - 20, -8, headY - 26, -4, headY - 22); g.fill(0xCCBB44);
-      g.moveTo( 6, headY - 10); g.bezierCurveTo( 10, headY - 20,  8, headY - 26,  4, headY - 22); g.fill(0xCCBB44);
-      g.arc(0, headY, 12, -Math.PI * 0.95, 0.1); g.stroke({ color: 0xFFDD44, width: 1.5 });
+      // Elmo lendario com chifres
+      g.ellipse(0, headY, 12, 13); g.fill(p.primary);
+      g.ellipse(0, headY, 15.5, 16.5); g.fill({ color: 0xFFDD44, alpha: 0.16 });
+      // chifres
+      g.moveTo(-6, headY - 10); g.bezierCurveTo(-10, headY - 20, -9, headY - 28, -5, headY - 24);
+      g.fill(0xCCBB33);
+      g.moveTo(6, headY - 10); g.bezierCurveTo(10, headY - 20, 9, headY - 28, 5, headY - 24);
+      g.fill(0xCCBB33);
+      // highlight nos chifres
+      g.moveTo(-8, headY - 12); g.bezierCurveTo(-9.5, headY - 20, -8.5, headY - 26, -5.5, headY - 23);
+      g.stroke({ color: lgt(0xCCBB33, 35), width: 0.8, alpha: 0.55 });
+      g.arc(0, headY, 13, -Math.PI * 0.96, 0.12); g.stroke({ color: 0xFFEE44, width: 1.8 });
+      // glow
+      const gl = Math.sin(frame * 0.06) * 0.08 + 0.12;
+      g.ellipse(0, headY, 17, 18); g.fill({ color: 0xFFCC22, alpha: gl });
     }
   } else if (cls === 'mage') {
-    const hats = [0x334466, 0x2244AA, 0x4466CC, 0x8844BB, 0xCCAA22];
+    const hats = [0x2A3855, 0x1A3899, 0x3355BB, 0x7733AA, 0xBB9918];
     const hatC = hats[Math.min(t - 1, 4)];
-    g.moveTo(-9, headY - 7); g.lineTo(0, headY - 24 - (t * 2)); g.lineTo(9, headY - 7); g.fill(hatC);
-    g.moveTo(-11, headY - 6); g.lineTo(11, headY - 6); g.stroke({ color: p.accent, width: 2 });
-    if (t >= 3) drawStar(g, 0, headY - 17, 3, 5.5, p.accent);
-    if (t >= 5) {
-      const glow = Math.sin(frame * 0.06) * 0.15 + 0.2;
-      g.circle(0, headY - 16, 8); g.fill({ color: 0xAADDFF, alpha: glow });
+    const hatH = 20 + t * 2.5;
+    g.moveTo(-10, headY - 7); g.lineTo(0, headY - hatH); g.lineTo(10, headY - 7);
+    g.fill(hatC);
+    // borda do chapeu
+    g.moveTo(-12, headY - 6); g.lineTo(12, headY - 6);
+    g.stroke({ color: p.accent, width: 2.5 });
+    // fita decorativa
+    g.moveTo(-10, headY - 9); g.lineTo(10, headY - 9);
+    g.stroke({ color: lgt(hatC, 25), width: 1.2, alpha: 0.5 });
+    if (t >= 3) {
+      drawStar(g, 0, headY - hatH * 0.6, 3, 5.5, p.accent);
     }
+    if (t >= 5) {
+      const glow = Math.sin(frame * 0.06) * 0.12 + 0.2;
+      g.circle(0, headY - hatH * 0.6, 9);
+      g.fill({ color: 0xAADDFF, alpha: glow });
+    }
+    // reflexo lateral do chapeu
+    g.moveTo(-5, headY - 9); g.lineTo(-1, headY - hatH * 0.92);
+    g.stroke({ color: lgt(hatC, 40), width: 0.8, alpha: 0.4 });
   } else {
     // archer
     if (t <= 2) {
-      g.arc(0, headY - 2, 11, -Math.PI * 0.85, -Math.PI * 0.15);
-      g.stroke({ color: t === 1 ? 0x8B6B42 : p.accent, width: 2.5 });
-      g.moveTo(8, headY - 10); g.bezierCurveTo(14, headY - 18, 10, headY - 14, 6, headY - 8); g.fill(0xDDDD88);
+      // Chapeu de aventureiro com pena
+      g.arc(0, headY - 1, 11.5, -Math.PI * 0.88, -Math.PI * 0.12);
+      g.stroke({ color: t === 1 ? 0x7A5C30 : p.accent, width: 2.8 });
+      // pena
+      g.moveTo(8, headY - 10);
+      g.bezierCurveTo(15, headY - 20, 12, headY - 16, 7, headY - 8);
+      g.fill(t === 1 ? 0xDDDD88 : p.accent);
+      g.moveTo(8, headY - 10); g.lineTo(12, headY - 18);
+      g.stroke({ color: lgt(0xDDDD88, 20), width: 0.8, alpha: 0.5 });
     } else {
-      g.arc(0, headY, 11, -Math.PI, 0.1); g.fill(0x4A6A2A);
-      g.arc(0, headY - 1, 12, -Math.PI * 0.9, -Math.PI * 0.1); g.stroke({ color: p.accent, width: 1.5 });
+      // Elmo de couro duro com viseira
+      g.arc(0, headY, 11.5, -Math.PI, 0.12); g.fill(0x3E5A22);
+      g.arc(0, headY - 1, 12.5, -Math.PI * 0.92, -Math.PI * 0.08);
+      g.stroke({ color: p.accent, width: 1.6 });
+      if (t >= 5) {
+        const gl = Math.sin(frame * 0.07) * 0.1 + 0.14;
+        g.ellipse(0, headY, 14, 14.5); g.fill({ color: p.accent, alpha: gl });
+      }
     }
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
 //  ARMA por classe e tier
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ======================================================
 function drawWeaponSprite(
   g: Graphics, cls: PlayerClass, _dir: Direction,
   bobY: number, armSwing: number, frame: number,
   p: typeof CLASS_PALETTE.warrior, tW: number,
 ): void {
-  const wb     = Math.sin(frame * 0.05) * 1;
-  const bladeC = tW === 0 ? 0xAAAAAA : tW <= 2 ? 0xBBBBCC : tW <= 3 ? 0xCCDDEE : tW >= 5 ? 0xFFEE88 : p.accent;
-  const handleC = tW === 0 ? 0x5C3A1E : tW <= 2 ? 0x7A4A22 : 0x222244;
+  const wb = Math.sin(frame * 0.05) * 1.2;
+  const bladeC  = tW === 0 ? 0x999999 : tW <= 2 ? 0xBBBBCC : tW <= 3 ? 0xCCDDEE : tW >= 5 ? 0xFFEE77 : p.accent;
+  const handleC = tW === 0 ? 0x5A3A10 : tW <= 2 ? 0x7A4A18 : 0x1C1C3A;
 
   if (cls === 'warrior') {
-    const sx = 15, sy = -6 + bobY - armSwing + wb;
+    const sx = 16, sy = -5 + bobY - armSwing + wb;
     if (tW === 0) {
-      // espada improvisada / faca de madeira
-      g.rect(sx - 1, sy - 14, 2, 16); g.fill(0x888888);
-      g.rect(sx - 4, sy, 8, 1.5); g.fill(0x666655);
-      g.rect(sx - 1, sy + 1, 2, 6); g.fill(0x7A5C3A);
+      // espada improvisada (madeira com fio metalico)
+      g.rect(sx - 1, sy - 15, 2, 17); g.fill(0x7A7A7A);
+      g.moveTo(sx, sy - 15); g.lineTo(sx + 0.8, sy - 2);
+      g.stroke({ color: 0xCCCCCC, width: 0.7, alpha: 0.5 });
+      g.rect(sx - 5, sy, 10, 2); g.fill(0x5A4A2A);
+      g.rect(sx - 1.5, sy + 1.5, 3, 8); g.fill(0x7A5C2A);
     } else {
-      g.moveTo(sx, sy); g.lineTo(sx + 2.5, sy - 18); g.lineTo(sx, sy - 21); g.lineTo(sx - 2.5, sy - 18); g.closePath(); g.fill(bladeC);
-      g.moveTo(sx, sy); g.lineTo(sx + 0.8, sy - 17); g.stroke({ color: 0xFFFFFF, width: 0.7, alpha: 0.55 });
-      g.rect(sx - 5, sy, 10, 2); g.fill(tW >= 5 ? 0xCCBB44 : p.accent);
-      g.rect(sx - 1.5, sy + 1.5, 3, 8); g.fill(handleC);
-      g.circle(sx, sy + 10, 2); g.fill(tW >= 5 ? 0xCCBB44 : p.accent);
-      if (tW >= 4) { g.moveTo(sx, sy); g.lineTo(sx, sy - 21); g.stroke({ color: bladeC, width: 3, alpha: 0.18 }); }
+      // lamina
+      g.moveTo(sx, sy);
+      g.lineTo(sx + 3, sy - 19); g.lineTo(sx, sy - 22); g.lineTo(sx - 3, sy - 19);
+      g.closePath(); g.fill(bladeC);
+      // aresta da lamina
+      g.moveTo(sx, sy); g.lineTo(sx + 1, sy - 18);
+      g.stroke({ color: 0xFFFFFF, width: 0.8, alpha: 0.6 });
+      g.moveTo(sx, sy); g.lineTo(sx - 0.5, sy - 18);
+      g.stroke({ color: shd(bladeC, 30), width: 0.6, alpha: 0.4 });
+      // guarda
+      g.rect(sx - 5.5, sy, 11, 2.5); g.fill(tW >= 5 ? 0xCCBB33 : p.accent);
+      g.moveTo(sx - 5.5, sy + 0.5); g.lineTo(sx + 5.5, sy + 0.5);
+      g.stroke({ color: lgt(tW >= 5 ? 0xCCBB33 : p.accent, 40), width: 0.7, alpha: 0.6 });
+      // cabo
+      g.rect(sx - 1.8, sy + 2, 3.5, 9); g.fill(handleC);
+      // enrolamento do cabo
+      for (let ti = 0; ti < 3; ti++) {
+        g.rect(sx - 1.8, sy + 3 + ti * 2.5, 3.5, 1);
+        g.fill({ color: lgt(handleC, 20), alpha: 0.5 });
+      }
+      // pomo
+      g.circle(sx, sy + 12, 2.5); g.fill(tW >= 5 ? 0xCCBB33 : p.accent);
+      // glow epico
+      if (tW >= 4) {
+        g.moveTo(sx, sy); g.lineTo(sx, sy - 22);
+        g.stroke({ color: bladeC, width: 4, alpha: 0.16 });
+      }
+      // Escudo (tier >= 2)
       if (tW >= 2) {
-        const shX = -17, shY = -2 + bobY + armSwing;
-        const shW = 10 + tW * 2, shH = 14 + tW * 2;
-        g.roundRect(shX - shW / 2, shY - shH / 2, shW, shH, 3); g.fill(tW >= 5 ? 0x9933AA : 0x667788);
-        g.roundRect(shX - shW / 2 + 2, shY - shH / 2 + 2, shW - 4, shH - 4, 2); g.fill(tW >= 5 ? 0xAA44CC : 0x8899AA);
-        g.circle(shX, shY, 3 + tW * 0.5); g.fill(tW >= 4 ? p.accent : 0xDDAA33);
+        const shX = -18, shY = -0.5 + bobY + armSwing;
+        const shW = 11 + tW * 1.5, shH = 16 + tW * 2;
+        g.roundRect(shX - shW / 2, shY - shH / 2, shW, shH, 4);
+        g.fill(tW >= 5 ? 0x882299 : 0x5A6878);
+        g.roundRect(shX - shW / 2 + 2, shY - shH / 2 + 2, shW - 4, shH - 4, 3);
+        g.fill(tW >= 5 ? 0xAA33CC : 0x7A8898);
+        // emblema
+        g.circle(shX, shY, 3.5 + tW * 0.4);
+        g.fill(tW >= 4 ? p.accent : 0xDDAA22);
+        // borda
+        g.roundRect(shX - shW / 2, shY - shH / 2, shW, shH, 4);
+        g.stroke({ color: lgt(tW >= 5 ? 0x882299 : 0x5A6878, 25), width: 0.9, alpha: 0.5 });
       }
     }
   } else if (cls === 'mage') {
-    const sx = 15, sy = -16 + bobY + wb;
-    const staffC = tW === 0 ? 0x8B6B42 : tW <= 2 ? 0x775533 : tW >= 5 ? 0x9933CC : 0x4444AA;
-    g.rect(sx - 1, sy, 2, 33); g.fill(staffC);
+    const sx = 16, sy = -16 + bobY + wb;
+    const staffC = tW === 0 ? 0x8A6238 : tW <= 2 ? 0x6A4820 : tW >= 5 ? 0x881ABB : 0x3A3A99;
+    // cabo do cajado
+    g.rect(sx - 1.2, sy, 2.4, 35); g.fill(staffC);
+    // detalhes no cajado
     if (tW >= 2) {
       for (let i = 1; i <= Math.min(tW, 4); i++) {
-        g.ellipse(sx, sy + i * 7, 2.5, 1.5); g.fill(i % 2 === 0 ? p.accent : staffC + 0x222222);
+        g.ellipse(sx, sy + i * 7.5, 2.8, 2);
+        g.fill(i % 2 === 0 ? p.accent : lgt(staffC, 20));
       }
     }
-    const orbR = 3.5 + tW * 0.7;
-    g.circle(sx, sy - 2, orbR); g.fill({ color: tW >= 5 ? 0xFFDD44 : p.accent, alpha: 0.88 });
-    g.circle(sx, sy - 2, orbR - 1); g.fill({ color: 0xFFFFFF, alpha: 0.22 });
-    const glowR = orbR + 3 + Math.sin(frame * 0.08) * 2;
-    g.circle(sx, sy - 2, glowR); g.fill({ color: p.accent, alpha: tW >= 5 ? 0.25 : 0.12 });
-    if (tW >= 3) { for (let i = 0; i < 3; i++) { g.circle(sx, sy + 9 + i * 8, 1); g.fill({ color: p.accent, alpha: 0.5 }); } }
-    if (tW >= 2) { g.roundRect(-14, 0 + bobY, 6, 7, 1.5); g.fill(tW >= 5 ? 0x442266 : 0x553322); g.rect(-13, 1 + bobY, 4, 1); g.fill(p.accent); }
-  } else if (cls === 'archer') {
-    const bx = -15, by = -10 + bobY;
-    const arcR = 11 + tW;
-    const bowC = tW === 0 ? 0x8B6B42 : tW <= 2 ? p.weapon : tW >= 5 ? 0xFFDD44 : p.accent;
-    g.arc(bx, by + 8, arcR, -Math.PI * 0.7, Math.PI * 0.7); g.stroke({ color: bowC, width: 2 + tW * 0.3 });
-    g.moveTo(bx + arcR * Math.cos(-Math.PI * 0.7), by + 8 + arcR * Math.sin(-Math.PI * 0.7));
-    g.lineTo(bx + arcR * Math.cos(Math.PI * 0.7),  by + 8 + arcR * Math.sin(Math.PI * 0.7));
-    g.stroke({ color: 0xCCCCCC, width: 0.8 });
-    g.roundRect(10, -14 + bobY, 5 + tW * 0.5, 18 + tW, 2);
-    g.fill(tW === 0 ? 0x7A5C3A : tW <= 2 ? 0x8B6B42 : tW >= 5 ? 0x4433AA : p.weapon);
-    const arrowQty = Math.min(3 + tW, 5);
-    for (let i = 0; i < arrowQty; i++) {
-      g.rect(11 + i * 1.1, -17 + bobY, 0.9, 6); g.fill(0x8B6B42);
-      g.moveTo(11 + i * 1.1, -17 + bobY); g.lineTo(11.5 + i * 1.1, -19.5 + bobY); g.lineTo(12 + i * 1.1, -17 + bobY);
-      g.fill(tW >= 3 ? p.accent : 0xAAAAAA);
+    // reflexo no cajado
+    g.moveTo(sx - 0.5, sy + 1); g.lineTo(sx - 0.5, sy + 34);
+    g.stroke({ color: lgt(staffC, 30), width: 0.7, alpha: 0.35 });
+    // orbe
+    const orbR = 4 + tW * 0.8;
+    g.circle(sx, sy - 2, orbR);
+    g.fill({ color: tW >= 5 ? 0xFFDD33 : p.accent, alpha: 0.9 });
+    g.circle(sx, sy - 2, orbR * 0.7);
+    g.fill({ color: 0xFFFFFF, alpha: 0.2 });
+    // highlight do orbe
+    g.circle(sx - orbR * 0.3, sy - orbR * 0.4, orbR * 0.28);
+    g.fill({ color: 0xFFFFFF, alpha: 0.4 });
+    // glow animado
+    const glowR = orbR + 3.5 + Math.sin(frame * 0.07) * 2.5;
+    g.circle(sx, sy - 2, glowR);
+    g.fill({ color: p.accent, alpha: tW >= 5 ? 0.28 : 0.14 });
+    // runa no cajado (tier >= 3)
+    if (tW >= 3) {
+      for (let i = 0; i < 3; i++) {
+        g.circle(sx, sy + 10 + i * 8, 1.1);
+        g.fill({ color: p.accent, alpha: 0.55 });
+      }
     }
-    if (tW >= 4) { g.arc(bx, by + 8, arcR + 2, -Math.PI * 0.7, Math.PI * 0.7); g.stroke({ color: p.accent, width: 1, alpha: 0.3 }); }
+    // grimorio no cinto (tier >= 2)
+    if (tW >= 2) {
+      g.roundRect(-15, 0 + bobY, 7, 8, 2);
+      g.fill(tW >= 5 ? 0x38155A : 0x4A2A18);
+      g.rect(-14, 1 + bobY, 5, 1.2); g.fill(p.accent);
+      g.rect(-14, 3 + bobY, 5, 1);   g.fill({ color: p.accent, alpha: 0.5 });
+    }
+  } else if (cls === 'archer') {
+    const bx = -16, by = -9 + bobY;
+    const arcR = 12 + tW * 0.8;
+    const bowC = tW === 0 ? 0x7A5C28 : tW <= 2 ? p.weapon : tW >= 5 ? 0xFFDD33 : p.accent;
+    // arco
+    g.arc(bx, by + 8, arcR, -Math.PI * 0.72, Math.PI * 0.72);
+    g.stroke({ color: bowC, width: 2.5 + tW * 0.25 });
+    // corda
+    g.moveTo(bx + arcR * Math.cos(-Math.PI * 0.72), by + 8 + arcR * Math.sin(-Math.PI * 0.72));
+    g.lineTo(bx + arcR * Math.cos(Math.PI * 0.72), by + 8 + arcR * Math.sin(Math.PI * 0.72));
+    g.stroke({ color: 0xCCCCCC, width: 1 });
+    // highlight no arco
+    g.arc(bx, by + 8, arcR, -Math.PI * 0.6, Math.PI * 0.1);
+    g.stroke({ color: lgt(bowC, 30), width: 0.8, alpha: 0.4 });
+    // aljava
+    const qW = 5.5 + tW * 0.4;
+    g.roundRect(11, -13 + bobY, qW, 20 + tW, 2.5);
+    g.fill(tW === 0 ? 0x6A4A28 : tW <= 2 ? 0x7A5C32 : tW >= 5 ? 0x3322AA : p.weapon);
+    g.roundRect(11, -13 + bobY, qW, 3, 2);
+    g.fill(shd(tW === 0 ? 0x6A4A28 : p.weapon, 25));
+    // flechas
+    const arrowQty = Math.min(3 + tW, 6);
+    for (let i = 0; i < arrowQty; i++) {
+      // haste
+      g.rect(12 + i * 1.0, -16 + bobY, 1, 7); g.fill(0x8A6832);
+      // ponta
+      g.moveTo(12 + i * 1.0, -16 + bobY);
+      g.lineTo(12.5 + i * 1.0, -19.5 + bobY);
+      g.lineTo(13 + i * 1.0, -16 + bobY);
+      g.fill(tW >= 3 ? p.accent : 0xBBBBBB);
+    }
+    // glow lendario do arco
+    if (tW >= 4) {
+      g.arc(bx, by + 8, arcR + 2.5, -Math.PI * 0.72, Math.PI * 0.72);
+      g.stroke({ color: p.accent, width: 1.2, alpha: 0.32 });
+    }
   } else {
-    // assassin â€” adagas duplas
-    const db = Math.sin(frame * 0.09) * 1.5;
+    // assassin -- adagas duplas
+    const db = Math.sin(frame * 0.09) * 2;
     const drawDag = (dx: number, ds: number): void => {
       const ty = 2 + bobY + ds + db;
-      g.rect(dx - 1, ty, 2, 4); g.fill(handleC);
-      g.rect(dx - 3, ty, 6, 1.5); g.fill(tW >= 5 ? 0xCCBB44 : 0x555566);
-      g.moveTo(dx - 1.5, ty - 0.5); g.lineTo(dx, ty - 11 - tW * 1.5); g.lineTo(dx + 1.5, ty - 0.5); g.fill(bladeC);
-      g.moveTo(dx, ty - 0.5); g.lineTo(dx + 0.5, ty - 10 - tW); g.stroke({ color: 0xFFFFFF, width: 0.6, alpha: 0.5 });
-      if (tW >= 2) { g.circle(dx, ty - 10 - tW, 2); g.fill({ color: tW >= 5 ? 0xFFDD44 : 0x66FF66, alpha: 0.22 }); }
+      // cabo
+      g.roundRect(dx - 1.5, ty, 3, 5, 1.5); g.fill(handleC);
+      // enrolamento
+      for (let wi = 0; wi < 2; wi++) {
+        g.rect(dx - 1.4, ty + 1 + wi * 2, 2.8, 0.9);
+        g.fill({ color: lgt(handleC, 22), alpha: 0.55 });
+      }
+      // guarda
+      g.rect(dx - 4, ty, 8, 2); g.fill(tW >= 5 ? 0xCCBB22 : 0x484460);
+      // lamina
+      g.moveTo(dx - 2, ty - 1);
+      g.lineTo(dx, ty - 13 - tW * 1.8);
+      g.lineTo(dx + 2, ty - 1);
+      g.fill(bladeC);
+      // aresta
+      g.moveTo(dx, ty - 1); g.lineTo(dx + 0.6, ty - 12 - tW * 1.5);
+      g.stroke({ color: 0xFFFFFF, width: 0.7, alpha: 0.55 });
+      // glow veneno
+      if (tW >= 2) {
+        g.circle(dx, ty - 12 - tW * 1.8, 2.5);
+        g.fill({ color: tW >= 5 ? 0xFFDD22 : 0x44FF88, alpha: 0.24 });
+      }
     };
-    drawDag(-14, armSwing);
-    drawDag(14, -armSwing);
+    drawDag(-15, armSwing);
+    drawDag(15, -armSwing);
   }
 }
 
