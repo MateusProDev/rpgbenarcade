@@ -421,20 +421,34 @@ export class EntityManager {
 
     // Check interact with E key
     if (input.wasPressed('interact')) {
-      // First: check NPC interaction (crafting stations, merchants)
+      // First: check NPC interaction (crafting stations / dialogue)
       let npcHandled = false;
-      for (const npc of this.npcs) {
-        const nx = npc.container.position.x;
-        const ny = npc.container.position.y;
-        const dist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
-        if (dist < 80) {
-          const station = NPC_CRAFTING_MAP[npc.npcId];
-          if (station) {
-            useGameStore.getState().openCraftingStation(station);
-            npcHandled = true;
-            break;
+      const storeState = useGameStore.getState();
+
+      // If a dialogue is already open, advance it
+      if (storeState.activeDialogue) {
+        storeState.advanceDialogue();
+        npcHandled = true;
+      } else {
+        for (const npc of this.npcs) {
+          const nx = npc.container.position.x;
+          const ny = npc.container.position.y;
+          const dist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
+          if (dist < 100) {
+            const station = NPC_CRAFTING_MAP[npc.npcId];
+            if (station) {
+              storeState.openCraftingStation(station);
+              npcHandled = true;
+              break;
+            }
+            // Dialogue for merchants / friendly NPCs
+            const def = NPC_DEFS[npc.npcId];
+            if (def?.dialogue && def.dialogue.length > 0) {
+              storeState.openDialogue(npc.npcId, npc.name, npc.type, def.dialogue);
+              npcHandled = true;
+              break;
+            }
           }
-          // Other NPC types (merchant shop, etc) can go here
         }
       }
 

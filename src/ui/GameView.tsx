@@ -14,6 +14,7 @@ import { InventoryPanel } from './InventoryPanel';
 import { PauseMenu } from './PauseMenu';
 import { TutorialPanel } from './TutorialPanel';
 import { CraftingPanel } from './CraftingPanel';
+import { DialoguePanel } from './DialoguePanel';
 import { input } from '@/engine/InputManager';
 
 export function GameView() {
@@ -22,6 +23,7 @@ export function GameView() {
   const setPlayer = useGameStore((s) => s.setPlayer);
   const engineReady = useGameStore((s) => s.engineReady);
   const openPanel = useGameStore((s) => s.ui.openPanel);
+  const hasDialogue = useGameStore((s) => s.activeDialogue !== null);
 
   // Boolean-only selector: doesn't change reference on every position/stat update
   const hasPlayer = useGameStore((s) => s.player !== null);
@@ -75,21 +77,33 @@ export function GameView() {
     };
   }, [hasPlayer, needsCreation]);
 
+  const closeDialogue = useGameStore((s) => s.closeDialogue);
+  const advanceDialogue = useGameStore((s) => s.advanceDialogue);
+
   // Handle keyboard shortcuts for UI
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
-        setShowPause((v) => !v);
+        if (useGameStore.getState().activeDialogue) {
+          closeDialogue();
+        } else {
+          setShowPause((v) => !v);
+        }
+      }
+      // E key advances dialogue when panel is active
+      if (e.code === 'KeyE' && useGameStore.getState().activeDialogue) {
+        e.preventDefault();
+        advanceDialogue();
       }
     };
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
-  }, []);
+  }, [closeDialogue, advanceDialogue]);
 
   // Disable game input when panels are open
   useEffect(() => {
-    input.enabled = !showPause && openPanel === null;
-  }, [showPause, openPanel]);
+    input.enabled = !showPause && openPanel === null && !hasDialogue;
+  }, [showPause, openPanel, hasDialogue]);
 
   const handleCreationComplete = useCallback(() => {
     setNeedsCreation(false);
@@ -121,6 +135,7 @@ export function GameView() {
           <SkillBar />
           <ChatPanel />
           <TutorialPanel />
+          <DialoguePanel />
 
           {/* Panels */}
           {openPanel === 'inventory' && <InventoryPanel />}

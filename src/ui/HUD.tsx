@@ -1,6 +1,7 @@
 // ============================================
 // HUD — HP, Mana, XP bars + player info + action bar
 // ============================================
+import type React from 'react';
 import { useGameStore } from '@/store/gameStore';
 
 export function HUD() {
@@ -82,31 +83,29 @@ export function HUD() {
         </div>
       </div>
 
-      {/* Bottom-left: Quick action buttons */}
-      <div className="absolute bottom-20 left-3 z-10 flex gap-2">
-        <ActionButton icon="🎒" label="Inventário" shortcut="I" onClick={() => openPanel('inventory')} />
-        <ActionButton icon="👥" label="Aliança" shortcut="G" onClick={() => openPanel('alliance')} />
-        <ActionButton icon="📜" label="Quests" shortcut="Q" onClick={() => openPanel('quest')} />
-        <ActionButton icon="⚒️" label="Crafting" shortcut="C" onClick={() => openPanel('crafting')} />
-        <ActionButton icon="⚙️" label="Config" shortcut="Esc" onClick={() => openPanel('settings')} />
+      {/* Bottom-left: Quick action buttons (same row as SkillBar) */}
+      <div className="absolute bottom-3 left-3 z-10 flex gap-1.5">
+        <ActionButton icon="inventory" label="Inventário" shortcut="I" onClick={() => openPanel('inventory')} />
+        <ActionButton icon="alliance"  label="Aliança"   shortcut="G" onClick={() => openPanel('alliance')} />
+        <ActionButton icon="quests"    label="Quests"    shortcut="Q" onClick={() => openPanel('quest')} />
+        <ActionButton icon="crafting"  label="Crafting"  shortcut="C" onClick={() => openPanel('crafting')} />
+        <ActionButton icon="settings"  label="Config"    shortcut="Esc" onClick={() => openPanel('settings')} />
       </div>
 
-      {/* Bottom-center: Control hints (show only first 20 seconds) */}
+      {/* Bottom-right: tiny control hints */}
       <ControlHints />
     </>
   );
 }
 
-/* ---- Control Hints (fade out after some seconds) ---- */
+/* ---- Control Hints — bottom-right, compact ---- */
 function ControlHints() {
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-      <div className="glass-panel px-4 py-2 flex gap-4 text-text-dim text-[10px]">
+    <div className="absolute bottom-4 right-3 z-10">
+      <div className="glass-panel px-3 py-1.5 flex gap-3 text-text-dim text-[9px]">
         <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">WASD</kbd> Mover</span>
         <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">E</kbd> Interagir</span>
         <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">1-5</kbd> Skills</span>
-        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">I</kbd> Inventário</span>
-        <span><kbd className="text-gold-accent bg-black/40 px-1 rounded">ESC</kbd> Menu</span>
       </div>
     </div>
   );
@@ -138,7 +137,56 @@ function ResourceBar({
   );
 }
 
-/* ---- Quick Action Button ---- */
+/* ---- Quick Action Button with SVG medieval icons ---- */
+const ICONS: Record<string, React.ReactNode> = {
+  inventory: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
+      {/* Medieval leather satchel/backpack */}
+      <path d="M8 6V5a2 2 0 014 0v1" />
+      <rect x="4" y="6" width="16" height="14" rx="3" />
+      <path d="M4 11h16" />
+      <path d="M9 11v4m6-4v4" />
+      <circle cx="12" cy="8.5" r="1" fill="currentColor" />
+    </svg>
+  ),
+  alliance: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
+      {/* Two crossed swords */}
+      <line x1="5" y1="19" x2="19" y2="5" />
+      <line x1="19" y1="19" x2="5" y2="5" />
+      <line x1="8" y1="5" x2="5" y2="5" /><line x1="5" y1="8" x2="5" y2="5" />
+      <line x1="16" y1="19" x2="19" y2="19" /><line x1="19" y1="16" x2="19" y2="19" />
+    </svg>
+  ),
+  quests: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
+      {/* Scroll / parchment */}
+      <path d="M6 3h12a1 1 0 011 1v14a2 2 0 01-2 2H7a2 2 0 01-2-2V4a1 1 0 011-1z" />
+      <path d="M7 3v2a1 1 0 001 1h8a1 1 0 001-1V3" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+      <line x1="9" y1="15" x2="13" y2="15" />
+      <line x1="9" y1="9"  x2="15" y2="9"  />
+    </svg>
+  ),
+  crafting: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
+      {/* Hammer + anvil */}
+      <rect x="4" y="14" width="12" height="6" rx="1" />
+      <path d="M7 14v-2h6v2" />
+      <rect x="12" y="4" width="5" height="3" rx="0.5" />
+      <line x1="14.5" y1="7" x2="14.5" y2="12" />
+      <line x1="12" y1="5.5" x2="10" y2="8" />
+    </svg>
+  ),
+  settings: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
+      {/* Gear */}
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+    </svg>
+  ),
+};
+
 function ActionButton({
   icon, label, shortcut, onClick,
 }: {
@@ -147,11 +195,11 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="glass-panel w-10 h-10 flex items-center justify-center text-lg hover:bg-glow-gold transition-all active:scale-95 relative group"
+      className="glass-panel w-10 h-10 flex items-center justify-center text-text-dim hover:text-gold-accent hover:bg-glow-gold transition-all active:scale-95 relative group"
       title={`${label} (${shortcut})`}
     >
-      {icon}
-      <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] text-text-dim bg-black/80 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+      {ICONS[icon]}
+      <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-[10px] text-text-dim bg-black/90 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
         {label} [{shortcut}]
       </span>
     </button>

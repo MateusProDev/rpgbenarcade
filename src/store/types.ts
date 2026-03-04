@@ -121,6 +121,10 @@ export interface NpcDefinition {
   aggroRange: number;
   skills: string[];
   spriteKey: string;
+  /** Lines spoken when player interacts */
+  dialogue?: string[];
+  /** Crafting station this NPC opens (for merchants) */
+  stationId?: string;
 }
 
 export interface LootEntry {

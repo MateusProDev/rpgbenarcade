@@ -59,8 +59,8 @@ export function TutorialPanel() {
   const { def, progress } = activeQuest;
 
   return (
-    <div className="absolute top-14 right-3 z-20 animate-fade-in">
-      <div className="glass-panel p-3 w-72">
+    <div className="absolute bottom-[72px] right-3 z-20 animate-fade-in max-w-[260px]">
+      <div className="glass-panel p-3 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">

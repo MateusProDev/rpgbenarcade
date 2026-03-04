@@ -17,6 +17,15 @@ interface SkillCooldown {
   readyAt: number; // timestamp
 }
 
+/* ---- Dialogue tracking ---- */
+export interface ActiveDialogue {
+  npcId: string;
+  npcName: string;
+  npcType: string;
+  lines: string[];
+  lineIndex: number;
+}
+
 /* ---- Quest tracking ---- */
 interface QuestProgress {
   questId: string;
@@ -93,6 +102,12 @@ interface GameState {
   setTutorialStep: (step: number) => void;
   tutorialDismissed: boolean;
   dismissTutorial: () => void;
+
+  // Dialogue
+  activeDialogue: ActiveDialogue | null;
+  openDialogue: (npcId: string, npcName: string, npcType: string, lines: string[]) => void;
+  advanceDialogue: () => void;
+  closeDialogue: () => void;
 }
 
 /* ---- Level XP curve ---- */
@@ -284,5 +299,20 @@ export const useGameStore = create<GameState>()(
     setTutorialStep: (tutorialStep) => set({ tutorialStep }),
     tutorialDismissed: false,
     dismissTutorial: () => set({ tutorialDismissed: true }),
+
+    // ---- Dialogue ----
+    activeDialogue: null,
+    openDialogue: (npcId, npcName, npcType, lines) =>
+      set({ activeDialogue: { npcId, npcName, npcType, lines, lineIndex: 0 } }),
+    advanceDialogue: () => {
+      const d = get().activeDialogue;
+      if (!d) return;
+      if (d.lineIndex < d.lines.length - 1) {
+        set({ activeDialogue: { ...d, lineIndex: d.lineIndex + 1 } });
+      } else {
+        set({ activeDialogue: null });
+      }
+    },
+    closeDialogue: () => set({ activeDialogue: null }),
   })),
 );
