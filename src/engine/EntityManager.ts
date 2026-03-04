@@ -8,6 +8,7 @@ import { input } from './InputManager';
 import { resolveMovement } from './Physics';
 import { useGameStore } from '@/store/gameStore';
 import { drawCharacterBody, drawNpcBody, CLASS_PALETTE } from './rendering/CharacterRenderer';
+import type { EquipmentVisuals } from './rendering/CharacterRenderer';
 import type { Vec2, Direction, PlayerClass } from '@/store/types';
 import { NPC_DEFS } from '@/data/npcs';
 import { ZONES } from '@/data/zones';
@@ -38,6 +39,7 @@ class EntityVisual {
   direction: Direction = 'down';
   private _isLocal: boolean;
   private _lastDir: Direction = 'down';
+  private _equip: EquipmentVisuals = {};
 
   constructor(
     name: string,
@@ -126,7 +128,12 @@ class EntityVisual {
 
   private redrawBody(): void {
     this.bodyGfx.clear();
-    drawCharacterBody(this.bodyGfx, this.className, this.direction, this.frame);
+    drawCharacterBody(this.bodyGfx, this.className, this.direction, this.frame, this._equip);
+  }
+
+  updateEquipment(eq: EquipmentVisuals): void {
+    this._equip = eq;
+    this.redrawBody();
   }
 
   /** Call each frame to animate */
@@ -288,9 +295,39 @@ class NpcVisual {
   }
 }
 
+/* ---- Click indicator visual ---- */
+class ClickIndicator {
+  readonly gfx = new Graphics();
+  private _life = 0;
+
+  constructor(parent: Container) {
+    parent.addChild(this.gfx);
+  }
+
+  show(x: number, y: number): void {
+    this._life = 1.0;
+    this.gfx.position.set(x, y);
+  }
+
+  update(dt: number): void {
+    if (this._life <= 0) { this.gfx.visible = false; return; }
+    this._life = Math.max(0, this._life - dt * 3);
+    this.gfx.visible = true;
+    this.gfx.clear();
+    const alpha = this._life;
+    const scale = 1 + (1 - this._life) * 0.6;
+    const r = 10 * scale;
+    this.gfx.circle(0, 0, r);
+    this.gfx.stroke({ color: 0xDDAA33, width: 1.5, alpha });
+    this.gfx.circle(0, 0, 3);
+    this.gfx.fill({ color: 0xDDAA33, alpha: alpha * 0.6 });
+  }
+}
+
 /* ---- Entity Manager ---- */
 export class EntityManager {
   private parent: Container;
+  private camera: Camera;
   private localPlayer: EntityVisual | null = null;
   private localPos: Vec2 = { x: 0, y: 0 };
   private localDir: Direction = 'down';
@@ -299,8 +336,15 @@ export class EntityManager {
   private walkAnim = 0;
   private isMoving = false;
 
-  constructor(parent: Container, _camera: Camera) {
+  /** Click-to-move state */
+  private clickTarget: Vec2 | null = null;
+  private pendingInteractNpc: NpcVisual | null = null;
+  private clickIndicator!: ClickIndicator;
+
+  constructor(parent: Container, camera: Camera) {
     this.parent = parent;
+    this.camera = camera;
+    this.clickIndicator = new ClickIndicator(parent);
   }
 
   spawnLocalPlayer(pos: Vec2): void {
@@ -345,7 +389,22 @@ export class EntityManager {
     this.updateLocalMovement(dt);
     this.updateRemotePlayers();
     this.updateLocalHp();
+    this.updateLocalEquipment();
     this.animateAll(dt);
+  }
+
+  private updateLocalEquipment(): void {
+    if (!this.localPlayer) return;
+    const inv = useGameStore.getState().player?.inventory ?? [];
+    const eq: EquipmentVisuals = {};
+    for (const item of inv) {
+      if (!item.equipped) continue;
+      if (item.slot === 'armor')  eq.armorRarity  = item.rarity;
+      if (item.slot === 'helmet') eq.helmetRarity = item.rarity;
+      if (item.slot === 'boots')  eq.bootsRarity  = item.rarity;
+      if (item.slot === 'weapon') eq.weaponRarity = item.rarity;
+    }
+    this.localPlayer.updateEquipment(eq);
   }
 
   private animateAll(dt: number): void {
@@ -369,6 +428,51 @@ export class EntityManager {
     }
   }
 
+  private triggerNpcInteract(npc: NpcVisual): void {
+    const storeState = useGameStore.getState();
+    if (storeState.activeDialogue) {
+      storeState.advanceDialogue();
+      return;
+    }
+    const station = NPC_CRAFTING_MAP[npc.npcId];
+    if (station) {
+      storeState.openCraftingStation(station);
+      return;
+    }
+    const def = NPC_DEFS[npc.npcId];
+    if (def?.dialogue && def.dialogue.length > 0) {
+      storeState.openDialogue(npc.npcId, npc.name, npc.type, def.dialogue);
+    }
+  }
+
+  private handleInteractKey(): void {
+    const storeState = useGameStore.getState();
+    let npcHandled = false;
+
+    if (storeState.activeDialogue) {
+      storeState.advanceDialogue();
+      npcHandled = true;
+    } else {
+      for (const npc of this.npcs) {
+        const nx = npc.container.position.x;
+        const ny = npc.container.position.y;
+        const dist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
+        if (dist < 100) {
+          this.triggerNpcInteract(npc);
+          npcHandled = true;
+          break;
+        }
+      }
+    }
+
+    if (!npcHandled) {
+      import('./GameEngine').then(({ getEngine }) => {
+        const engine = getEngine();
+        if (engine) engine.resourceNodes?.tryHarvest(this.localPos);
+      });
+    }
+  }
+
   private updateLocalMovement(dt: number): void {
     if (!this.localPlayer) return;
 
@@ -379,15 +483,99 @@ export class EntityManager {
     const speed = player.stats.speed;
     let dx = 0, dy = 0;
 
-    if (input.isDown('up')) { dy = -1; this.localDir = 'up'; }
-    if (input.isDown('down')) { dy = 1; this.localDir = 'down'; }
-    if (input.isDown('left')) { dx = -1; this.localDir = 'left'; }
-    if (input.isDown('right')) { dx = 1; this.localDir = 'right'; }
+    // ── Click / tap handling ──────────────────────────────────────────
+    const clickScreen = input.consumeClick();
+    if (clickScreen) {
+      const worldPos = this.camera.screenToWorld(clickScreen.x, clickScreen.y);
 
-    // Normalize diagonal
-    if (dx !== 0 && dy !== 0) {
-      const inv = 1 / Math.SQRT2;
-      dx *= inv; dy *= inv;
+      // Check if a UI element was hit (skip if Y is near the top HUD area - simple guard)
+      let clickedNpc = false;
+      for (const npc of this.npcs) {
+        const nx = npc.container.position.x;
+        const ny = npc.container.position.y;
+        if (Math.hypot(nx - worldPos.x, ny - worldPos.y) < 45) {
+          const playerDist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
+          if (playerDist < 100) {
+            this.triggerNpcInteract(npc);
+          } else {
+            // Walk toward NPC then interact
+            this.clickTarget = { x: nx, y: ny };
+            this.pendingInteractNpc = npc;
+            this.clickIndicator.show(nx, ny);
+          }
+          clickedNpc = true;
+          break;
+        }
+      }
+
+      if (!clickedNpc) {
+        // Check resource nodes via GameEngine
+        import('./GameEngine').then(({ getEngine }) => {
+          const engine = getEngine();
+          if (engine) {
+            const nodePos = engine.resourceNodes?.getClickableNodeNear(worldPos, 45);
+            if (nodePos) {
+              const playerDist = Math.hypot(nodePos.x - this.localPos.x, nodePos.y - this.localPos.y);
+              if (playerDist < 65) {
+                engine.resourceNodes?.tryHarvest(this.localPos);
+              } else {
+                this.clickTarget = { ...nodePos };
+                this.pendingInteractNpc = null;
+                this.clickIndicator.show(nodePos.x, nodePos.y);
+              }
+            } else {
+              this.clickTarget = worldPos;
+              this.pendingInteractNpc = null;
+              this.clickIndicator.show(worldPos.x, worldPos.y);
+            }
+          } else {
+            this.clickTarget = worldPos;
+            this.pendingInteractNpc = null;
+            this.clickIndicator.show(worldPos.x, worldPos.y);
+          }
+        });
+      }
+    }
+
+    // ── Keyboard takes over, cancel click-to-move ─────────────────────
+    const keyboardActive =
+      input.isDown('up') || input.isDown('down') ||
+      input.isDown('left') || input.isDown('right');
+
+    if (keyboardActive) {
+      this.clickTarget = null;
+      this.pendingInteractNpc = null;
+      if (input.isDown('up'))    { dy = -1; this.localDir = 'up'; }
+      if (input.isDown('down'))  { dy =  1; this.localDir = 'down'; }
+      if (input.isDown('left'))  { dx = -1; this.localDir = 'left'; }
+      if (input.isDown('right')) { dx =  1; this.localDir = 'right'; }
+      // Normalize diagonal
+      if (dx !== 0 && dy !== 0) { const inv = 1 / Math.SQRT2; dx *= inv; dy *= inv; }
+    } else if (this.clickTarget) {
+      // ── Click-to-move: steer toward target ───────────────────────────
+      const tdx = this.clickTarget.x - this.localPos.x;
+      const tdy = this.clickTarget.y - this.localPos.y;
+      const dist = Math.hypot(tdx, tdy);
+      if (dist < 6) {
+        // Arrived at click target
+        if (this.pendingInteractNpc) {
+          this.triggerNpcInteract(this.pendingInteractNpc);
+          this.pendingInteractNpc = null;
+        } else {
+          // Try harvest if standing on a resource node after walk
+          import('./GameEngine').then(({ getEngine }) => {
+            const engine = getEngine();
+            if (engine) engine.resourceNodes?.tryHarvest(this.localPos);
+          });
+        }
+        this.clickTarget = null;
+      } else {
+        dx = tdx / dist;
+        dy = tdy / dist;
+        this.localDir = Math.abs(tdx) >= Math.abs(tdy)
+          ? (tdx > 0 ? 'right' : 'left')
+          : (tdy > 0 ? 'down' : 'up');
+      }
     }
 
     this.isMoving = dx !== 0 || dy !== 0;
@@ -416,51 +604,15 @@ export class EntityManager {
     this.localPlayer.setPosition(this.localPos.x, this.localPos.y);
     state.updatePlayerPos(this.localPos, this.localDir);
 
+    // Update click indicator animation
+    this.clickIndicator.update(dt);
+
     // Check portal collisions
     this.checkPortals();
 
-    // Check interact with E key
+    // E key interact
     if (input.wasPressed('interact')) {
-      // First: check NPC interaction (crafting stations / dialogue)
-      let npcHandled = false;
-      const storeState = useGameStore.getState();
-
-      // If a dialogue is already open, advance it
-      if (storeState.activeDialogue) {
-        storeState.advanceDialogue();
-        npcHandled = true;
-      } else {
-        for (const npc of this.npcs) {
-          const nx = npc.container.position.x;
-          const ny = npc.container.position.y;
-          const dist = Math.hypot(nx - this.localPos.x, ny - this.localPos.y);
-          if (dist < 100) {
-            const station = NPC_CRAFTING_MAP[npc.npcId];
-            if (station) {
-              storeState.openCraftingStation(station);
-              npcHandled = true;
-              break;
-            }
-            // Dialogue for merchants / friendly NPCs
-            const def = NPC_DEFS[npc.npcId];
-            if (def?.dialogue && def.dialogue.length > 0) {
-              storeState.openDialogue(npc.npcId, npc.name, npc.type, def.dialogue);
-              npcHandled = true;
-              break;
-            }
-          }
-        }
-      }
-
-      // Second: if no NPC, try resource harvest
-      if (!npcHandled) {
-        import('./GameEngine').then(({ getEngine }) => {
-          const engine = getEngine();
-          if (engine) {
-            engine.resourceNodes?.tryHarvest(this.localPos);
-          }
-        });
-      }
+      this.handleInteractKey();
     }
   }
 

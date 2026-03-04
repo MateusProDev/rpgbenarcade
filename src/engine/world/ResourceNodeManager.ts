@@ -114,6 +114,23 @@ export class ResourceNodeManager {
     }
   }
 
+  /** Returns the world position of the nearest alive node within `radius` of `worldPos`, or null. */
+  getClickableNodeNear(worldPos: Vec2, radius: number): Vec2 | null {
+    let closest: ActiveNode | null = null;
+    let closestDist = radius;
+
+    for (const node of this.nodes) {
+      if (node.respawnTimer > 0) continue;
+      const dist = distance(worldPos, node.instance.position);
+      if (dist < closestDist) {
+        closest = node;
+        closestDist = dist;
+      }
+    }
+
+    return closest ? { ...closest.instance.position } : null;
+  }
+
   /** Try to harvest the nearest node. Returns true if a hit was applied. */
   tryHarvest(playerPos: Vec2): boolean {
     if (this.harvestTimer > 0) return false;
