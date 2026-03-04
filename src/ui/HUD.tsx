@@ -7,7 +7,6 @@ export function HUD() {
   const player = useGameStore((s) => s.player);
   const openPanel = useGameStore((s) => s.openPanel);
   const currentZone = useGameStore((s) => s.currentZone);
-  const engineReady = useGameStore((s) => s.engineReady);
 
   if (!player) return null;
 

@@ -1,7 +1,6 @@
 // ============================================
 // Crafting System — recipes, stations, crafting logic
 // ============================================
-import type { ItemSlot, ItemRarity } from '@/store/types';
 
 export type CraftingStation = 'anvil' | 'alchemy' | 'workbench' | 'enchanting';
 

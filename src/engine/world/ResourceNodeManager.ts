@@ -302,7 +302,6 @@ export class ResourceNodeManager {
 
   private drawOre(g: Graphics, id: string): void {
     const isCrystal = id.includes('crystal');
-    const isIron = id.includes('iron');
     const oreColor = isCrystal ? 0x8844CC : 0xAA7744;
     const sparkle = isCrystal ? 0xCC88FF : 0xDDAA66;
 

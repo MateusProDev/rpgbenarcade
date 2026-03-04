@@ -1,14 +1,13 @@
 // ============================================
 // CraftingPanel — station-based crafting UI
 // ============================================
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import {
   CRAFTING_STATIONS,
   CRAFTING_RECIPES,
   getRecipesForStation,
   canCraft,
-  type CraftingStation,
   type CraftingRecipe,
 } from '@/data/crafting';
 import { ITEM_TEMPLATES } from '@/data/items';
@@ -20,7 +19,6 @@ export function CraftingPanel() {
   const addItem = useGameStore((s) => s.addItem);
   const removeItem = useGameStore((s) => s.removeItem);
   const addXp = useGameStore((s) => s.addXp);
-  const addGold = useGameStore((s) => s.addGold);
 
   const [selectedRecipe, setSelectedRecipe] = useState<string | null>(null);
   const [crafting, setCrafting] = useState(false);
@@ -138,7 +136,6 @@ export function CraftingPanel() {
                           id: `${recipe.result.itemId}_${Date.now()}`,
                           templateId: recipe.result.itemId,
                           name: template.name,
-                          icon: template.icon,
                           rarity: template.rarity,
                           slot: template.slot,
                           quantity: recipe.result.quantity,

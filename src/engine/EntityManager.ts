@@ -21,14 +21,6 @@ for (const station of Object.values(CRAFTING_STATIONS)) {
   }
 }
 
-/* ---- Color palette per class (for HP bar accent) ---- */
-const CLASS_COLORS: Record<PlayerClass, number> = {
-  warrior: 0xcc4444,
-  mage: 0x4488dd,
-  archer: 0x44bb66,
-  assassin: 0x9966cc,
-};
-
 /* ---- Entity visual (detailed procedural sprite) ---- */
 class EntityVisual {
   container = new Container();
@@ -265,7 +257,7 @@ class NpcVisual {
       pText.anchor.set(0.5, 0.5);
       pText.position.set(0, -6);
       this.interactPrompt.addChild(pText);
-      this.interactPrompt.position.set(0, type === 'boss' ? -70 : -44);
+      this.interactPrompt.position.set(0, -44);
       this.interactPrompt.visible = false;
       this.container.addChild(this.interactPrompt);
     }

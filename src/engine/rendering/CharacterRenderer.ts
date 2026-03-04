@@ -4,7 +4,7 @@
 // with armor details, hair, capes, weapons, idle animations, etc.
 // All rendering is cached to RenderTexture for performance.
 // ============================================
-import { Container, Graphics, Text, RenderTexture, Sprite } from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import type { PlayerClass, Direction } from '@/store/types';
 
 /* ---- Palette per class ---- */
@@ -288,7 +288,7 @@ export function drawCharacterBody(
 function drawWeapon(
   g: Graphics,
   cls: PlayerClass,
-  dir: Direction,
+  _dir: Direction,
   bobY: number,
   armSwing: number,
   frame: number,
@@ -426,13 +426,13 @@ const NPC_PALETTES = {
 /* ---- Draw detailed NPC ---- */
 export function drawNpcBody(
   g: Graphics,
-  name: string,
+  _name: string,
   type: 'enemy' | 'friendly' | 'boss' | 'merchant',
   spriteKey: string,
   frame: number = 0,
 ): void {
-  const pal = NPC_PALETTES[type];
-  const bobY = Math.sin(frame * 0.06) * 1;
+  const _pal = NPC_PALETTES[type];
+  const _bobY = Math.sin(frame * 0.06) * 1;
   const isBoss = type === 'boss';
   const scale = isBoss ? 1.5 : 1;
 
@@ -497,7 +497,7 @@ function drawSlime(g: Graphics, pal: typeof NPC_PALETTES.enemy, frame: number, s
 }
 
 /* ---- Wolf ---- */
-function drawWolf(g: Graphics, pal: typeof NPC_PALETTES.enemy, frame: number, scale: number, isDark: boolean): void {
+function drawWolf(g: Graphics, _pal: typeof NPC_PALETTES.enemy, frame: number, scale: number, isDark: boolean): void {
   const runCycle = Math.sin(frame * 0.1) * 3;
   const baseColor = isDark ? 0x333344 : 0x887766;
   const bellyColor = isDark ? 0x444455 : 0xccbbaa;
@@ -551,7 +551,7 @@ function drawWolf(g: Graphics, pal: typeof NPC_PALETTES.enemy, frame: number, sc
 }
 
 /* ---- Spider ---- */
-function drawSpider(g: Graphics, pal: typeof NPC_PALETTES.enemy, frame: number, scale: number): void {
+function drawSpider(g: Graphics, _pal: typeof NPC_PALETTES.enemy, frame: number, scale: number): void {
   const legMove = Math.sin(frame * 0.12) * 4;
   // Body
   g.ellipse(0, 0, 10 * scale, 8 * scale);
@@ -656,7 +656,7 @@ function drawSkeleton(g: Graphics, _pal: typeof NPC_PALETTES.enemy, frame: numbe
 }
 
 /* ---- Bandit ---- */
-function drawBandit(g: Graphics, frame: number, scale: number): void {
+function drawBandit(g: Graphics, frame: number, _scale: number): void {
   const bobY = Math.sin(frame * 0.07) * 1;
   // Legs
   g.roundRect(-6, 4 + bobY, 5, 14, 2);
@@ -700,7 +700,7 @@ function drawBandit(g: Graphics, frame: number, scale: number): void {
 }
 
 /* ---- Dark Mage ---- */
-function drawDarkMage(g: Graphics, frame: number, scale: number): void {
+function drawDarkMage(g: Graphics, frame: number, _scale: number): void {
   const floatY = Math.sin(frame * 0.05) * 3;
   // Robe
   g.moveTo(-12, -8 + floatY);
@@ -738,7 +738,7 @@ function drawDarkMage(g: Graphics, frame: number, scale: number): void {
 }
 
 /* ---- Golem ---- */
-function drawGolem(g: Graphics, frame: number, scale: number): void {
+function drawGolem(g: Graphics, frame: number, _scale: number): void {
   const shake = Math.sin(frame * 0.04) * 1;
   // Body (large rock)
   g.roundRect(-16 + shake, -18, 32, 34, 6);
@@ -781,7 +781,7 @@ function drawGolem(g: Graphics, frame: number, scale: number): void {
 }
 
 /* ---- Dragon Boss ---- */
-function drawDragon(g: Graphics, frame: number, scale: number): void {
+function drawDragon(g: Graphics, frame: number, _scale: number): void {
   const breathe = Math.sin(frame * 0.03) * 2;
   const wingFlap = Math.sin(frame * 0.05) * 8;
 

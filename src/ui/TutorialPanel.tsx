@@ -4,9 +4,10 @@
 // ============================================
 import { useEffect, useMemo } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { TUTORIAL_QUESTS, POST_TUTORIAL_QUESTS, type QuestDefinition } from '@/data/quests';
+import { getTutorialQuests, getAllQuests, type QuestDefinition } from '@/data/quests';
 
-const ALL_QUESTS = [...TUTORIAL_QUESTS, ...POST_TUTORIAL_QUESTS];
+const TUTORIAL_QUESTS = getTutorialQuests();
+const ALL_QUESTS = getAllQuests();
 
 export function TutorialPanel() {
   const quests = useGameStore((s) => s.quests);
@@ -44,7 +45,7 @@ export function TutorialPanel() {
         if (completedIds.has(questDef.id)) continue;
         if (quests.some((q) => q.questId === questDef.id)) continue;
         // Check prerequisites
-        const prereqsMet = questDef.prerequisites.every((p) => completedIds.has(p));
+        const prereqsMet = questDef.prerequisites.every((pid: string) => completedIds.has(pid));
         if (prereqsMet) {
           startQuest(questDef.id);
           break;
@@ -87,7 +88,7 @@ export function TutorialPanel() {
 
         {/* Objectives */}
         <div className="space-y-1.5">
-          {def.objectives.map((obj, i) => {
+          {def.objectives.map((obj: QuestDefinition['objectives'][number], i: number) => {
             const current = progress.progress[obj.targetId] || 0;
             const done = current >= obj.amount;
             return (
@@ -121,7 +122,7 @@ export function TutorialPanel() {
             {def.rewards.gold > 0 && (
               <span className="text-gold-accent">🪙 {def.rewards.gold}</span>
             )}
-            {def.rewards.items?.map((item, i) => (
+            {def.rewards.items?.map((item: { itemId: string; quantity: number }, i: number) => (
               <span key={i} className="text-text-light">
                 📦 {item.quantity}x
               </span>
@@ -132,7 +133,7 @@ export function TutorialPanel() {
         {/* Step indicator for tutorial */}
         {def.isTutorial && (
           <div className="mt-2 flex gap-1">
-            {TUTORIAL_QUESTS.map((_, i) => (
+            {TUTORIAL_QUESTS.map((_: QuestDefinition, i: number) => (
               <div
                 key={i}
                 className={`h-1 flex-1 rounded-full ${
