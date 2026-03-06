@@ -29,7 +29,6 @@ const BIOME_PALETTES: Record<string, {
 export class TileMap {
   private parent: Container;
   private gfx: Graphics | null = null;
-  private worldPainterGfx: Container | null = null;
 
   constructor(parent: Container) {
     this.parent = parent;
@@ -45,8 +44,6 @@ export class TileMap {
       // ---- Aldeia: cena organica completa ----
       const painter = new WorldPainter(this.parent);
       painter.paintTown(worldW, worldH);
-      // WorldPainter adiciona o seu container diretamente; capturamos o ultimo filho
-      this.worldPainterGfx = this.parent.children[this.parent.children.length - 1] as Container;
       // Portais por cima
       this._drawPortals(zone);
     } else {
@@ -181,6 +178,5 @@ export class TileMap {
       child.destroy({ children: true });
     }
     this.gfx = null;
-    this.worldPainterGfx = null;
   }
 }
