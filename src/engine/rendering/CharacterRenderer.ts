@@ -226,10 +226,13 @@ export function drawCharacterBody(
     g.bezierCurveTo(anX - 3, 20.5 + bob, fxB - 1.5, 22.5 + bob, fxB + 7, 22.5 + bob);
     g.bezierCurveTo(fxB + 8.5, 22.5 + bob, fxB + 8, 19.5 + bob, anX + 2.5, 18.5 + bob);
     g.fill({ color: bootC, alpha: al });
-    // sola
+    // sola + rim de espessura 3D (base cilindréica da bota)
     if (!isBack) {
       g.moveTo(fxB, 23 + bob); g.lineTo(fxB + 7.5, 23 + bob);
       g.stroke({ color: shd(bootC, 55), width: 1.2, alpha: 0.8 });
+      // Rim de profundidade da sola (ilusao de esp. 3D)
+      g.ellipse(fxB + 3.5, 24 + bob, 7.5, 2);
+      g.fill({ color: shd(bootC, 52), alpha: 0.48 });
     }
     // fivela da bota
     if (tBoots >= 2 && !isBack) {
@@ -298,6 +301,20 @@ export function drawCharacterBody(
   g.lineTo(-10.5, -16 + bob);
   g.bezierCurveTo(-9, -11 + bob, -6.5, -6 + bob, -5.5, 0.5 + bob);
   g.fill({ color: lgt(torsoC, 28), alpha: 0.38 });
+
+  // PLANO SUPERIOR DOS OMBROS — superficie horizontal vista de cima (ilusao isometrica 3D)
+  g.moveTo(-14.5, -16 + bob);
+  g.bezierCurveTo(-10, -20 + bob, 10, -20 + bob, 14.5, -16 + bob);
+  g.bezierCurveTo(11, -14.2 + bob, -11, -14.2 + bob, -14.5, -16 + bob);
+  g.fill({ color: lgt(torsoC, 38), alpha: 0.5 });
+  // Aresta superior brilhante (especular da borda do ombro)
+  g.moveTo(-14.5, -16 + bob);
+  g.bezierCurveTo(-10, -20.5 + bob, 10, -20.5 + bob, 14.5, -16 + bob);
+  g.stroke({ color: lgt(torsoC, 60), width: 0.9, alpha: 0.38 });
+  // Oclusao na cintura (onde o tronco assenta no quadril)
+  g.moveTo(-8.5, 0.5 + bob);
+  g.bezierCurveTo(-6, 2.5 + bob, 6, 2.5 + bob, 8.5, 0.5 + bob);
+  g.stroke({ color: shd(torsoC, 45), width: 1.1, alpha: 0.35 });
 
   // Definicao peitoral (musculos pec sob a roupa/armadura)
   if (tArmor <= 2) {
@@ -468,6 +485,11 @@ export function drawCharacterBody(
     // MAO com proporco realista e dedos visiveis
     g.ellipse(wrX, 9 + bob + swing * 0.3, 3.8, 3.2);
     g.fill({ color: p.skin, alpha: al });
+    // Rim de espessura da mao (profundidade 3D)
+    if (!isBack) {
+      g.ellipse(wrX + 0.5, 11.5 + bob + swing * 0.3, 3.5, 1.4);
+      g.fill({ color: shd(p.skin, 38), alpha: 0.45 });
+    }
     // knuckles (4 dedos)
     if (!isBack) {
       for (let fi = 0; fi < 4; fi++) {
@@ -529,6 +551,15 @@ export function drawCharacterBody(
   // Cranio (cabeca um pouco mais comprimida para top-down)
   g.ellipse(0, headY, 9.5, 9.8);
   g.fill(p.skin);
+  // Dome especular — luz vindo de cima-esquerda (esfera 3D)
+  g.ellipse(-2.8, headY - 4, 5.5, 3.8);
+  g.fill({ color: lgt(p.skin, 42), alpha: 0.32 });
+  // Sombra na lateral direita da cabeca (volume esfera)
+  g.ellipse(5.2, headY + 1.5, 3.8, 6.5);
+  g.fill({ color: shd(p.skin, 26), alpha: 0.28 });
+  // Oclusao ambiental sob o queixo (profundidade pescoco)
+  g.ellipse(0, headY + 14.5, 5, 2.5);
+  g.fill({ color: shd(p.skin, 40), alpha: 0.28 });
 
   // Mandibula / bochecha
   g.moveTo(-7.5, headY + 3);
