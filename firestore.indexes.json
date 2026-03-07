@@ -31,13 +31,6 @@
         { "fieldPath": "worldId", "order": "ASCENDING" },
         { "fieldPath": "tag",     "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "players",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "worldId", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []
