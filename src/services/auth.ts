@@ -1,5 +1,6 @@
 import {
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User,
@@ -8,17 +9,25 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
 import type { Player } from '../types';
 
-/** Login com Google — cria o documento do jogador se não existir */
-export async function signInWithGoogle(): Promise<User> {
-  const result = await signInWithPopup(auth, googleProvider);
-  const user   = result.user;
+/** Inicia login com Google via redirect (sem popup — evita bloqueio de COOP) */
+export async function signInWithGoogle(): Promise<void> {
+  await signInWithRedirect(auth, googleProvider);
+}
 
+/**
+ * Chame no carregamento do app para processar o retorno do redirect do Google.
+ * Retorna o User se houver resultado, ou null.
+ */
+export async function handleRedirectResult(): Promise<User | null> {
+  const result = await getRedirectResult(auth);
+  if (!result) return null;
+
+  const user      = result.user;
   const playerRef = doc(db, 'players', user.uid);
   const snap      = await getDoc(playerRef);
 
   if (!snap.exists()) {
-    // Novo jogador — o mundo é atribuído pelo matchmaking serverless
-    const newPlayer = {
+    await setDoc(playerRef, {
       uid:         user.uid,
       displayName: user.displayName ?? 'Guerreiro',
       photoURL:    user.photoURL ?? '',
@@ -28,8 +37,7 @@ export async function signInWithGoogle(): Promise<User> {
       vip:         false,
       vipLevel:    0,
       joinedAt:    Date.now(),
-    };
-    await setDoc(playerRef, newPlayer);
+    });
   }
 
   return user;

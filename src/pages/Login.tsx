@@ -1,31 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithGoogle } from '../services/auth';
+import { useAuthStore } from '../stores/useAuthStore';
 import { Button } from '../components/ui/Button';
 
 export const Login: React.FC = () => {
   const navigate  = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const user      = useAuthStore((s) => s.user);
+  const loading   = useAuthStore((s) => s.loading);
   const [error,   setError]   = useState('');
+  const [pending, setPending] = useState(false);
+
+  // Redireciona para /castle quando o usuário estiver autenticado
+  // (cobre tanto redirect do Google quanto sessão já existente)
+  useEffect(() => {
+    if (!loading && user) navigate('/castle', { replace: true });
+  }, [user, loading, navigate]);
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    setPending(true);
     setError('');
     try {
-      const user = await signInWithGoogle();
-      if (user) {
-        // Chama matchmaking serverless para atribuir mundo
-        await fetch('/api/matchmaking', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: user.uid }),
-        });
-        navigate('/castle');
-      }
+      // signInWithGoogle faz redirect — a página será recarregada pelo Google
+      await signInWithGoogle();
     } catch (e: unknown) {
       setError((e as Error).message ?? 'Erro ao entrar. Tente novamente.');
-    } finally {
-      setLoading(false);
+      setPending(false);
     }
   };
 
@@ -52,7 +52,7 @@ export const Login: React.FC = () => {
         <Button
           size="lg"
           className="w-full"
-          loading={loading}
+          loading={pending}
           onClick={handleGoogleLogin}
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
