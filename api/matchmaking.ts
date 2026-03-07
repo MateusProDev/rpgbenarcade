@@ -60,18 +60,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({ worldId: playerData.worldId, castleId: playerData.castleId });
     }
 
-    // Encontra mundo com vagas
+    // Encontra mundo com vagas (sem inequality para evitar índice composto)
     const worldsSnap = await db
       .collection('worlds')
       .where('active', '==', true)
-      .where('playerCount', '<', MAX_PLAYERS)
       .orderBy('playerCount', 'desc')
-      .limit(1)
+      .limit(5)
       .get();
+
+    const availableWorld = worldsSnap.docs.find(
+      (d) => (d.data().playerCount as number) < MAX_PLAYERS,
+    );
 
     let worldId: string;
 
-    if (worldsSnap.empty) {
+    if (!availableWorld) {
       const worldRef = db.collection('worlds').doc();
       worldId = worldRef.id;
       await worldRef.set({
@@ -83,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         active:      true,
       });
     } else {
-      worldId = worldsSnap.docs[0].id;
+      worldId = availableWorld.id;
     }
 
     // Calcula posição de spawn livre
