@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "resolveJsonModule": true,
+    "composite": true,
+    "outDir": ".vercel/output/functions"
+  },
+  "include": ["api/**/*.ts"]
+}

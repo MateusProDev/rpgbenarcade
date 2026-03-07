@@ -10,16 +10,15 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
 
-# Environment variables (chaves Firebase - NÃO comitar)
+# Variáveis de ambiente — nunca commitar credenciais
 .env
 .env.local
 .env.*.local
+*.local
 
-# Firebase
-.firebase/
-firebase-debug.log
+# Vercel
+.vercel
 
 # Editor directories and files
 .vscode/*

@@ -1,43 +1,34 @@
 {
   "indexes": [
     {
-      "collectionGroup": "presence",
+      "collectionGroup": "castles",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "currentMap", "order": "ASCENDING" },
-        { "fieldPath": "lastHeartbeat", "order": "DESCENDING" }
+        { "fieldPath": "worldId", "order": "ASCENDING" },
+        { "fieldPath": "level",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "worlds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",      "order": "ASCENDING" },
+        { "fieldPath": "playerCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "alliances",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "worldId", "order": "ASCENDING" },
+        { "fieldPath": "tag",     "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "players",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "level", "order": "DESCENDING" },
-        { "fieldPath": "xp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "pvp_results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "winnerId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "pvp_results",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "loserId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "leaderboard",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "pvpRating", "order": "DESCENDING" },
-        { "fieldPath": "level", "order": "DESCENDING" }
+        { "fieldPath": "worldId", "order": "ASCENDING" }
       ]
     }
   ],
