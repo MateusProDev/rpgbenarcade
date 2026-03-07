@@ -1,23 +1,30 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
+const MAP_SIZE    = 50;
+const MAX_PLAYERS = parseInt(process.env.MAX_PLAYERS_PER_WORLD ?? '200', 10);
+
+function getAdminApp(): App {
+  if (getApps().length) return getApps()[0];
+
+  const projectId   = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  // Vercel escapa \n como \\n nas env vars — desfaz aqui
+  const privateKey  = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      'Variáveis Firebase Admin não configuradas: ' +
+      'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY são obrigatórias.',
+    );
+  }
+
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
 }
 
-const db          = getFirestore();
-const MAX_PLAYERS = parseInt(process.env.MAX_PLAYERS_PER_WORLD ?? '200', 10);
-const MAP_SIZE    = 50;
-
-function findSpawn(occupied: {x:number;y:number}[]): {x:number;y:number} {
-  const set = new Set(occupied.map((p) => `${p.x},${p.y}`));
+function findSpawn(occupied: { x: number; y: number }[]): { x: number; y: number } {
+  const set    = new Set(occupied.map((p) => `${p.x},${p.y}`));
   const center = MAP_SIZE / 2;
   for (let i = 0; i < 500; i++) {
     const x = Math.floor(Math.random() * MAP_SIZE);
@@ -31,14 +38,27 @@ function findSpawn(occupied: {x:number;y:number}[]): {x:number;y:number} {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { uid } = req.body as { uid: string };
-  if (!uid) return res.status(400).json({ error: 'uid required' });
+  const { uid } = req.body as { uid?: string };
+  if (!uid) return res.status(400).json({ error: 'uid é obrigatório' });
+
+  let db: ReturnType<typeof getFirestore>;
+  try {
+    db = getFirestore(getAdminApp());
+  } catch (err) {
+    console.error('[matchmaking] Firebase Admin init error:', err);
+    return res.status(503).json({
+      error: 'Serviço indisponível — credenciais do servidor não configuradas.',
+      detail: (err as Error).message,
+    });
+  }
 
   try {
-    // Verifica se jogador já tem mundo
-    const playerDoc = await db.collection('players').doc(uid).get();
-    const player    = playerDoc.data();
-    if (player?.worldId) return res.json({ worldId: player.worldId, castleId: player.castleId });
+    // Jogador já tem mundo? Retorna direto.
+    const playerSnap = await db.collection('players').doc(uid).get();
+    const playerData = playerSnap.data();
+    if (playerData?.worldId) {
+      return res.json({ worldId: playerData.worldId, castleId: playerData.castleId });
+    }
 
     // Encontra mundo com vagas
     const worldsSnap = await db
@@ -52,12 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let worldId: string;
 
     if (worldsSnap.empty) {
-      // Cria novo mundo
       const worldRef = db.collection('worlds').doc();
       worldId = worldRef.id;
       await worldRef.set({
         id:          worldId,
-        name:        `Mundo ${worldId.slice(0, 6)}`,
+        name:        `Mundo ${worldId.slice(0, 6).toUpperCase()}`,
         playerCount: 0,
         maxPlayers:  MAX_PLAYERS,
         createdAt:   FieldValue.serverTimestamp(),
@@ -67,20 +86,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       worldId = worldsSnap.docs[0].id;
     }
 
-    // Posições ocupadas
-    const castlesSnap = await db
-      .collection('castles')
-      .where('worldId', '==', worldId)
-      .get();
-    const occupied = castlesSnap.docs.map((d) => ({ x: d.data().mapX, y: d.data().mapY }));
+    // Calcula posição de spawn livre
+    const castlesSnap = await db.collection('castles').where('worldId', '==', worldId).get();
+    const occupied    = castlesSnap.docs.map((d) => ({ x: d.data().mapX as number, y: d.data().mapY as number }));
     const { x: mapX, y: mapY } = findSpawn(occupied);
 
-    // Cria castelo
+    // Cria castelo + atualiza jogador + incrementa mundo em batch atômico
     const castleId = `${uid}_${worldId}`;
     const now      = Date.now();
-    await db.collection('castles').doc(castleId).set({
+    const batch    = db.batch();
+
+    batch.set(db.collection('castles').doc(castleId), {
       id: castleId, playerId: uid, worldId, level: 1, mapX, mapY,
-      resources: { food: 1000, wood: 1000, stone: 500, iron: 200 },
+      resources:        { food: 1000, wood: 1000, stone: 500, iron: 200 },
       lastResourceTick: now,
       buildings: {
         sawmill:   { type: 'sawmill',   level: 1, upgrading: false, upgradeEnds: null },
@@ -93,16 +111,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    // Atualiza jogador
-    await db.collection('players').doc(uid).update({ worldId, castleId, mapX, mapY });
-    // Incrementa contador do mundo
-    await db.collection('worlds').doc(worldId).update({
+    batch.update(db.collection('players').doc(uid), { worldId, castleId, mapX, mapY });
+    batch.update(db.collection('worlds').doc(worldId), {
       playerCount: FieldValue.increment(1),
     });
 
-    return res.json({ worldId, castleId });
+    await batch.commit();
+
+    return res.status(200).json({ worldId, castleId });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('[matchmaking] Error:', err);
+    return res.status(500).json({ error: 'Erro interno', detail: (err as Error).message });
   }
 }
+
