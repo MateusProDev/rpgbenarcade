@@ -1,4 +1,35 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+/* ── Animações da Cena do Castelo ── */
+@keyframes flicker {
+  0%,100% { opacity:1; transform: scale(1); }
+  25%  { opacity:.7; transform: scale(0.92,1.1); }
+  50%  { opacity:.9; transform: scale(1.05,0.95); }
+  75%  { opacity:.6; transform: scale(0.95,1.08); }
+}
+@keyframes torchGlow {
+  0%,100% { r: 22; opacity:.45; }
+  50%      { r: 30; opacity:.25; }
+}
+@keyframes bannerSway {
+  0%,100% { transform-origin:top center; transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+@keyframes lightRay {
+  0%,100% { opacity:.18; }
+  50%      { opacity:.07; }
+}
+@keyframes goldShimmer {
+  0%,100% { stop-color:#f0d060; }
+  50%      { stop-color:#ffe080; }
+}
+@keyframes floatUp {
+  0%  { transform:translateY(0); opacity:.9; }
+  100%{ transform:translateY(-18px); opacity:0; }
+}
+@keyframes isoPulse {
+  0%,100% { filter: drop-shadow(0 0 6px #f0c040cc); }
+  50%      { filter: drop-shadow(0 0 16px #f0c040ff); }
+}
+
 
 @import "tailwindcss";
 
