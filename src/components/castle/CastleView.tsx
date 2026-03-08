@@ -474,6 +474,7 @@ function Harbor() {
       colorShallow: { value: new THREE.Color('#3a8ab0') }
     },
     vertexShader: `
+      uniform float time;
       varying vec2 vUv;
       varying float vElevation;
       void main() {
@@ -745,8 +746,8 @@ function SceneLights() {
       <pointLight position={[-2.2, 1.2, 2.0]} intensity={0.4} color="#ffa050" distance={4} />
       <pointLight position={[1.0, 1.5, 3.2]} intensity={0.3} color="#ffa050" distance={5} />
       
-      {/* Névoa */}
-      <fog attach="fog" args={['#1a1a2e', 12, 25]} />
+      {/* Névoa distante (não encobre a cena próxima) */}
+      <fog attach="fog" args={['#1a1a2e', 28, 55]} />
     </>
   );
 }
