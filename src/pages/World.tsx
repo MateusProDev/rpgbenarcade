@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WorldMap } from '../components/world/WorldMap';
 import { Modal } from '../components/ui/Modal';
@@ -6,6 +6,10 @@ import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useGameStore } from '../stores/useGameStore';
 import type { MapTile } from '../types';
+
+const TreeViewer = lazy(() =>
+  import('../components/world/TreeViewer').then((m) => ({ default: m.TreeViewer }))
+);
 
 export const World: React.FC = () => {
   const navigate   = useNavigate();
@@ -54,6 +58,20 @@ export const World: React.FC = () => {
             </h3>
             <p className="text-parchment-400 text-sm">Tipo: {selected.type.replace('_', ' ')}</p>
             <p className="text-parchment-400 text-sm">Nível de recurso: {selected.level}</p>
+
+            {/* ── Visualizador 3D para tiles de floresta ── */}
+            {selected.type === 'forest' && (
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-40 text-green-500/60 text-sm">
+                    🌲 Carregando floresta…
+                  </div>
+                }
+              >
+                <TreeViewer height={240} autoRotate className="mt-3" />
+              </Suspense>
+            )}
+
             {selected.type === 'resource' && (
               <p className="text-parchment-400 text-sm">
                 Recurso: {selected.resourceType} × {selected.resourceAmount}
