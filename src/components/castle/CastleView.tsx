@@ -656,7 +656,7 @@ function Road() {
    ========================================================================= */
 
 function CastleModel() {
-  const { scene } = useGLTF('/models/casteloteste.glb');
+  const { scene } = useGLTF('/casteloteste.glb');
   const model = useMemo(() => scene.clone(), [scene]);
   const stoneTex = useMemo(() => createStoneTex(), []);
   const roofTex = useMemo(() => createRoofTex(), []);
@@ -712,7 +712,7 @@ function TreeModel({
   scale?: number;
   rotation?: number;
 }) {
-  const { scene } = useGLTF('/models/arvoreum.glb');
+  const { scene } = useGLTF('/arvoreum.glb');
   const model = useMemo(() => scene.clone(), [scene]);
   const [worldX, , worldZ] = svgToWorld(x, z);
 
@@ -1372,5 +1372,5 @@ export const CastleView: React.FC = () => {
 };
 
 // Pré-carregar modelos para evitar delay
-useGLTF.preload('/models/casteloteste.glb');
-useGLTF.preload('/models/arvoreum.glb');
+useGLTF.preload('/casteloteste.glb');
+useGLTF.preload('/arvoreum.glb');
