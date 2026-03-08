@@ -6,9 +6,9 @@
  * Substitui completamente o antigo SVG isométrico.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Sky, Environment, Html, useTexture, Cloud } from '@react-three/drei';
+import { OrbitControls, Sky, Environment, Html, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import type { BuildingType } from '../../types';
 import { useGameStore } from '../../stores/useGameStore';
@@ -55,71 +55,88 @@ const svgToWorld = (x: number, z: number): [number, number, number] => {
    TERREMO COM RELEVO E TEXTURAS
 ───────────────────────────────────────────────────────────────────────────── */
 
-function Terrain() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  // Carrega texturas
-  const grassTex = useTexture('/textures/grass_01_diff_1k.jpg');
-  const grassNormal = useTexture('/textures/grass_01_nor_gl_1k.jpg');
-  const grassRough = useTexture('/textures/grass_01_arm_1k.jpg');
-  
-  // Configura repetição das texturas
-  [grassTex, grassNormal, grassRough].forEach(tex => {
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(40, 40);
-  });
+/** Gera uma textura de grama procedural via Canvas 2D (sem arquivos externos) */
+function makeGrassTex(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
 
-  // Gera altura baseada em ruído para criar colinas suaves
-  useFrame(() => {
-    if (!meshRef.current) return;
-    const geometry = meshRef.current.geometry;
-    const positionAttribute = geometry.attributes.position;
-    const vertex = new THREE.Vector3();
-    
-    for (let i = 0; i < positionAttribute.count; i++) {
-      vertex.fromBufferAttribute(positionAttribute, i);
-      
-      // Ruído simples para criar ondulações no terreno
-      const noise1 = Math.sin(vertex.x * 2.5) * Math.cos(vertex.z * 2.3) * 0.08;
-      const noise2 = Math.sin(vertex.x * 5.0) * Math.cos(vertex.z * 4.8) * 0.03;
-      const noise3 = Math.sin(vertex.x * 1.2 + 1.5) * Math.cos(vertex.z * 1.4 - 0.7) * 0.12;
-      
-      // Elevação central (colina do castelo)
-      const distFromCenter = Math.sqrt(vertex.x * vertex.x + vertex.z * vertex.z);
-      const hillFactor = Math.max(0, 1 - distFromCenter / 4) * 0.25;
-      
-      // Elevação das muralhas (bordas)
-      const wallDistX = Math.abs(vertex.x);
-      const wallDistZ = Math.abs(vertex.z);
-      const wallFactor = Math.max(0, 1 - Math.min(wallDistX, wallDistZ) / 2) * 0.1;
-      
-      const y = noise1 + noise2 + noise3 + hillFactor + wallFactor;
-      
-      // Atualiza a altura apenas se mudou significativamente
-      if (Math.abs(vertex.y - y) > 0.001) {
-        vertex.y = y;
-        positionAttribute.setY(i, vertex.y);
-      }
+  // Base verde
+  ctx.fillStyle = '#5a7a3a';
+  ctx.fillRect(0, 0, size, size);
+
+  // Manchas de variação de cor
+  const rng = (seed: number) => ((Math.sin(seed) * 43758.5453) % 1 + 1) % 1;
+  for (let i = 0; i < 800; i++) {
+    const rx = rng(i * 3.1) * size;
+    const ry = rng(i * 7.3) * size;
+    const rr = 2 + rng(i * 13.7) * 10;
+    const bright = rng(i * 5.9) > 0.5;
+    ctx.fillStyle = bright ? '#6a8a48' : '#4a6a2a';
+    ctx.globalAlpha = 0.35 + rng(i * 2.3) * 0.3;
+    ctx.beginPath();
+    ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Fios de grama
+  ctx.globalAlpha = 0.6;
+  for (let i = 0; i < 300; i++) {
+    const gx = rng(i * 4.7) * size;
+    const gy = rng(i * 8.1) * size;
+    ctx.strokeStyle = rng(i) > 0.5 ? '#7a9a50' : '#3a5a20';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + (rng(i * 2) - 0.5) * 6, gy - 5 - rng(i * 3) * 8);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(30, 30);
+  return tex;
+}
+
+function Terrain() {
+  // Textura procedural criada uma única vez
+  const grassTex = useMemo(() => makeGrassTex(), []);
+
+  // Geometria com relevo calculada uma única vez (useMemo, não useFrame)
+  const geometry = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(
+      WORLD_SIZE * 1.8, WORLD_SIZE * 1.8, 128, 128
+    );
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getY(i); // PlaneGeometry usa Y antes de rotacionar
+      const noise1 = Math.sin(x * 2.5) * Math.cos(z * 2.3) * 0.08;
+      const noise2 = Math.sin(x * 5.0) * Math.cos(z * 4.8) * 0.03;
+      const noise3 = Math.sin(x * 1.2 + 1.5) * Math.cos(z * 1.4 - 0.7) * 0.12;
+      const dist   = Math.sqrt(x * x + z * z);
+      const hill   = Math.max(0, 1 - dist / 4) * 0.25;
+      const wall   = Math.max(0, 1 - Math.min(Math.abs(x), Math.abs(z)) / 2) * 0.1;
+      pos.setZ(i, noise1 + noise2 + noise3 + hill + wall);
     }
-    
-    geometry.computeVertexNormals();
-    positionAttribute.needsUpdate = true;
-  });
+    geo.computeVertexNormals();
+    return geo;
+  }, []);
 
   return (
-    <mesh 
-      ref={meshRef} 
-      rotation={[-Math.PI / 2, 0, 0]} 
-      position={[0, -0.2, 0]} 
+    <mesh
+      geometry={geometry}
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.2, 0]}
       receiveShadow
     >
-      <planeGeometry args={[WORLD_SIZE * 1.8, WORLD_SIZE * 1.8, 128, 128]} />
       <meshStandardMaterial
         map={grassTex}
-        normalMap={grassNormal}
-        roughnessMap={grassRough}
-        roughness={0.7}
-        metalness={0.1}
+        roughness={0.85}
+        metalness={0.0}
         color="#8a9a6a"
       />
     </mesh>
