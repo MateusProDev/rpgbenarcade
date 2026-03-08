@@ -14,9 +14,8 @@
  */
 
 import React, { useState, useRef, useMemo, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { OrbitControls, Sky, Environment, Html, useGLTF, useTexture, Loader } from '@react-three/drei';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Sky, Environment, Html, useGLTF, Loader } from '@react-three/drei';
 import * as THREE from 'three';
 import type { BuildingType } from '../../types';
 import { useGameStore } from '../../stores/useGameStore';
@@ -344,8 +343,7 @@ function Terrain() {
 function StoneWallSegment({ 
   start, 
   end, 
-  height = 1.4,
-  hasTower = false 
+  height = 1.4
 }: { 
   start: [number, number]; 
   end: [number, number]; 
@@ -358,7 +356,6 @@ function StoneWallSegment({
   const midZ = (start[1] + end[1]) / 2;
   
   const stoneTex = useMemo(() => createStoneTex(), []);
-  const roofTex = useMemo(() => createRoofTex(), []);
 
   const numCrenellations = Math.floor(length / 0.35);
   const numDetails = Math.floor(length / 0.5);
@@ -601,7 +598,7 @@ function Road() {
 
   return (
     <group>
-      {points.map((p, i) => {
+      {points.map((_p, i) => {
         if (i === points.length - 1) return null;
         const start = points[i];
         const end = points[i + 1];
@@ -666,30 +663,31 @@ function CastleModel() {
 
   useEffect(() => {
     model.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
+      const mesh = obj as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         
         // Aplicar texturas pintadas baseado no nome ou posição
-        if (obj.name.toLowerCase().includes('wall') || obj.name.toLowerCase().includes('stone')) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach(mat => {
+        if (mesh.name.toLowerCase().includes('wall') || mesh.name.toLowerCase().includes('stone')) {
+          if (Array.isArray(mesh.material)) {
+            (mesh.material as THREE.MeshStandardMaterial[]).forEach(mat => {
               mat.map = stoneTex;
               mat.color.setHex(0x948470);
             });
           } else {
-            obj.material.map = stoneTex;
-            obj.material.color.setHex(0x948470);
+            (mesh.material as THREE.MeshStandardMaterial).map = stoneTex;
+            (mesh.material as THREE.MeshStandardMaterial).color.setHex(0x948470);
           }
-        } else if (obj.name.toLowerCase().includes('roof') || obj.name.toLowerCase().includes('top')) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach(mat => {
+        } else if (mesh.name.toLowerCase().includes('roof') || mesh.name.toLowerCase().includes('top')) {
+          if (Array.isArray(mesh.material)) {
+            (mesh.material as THREE.MeshStandardMaterial[]).forEach(mat => {
               mat.map = roofTex;
               mat.color.setHex(0x7a4a2a);
             });
           } else {
-            obj.material.map = roofTex;
-            obj.material.color.setHex(0x7a4a2a);
+            (mesh.material as THREE.MeshStandardMaterial).map = roofTex;
+            (mesh.material as THREE.MeshStandardMaterial).color.setHex(0x7a4a2a);
           }
         }
       }
@@ -720,9 +718,10 @@ function TreeModel({
 
   useEffect(() => {
     model.traverse((obj) => {
-      if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
+      const mesh = obj as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
       }
     });
   }, [model]);
@@ -895,8 +894,8 @@ function Harbor() {
               <meshStandardMaterial color="#5d3a1a" roughness={0.8} />
             </mesh>
           ))}
-          {/* Barrris */}
-          {j === 1 && (
+          {/* Barris */}
+          {i === 1 && (
             <group position={[0.3, 0.2, 0.8]}>
               <mesh castShadow receiveShadow>
                 <cylinderGeometry args={[0.2, 0.2, 0.3, 6]} />
