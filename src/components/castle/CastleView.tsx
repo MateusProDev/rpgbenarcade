@@ -1,945 +1,982 @@
 /**
- * CastleView — Mapa Isométrico Medieval Premium
- *
- * Mapa ilustrado em estilo hand-painted de jogo de estratégia medieval.
- * Câmera isométrica a ~35°, visão ampla da cidade inteira.
- *
- * Layout (topo → base):
- *   Colina do Castelo → elevação máxima, plataforma de pedra
- *   Distritos da Cidade → fundações para edifícios futuros
- *   Porto Medieval → costa, docas, barcos
- *   Muralhas Defensivas → cercam toda a cidade
+ * CastleView — Vila Medieval 3D Realista (React Three Fiber)
+ * 
+ * Mapa totalmente em 3D com terreno realista, muralhas volumétricas,
+ * edifícios modelados, vegetação variada e porto animado.
+ * Substitui completamente o antigo SVG isométrico.
  */
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Sky, Environment, Html, useTexture, Cloud } from '@react-three/drei';
+import * as THREE from 'three';
 import type { BuildingType } from '../../types';
 import { useGameStore } from '../../stores/useGameStore';
 import { useResources } from '../../hooks/useResources';
 import { BuildingCard } from './BuildingCard';
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SLOTS DE FUNDAÇÃO — coordenadas no SVG (cx, cy = centro do slot)
+   TIPOS E CONFIGURAÇÕES
 ───────────────────────────────────────────────────────────────────────────── */
-interface Slot { type: BuildingType; label: string; icon: string; cx: number; cy: number; rx: number; ry: number; }
+
+interface Slot {
+  type: BuildingType;
+  label: string;
+  icon: string;
+  x: number;   // coordenada X no mundo 3D
+  z: number;   // coordenada Z no mundo 3D
+  width: number;
+  depth: number;
+}
+
 const SLOTS: Slot[] = [
-  { type: 'sawmill',   label: 'Serraria',      icon: '🪵', cx: 620,  cy: 430, rx: 90, ry: 55 },
-  { type: 'ironMine',  label: 'Mina de Ferro', icon: '⚙️', cx: 1180, cy: 430, rx: 90, ry: 55 },
-  { type: 'farm',      label: 'Fazenda',        icon: '🌾', cx: 460,  cy: 620, rx: 100,ry: 62 },
-  { type: 'quarry',    label: 'Pedreira',       icon: '🪨', cx: 760,  cy: 660, rx: 90, ry: 55 },
-  { type: 'barracks',  label: 'Quartel',        icon: '⚔️', cx: 1080, cy: 595, rx: 100,ry: 62 },
-  { type: 'warehouse', label: 'Armazém',        icon: '🏚️',cx: 1280, cy: 620, rx: 90, ry: 55 },
-  { type: 'academy',   label: 'Academia',       icon: '📚', cx: 900,  cy: 740, rx: 95, ry: 58 },
+  { type: 'sawmill',   label: 'Serraria', icon: '🪵', x: 620,  z: 430, width: 1.2, depth: 1.0 },
+  { type: 'ironMine',  label: 'Mina de Ferro', icon: '⚙️', x: 1180, z: 430, width: 1.3, depth: 1.1 },
+  { type: 'farm',      label: 'Fazenda', icon: '🌾', x: 460,  z: 620, width: 1.8, depth: 1.4 },
+  { type: 'quarry',    label: 'Pedreira', icon: '🪨', x: 760,  z: 660, width: 1.5, depth: 1.2 },
+  { type: 'barracks',  label: 'Quartel', icon: '⚔️', x: 1080, z: 595, width: 1.6, depth: 1.3 },
+  { type: 'warehouse', label: 'Armazém', icon: '🏚️', x: 1280, z: 620, width: 1.4, depth: 1.2 },
+  { type: 'academy',   label: 'Academia', icon: '📚', x: 900,  z: 740, width: 1.5, depth: 1.2 },
 ];
 
-/* ─── Árvore Cipreste ───────────────────────────────────────────────────── */
-function CypressTree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
-  const h = 110 * s, w = 26 * s;
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <ellipse cx={0} cy={0} rx={w * 0.7} ry={9 * s} fill="rgba(0,0,0,0.18)" />
-      <polygon points={`0,${-h} ${-w},${-h * 0.22} 0,${-h * 0.12} ${w},${-h * 0.22}`}
-        fill="url(#gCypTop)" />
-      <polygon points={`0,${-h * 0.62} ${-w * 1.15},${-h * 0.08} 0,${-h * 0.04} ${w * 1.15},${-h * 0.08}`}
-        fill="url(#gCypMid)" />
-      <polygon points={`0,${-h * 0.32} ${-w * 1.3},${h * 0.04} 0,${h * 0.08} ${w * 1.3},${h * 0.04}`}
-        fill="url(#gCypBot)" />
-      <rect x={-4 * s} y={-h * 0.18} width={8 * s} height={h * 0.18} fill="#5c3a1e" rx={2} />
-    </g>
-  );
-}
+const MAP_SCALE = 0.0055;  // Escala para converter coordenadas SVG para mundo 3D
+const MAP_CENTER_X = 900;   // Centro do mapa original
+const MAP_CENTER_Z = 600;
+const WORLD_SIZE = 12;      // Tamanho do mundo em unidades 3D
 
-/* ─── Árvore Carvalho ───────────────────────────────────────────────────── */
-function OakTree({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
-  const r = 44 * s;
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <ellipse cx={0} cy={8 * s} rx={r * 0.85} ry={10 * s} fill="rgba(0,0,0,0.20)" />
-      <rect x={-7 * s} y={-r * 0.5} width={14 * s} height={r * 0.6} fill="#5c3a1e" rx={3} />
-      <circle cx={-14 * s} cy={-r * 0.55} r={r * 0.72} fill="#235a1e" />
-      <circle cx={14 * s}  cy={-r * 0.6}  r={r * 0.68} fill="#2a6423" />
-      <circle cx={0}       cy={-r * 0.78} r={r * 0.78} fill="url(#gOak)" />
-      <circle cx={-8 * s}  cy={-r * 0.55} r={r * 0.32} fill="#3a7a2a" opacity={0.6} />
-    </g>
-  );
-}
+// Função para converter coordenadas SVG para mundo 3D
+const svgToWorld = (x: number, z: number): [number, number, number] => {
+  const worldX = (x - MAP_CENTER_X) * MAP_SCALE;
+  const worldZ = (z - MAP_CENTER_Z) * MAP_SCALE;
+  return [worldX, 0, worldZ];
+};
 
-/* ─── Arbusto ───────────────────────────────────────────────────────────── */
-function Bush({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <ellipse cx={0} cy={5 * s} rx={22 * s} ry={7 * s} fill="rgba(0,0,0,0.15)" />
-      <circle cx={-12 * s} cy={-8 * s} r={14 * s} fill="#2a5e1a" />
-      <circle cx={10 * s}  cy={-9 * s} r={13 * s} fill="#305f1e" />
-      <circle cx={0}       cy={-14 * s} r={15 * s} fill="#3a7228" />
-      <circle cx={-6 * s}  cy={-6 * s} r={7 * s}  fill="#4a8a32" opacity={0.55} />
-    </g>
-  );
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   TERREMO COM RELEVO E TEXTURAS
+───────────────────────────────────────────────────────────────────────────── */
 
-/* ─── Torre Defensiva ────────────────────────────────────────────────────── */
-function Tower({ x, y, s = 1, lit = false }: { x: number; y: number; s?: number; lit?: boolean }) {
-  const w = 54 * s, h = 90 * s, rw = 60 * s;
-  return (
-    <g transform={`translate(${x},${y})`}>
-      {/* sombra */}
-      <ellipse cx={6 * s} cy={6 * s} rx={rw * 0.7} ry={20 * s} fill="rgba(0,0,0,0.22)" />
-      {/* corpo */}
-      <rect x={-w / 2} y={-h} width={w} height={h} fill="url(#gTowerFace)" rx={3} />
-      {/* face lateral esquerda (iluminação 3d) */}
-      <polygon points={`${-w / 2},${-h} ${-w / 2 - 10 * s},${-h + 16 * s} ${-w / 2 - 10 * s},${10 * s} ${-w / 2},${0}`}
-        fill="url(#gTowerSide)" />
-      {/* topo */}
-      <rect x={-rw / 2} y={-h - 12 * s} width={rw} height={14 * s} fill="url(#gBattlement)" rx={2} />
-      {/* ameias */}
-      {[-20, -6, 8, 22].map((dx, i) => (
-        <rect key={i} x={(dx - 5) * s + (-rw / 2) + rw / 2 - 10} y={-h - 26 * s}
-          width={10 * s} height={16 * s} fill="#8a7a60" rx={1} />
-      ))}
-      {/* janela */}
-      <ellipse cx={0} cy={-h * 0.55} rx={7 * s} ry={11 * s} fill={lit ? '#ffa020' : '#1a1208'} />
-      {lit && <ellipse cx={0} cy={-h * 0.55} rx={12 * s} ry={18 * s} fill="#ff8000" opacity={0.18} />}
-      {/* aro da janela */}
-      <ellipse cx={0} cy={-h * 0.55} rx={8 * s} ry={12 * s} fill="none"
-        stroke="#a08050" strokeWidth={2 * s} />
-    </g>
-  );
-}
+function Terrain() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  // Carrega texturas
+  const grassTex = useTexture('/textures/grass_01_diff_1k.jpg');
+  const grassNormal = useTexture('/textures/grass_01_nor_gl_1k.jpg');
+  const grassRough = useTexture('/textures/grass_01_arm_1k.jpg');
+  
+  // Configura repetição das texturas
+  [grassTex, grassNormal, grassRough].forEach(tex => {
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(40, 40);
+  });
 
-/* ─── Plataforma de Fundação ─────────────────────────────────────────────── */
-function Foundation({ slot, selected, onClick }: {
-  slot: Slot; selected: boolean; onClick: (t: BuildingType) => void;
-}) {
-  const { cx, cy, rx, ry } = slot;
-  const pulse = selected ? 'url(#gSlotSel)' : 'url(#gSlot)';
+  // Gera altura baseada em ruído para criar colinas suaves
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const geometry = meshRef.current.geometry;
+    const positionAttribute = geometry.attributes.position;
+    const vertex = new THREE.Vector3();
+    
+    for (let i = 0; i < positionAttribute.count; i++) {
+      vertex.fromBufferAttribute(positionAttribute, i);
+      
+      // Ruído simples para criar ondulações no terreno
+      const noise1 = Math.sin(vertex.x * 2.5) * Math.cos(vertex.z * 2.3) * 0.08;
+      const noise2 = Math.sin(vertex.x * 5.0) * Math.cos(vertex.z * 4.8) * 0.03;
+      const noise3 = Math.sin(vertex.x * 1.2 + 1.5) * Math.cos(vertex.z * 1.4 - 0.7) * 0.12;
+      
+      // Elevação central (colina do castelo)
+      const distFromCenter = Math.sqrt(vertex.x * vertex.x + vertex.z * vertex.z);
+      const hillFactor = Math.max(0, 1 - distFromCenter / 4) * 0.25;
+      
+      // Elevação das muralhas (bordas)
+      const wallDistX = Math.abs(vertex.x);
+      const wallDistZ = Math.abs(vertex.z);
+      const wallFactor = Math.max(0, 1 - Math.min(wallDistX, wallDistZ) / 2) * 0.1;
+      
+      const y = noise1 + noise2 + noise3 + hillFactor + wallFactor;
+      
+      // Atualiza a altura apenas se mudou significativamente
+      if (Math.abs(vertex.y - y) > 0.001) {
+        vertex.y = y;
+        positionAttribute.setY(i, vertex.y);
+      }
+    }
+    
+    geometry.computeVertexNormals();
+    positionAttribute.needsUpdate = true;
+  });
+
   return (
-    <g
-      style={{ cursor: 'pointer' }}
-      onClick={() => onClick(slot.type)}
+    <mesh 
+      ref={meshRef} 
+      rotation={[-Math.PI / 2, 0, 0]} 
+      position={[0, -0.2, 0]} 
+      receiveShadow
     >
-      {/* sombra suave */}
-      <ellipse cx={cx + 8} cy={cy + 14} rx={rx * 1.1} ry={ry * 0.85} fill="rgba(0,0,0,0.22)" />
-      {/* plataforma superior */}
-      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={pulse} />
-      {/* borda de pedra */}
-      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="none"
-        stroke={selected ? '#d4c870' : '#9a8860'} strokeWidth={selected ? 2.5 : 1.5}
-        strokeDasharray={selected ? undefined : '6 4'} />
-      {/* face frontal 3D */}
-      <path d={`M${cx - rx},${cy} Q${cx},${cy + ry * 0.5} ${cx + rx},${cy} L${cx + rx},${cy + 16} Q${cx},${cy + ry * 0.5 + 16} ${cx - rx},${cy + 16} Z`}
-        fill="url(#gFoundSide)" />
-      {/* cross pattern decorativo */}
-      <line x1={cx - rx * 0.6} y1={cy} x2={cx + rx * 0.6} y2={cy} stroke="#a09070" strokeWidth={1} opacity={0.4} />
-      <line x1={cx} y1={cy - ry * 0.6} x2={cx} y2={cy + ry * 0.6} stroke="#a09070" strokeWidth={1} opacity={0.4} />
-      {/* label do slot */}
-      <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle"
-        fontSize={13} fill={selected ? '#ffeea0' : '#d4c870'}
-        fontFamily="'Cinzel', 'Georgia', serif" fontWeight="600" opacity={0.92}>
-        {slot.icon} {slot.label}
-      </text>
-      {selected && (
-        <ellipse cx={cx} cy={cy} rx={rx + 6} ry={ry + 4}
-          fill="none" stroke="#ffe060" strokeWidth={2}
-          style={{ animation: 'slotPulse 1.6s ease-in-out infinite' }} />
+      <planeGeometry args={[WORLD_SIZE * 1.8, WORLD_SIZE * 1.8, 128, 128]} />
+      <meshStandardMaterial
+        map={grassTex}
+        normalMap={grassNormal}
+        roughnessMap={grassRough}
+        roughness={0.7}
+        metalness={0.1}
+        color="#8a9a6a"
+      />
+    </mesh>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MURALHAS REALISTAS COM AMEIAS
+───────────────────────────────────────────────────────────────────────────── */
+
+function WallSection({ start, end, height = 1.2 }: { start: [number, number]; end: [number, number]; height?: number }) {
+  const length = Math.sqrt(
+    Math.pow(end[0] - start[0], 2) + 
+    Math.pow(end[1] - start[1], 2)
+  );
+  
+  const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
+  const midX = (start[0] + end[0]) / 2;
+  const midZ = (start[1] + end[1]) / 2;
+  
+  const wallWidth = 0.25;
+  const numCrenellations = Math.floor(length / 0.25);
+  
+  return (
+    <group position={[midX, height/2, midZ]} rotation={[0, -angle, 0]}>
+      {/* Corpo principal da muralha */}
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[length, height, wallWidth]} />
+        <meshStandardMaterial color="#948470" roughness={0.8} metalness={0.1} />
+      </mesh>
+      
+      {/* Base da muralha (pedras mais escuras) */}
+      <mesh position={[0, -height/2 + 0.1, 0]} castShadow receiveShadow>
+        <boxGeometry args={[length + 0.1, 0.2, wallWidth + 0.2]} />
+        <meshStandardMaterial color="#6a5e4e" roughness={0.9} />
+      </mesh>
+      
+      {/* Ameias no topo */}
+      {Array.from({ length: numCrenellations }).map((_, i) => {
+        const t = (i + 0.5) / numCrenellations - 0.5;
+        const xPos = t * length;
+        return (
+          <group key={i} position={[xPos, height/2 + 0.15, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[0.15, 0.3, wallWidth + 0.1]} />
+              <meshStandardMaterial color="#a5947a" roughness={0.7} />
+            </mesh>
+          </group>
+        );
+      })}
+      
+      {/* Textura de pedra (detalhes com linhas) */}
+      {Array.from({ length: 8 }).map((_, i) => {
+        const yPos = -height/2 + (i + 0.5) * height/8;
+        return (
+          <mesh key={i} position={[0, yPos, wallWidth/2 + 0.01]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[length, 0.02]} />
+            <meshStandardMaterial color="#3a3228" emissive="#181410" />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+function VillageWalls() {
+  // Pontos do perímetro da vila (em coordenadas mundo)
+  const wallPoints: [number, number][] = [
+    [-4.5, -3.2], [-1.5, -4.0], [1.8, -3.8], [4.8, -2.8],
+    [5.2, 0.5], [4.5, 3.2], [1.8, 4.2], [-1.2, 4.5],
+    [-4.2, 3.8], [-5.0, 0.8], [-4.5, -3.2]
+  ];
+  
+  return (
+    <group>
+      {wallPoints.map((point, i) => {
+        if (i === wallPoints.length - 1) return null;
+        const start = point;
+        const end = wallPoints[i + 1];
+        return (
+          <WallSection 
+            key={i} 
+            start={start} 
+            end={end} 
+            height={1.0 + Math.sin(i) * 0.2} 
+          />
+        );
+      })}
+      
+      {/* Torres nos vértices */}
+      {wallPoints.slice(0, -1).map((point, i) => (
+        <group key={`tower-${i}`} position={[point[0], 0, point[1]]}>
+          {/* Base da torre */}
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[0.5, 0.6, 1.6, 8]} />
+            <meshStandardMaterial color="#7a6e5a" roughness={0.8} />
+          </mesh>
+          {/* Topo da torre */}
+          <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[0.45, 0.45, 0.3, 8]} />
+            <meshStandardMaterial color="#8a7e64" roughness={0.7} />
+          </mesh>
+          {/* Telhado cônico */}
+          <mesh position={[0, 1.15, 0]} castShadow>
+            <coneGeometry args={[0.4, 0.5, 8]} />
+            <meshStandardMaterial color="#6a4e2e" roughness={0.6} />
+          </mesh>
+          {/* Bandeira */}
+          <mesh position={[0.3, 1.3, 0.2]} rotation={[0, 0.2, 0.1]} castShadow>
+            <boxGeometry args={[0.05, 0.3, 0.2]} />
+            <meshStandardMaterial color="#b82" />
+          </mesh>
+        </group>
+      ))}
+      
+      {/* Portão principal */}
+      <group position={[0, 0, -3.2]}>
+        {/* Arco do portão */}
+        <mesh position={[0, 0.8, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.8, 1.6, 0.4]} />
+          <meshStandardMaterial color="#6a5a42" />
+        </mesh>
+        {/* Abertura (porta) */}
+        <mesh position={[0, 0.5, 0.21]} castShadow>
+          <boxGeometry args={[1.2, 1.2, 0.1]} />
+          <meshStandardMaterial color="#4a3a28" />
+        </mesh>
+        {/* Reforços de ferro */}
+        <mesh position={[-0.4, 0.5, 0.27]} castShadow>
+          <boxGeometry args={[0.1, 1.0, 0.05]} />
+          <meshStandardMaterial color="#aa9" metalness={0.8} roughness={0.3} />
+        </mesh>
+        <mesh position={[0.4, 0.5, 0.27]} castShadow>
+          <boxGeometry args={[0.1, 1.0, 0.05]} />
+          <meshStandardMaterial color="#aa9" metalness={0.8} roughness={0.3} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EDIFÍCIOS DETALHADOS
+───────────────────────────────────────────────────────────────────────────── */
+
+function Building({ slot, isSelected, onClick }: { slot: Slot; isSelected: boolean; onClick: () => void }) {
+  const [worldX, , worldZ] = svgToWorld(slot.x, slot.z);
+  const meshRef = useRef<THREE.Group>(null);
+  
+  // Animação de seleção
+  useFrame((state) => {
+    if (meshRef.current && isSelected) {
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
+    } else if (meshRef.current) {
+      meshRef.current.position.y = 0;
+    }
+  });
+  
+  // Cores baseadas no tipo de construção
+  const getColors = () => {
+    switch(slot.type) {
+      case 'sawmill': return { wood: '#8b5a2b', roof: '#5d3a1a' };
+      case 'ironMine': return { wood: '#5a4a3a', roof: '#3a2a1a', stone: '#6a5a4a' };
+      case 'farm': return { wood: '#a57c52', roof: '#7a5a32', walls: '#c09a6a' };
+      case 'quarry': return { wood: '#6a5e4a', roof: '#4a3e2a', stone: '#8a7e6a' };
+      case 'barracks': return { wood: '#5a4a32', roof: '#3a2a18', walls: '#8a7a5a' };
+      case 'warehouse': return { wood: '#7a623a', roof: '#5a421a', walls: '#9a825a' };
+      case 'academy': return { wood: '#6a523a', roof: '#4a321a', walls: '#b89a6a', trim: '#c8a86a' };
+      default: return { wood: '#8b5a2b', roof: '#5d3a1a' };
+    }
+  };
+  
+  const colors = getColors();
+  
+  return (
+    <group 
+      ref={meshRef}
+      position={[worldX, 0, worldZ]} 
+      onClick={onClick}
+      onPointerOver={(e) => (e.stopPropagation(), (document.body.style.cursor = 'pointer'))}
+      onPointerOut={() => (document.body.style.cursor = 'auto')}
+    >
+      {/* Sombra projetada */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
+        <planeGeometry args={[slot.width * 1.5, slot.depth * 1.5]} />
+        <shadowMaterial opacity={0.3} />
+      </mesh>
+      
+      {/* Base/Piso */}
+      <mesh position={[0, 0.05, 0]} receiveShadow>
+        <boxGeometry args={[slot.width * 1.1, 0.1, slot.depth * 1.1]} />
+        <meshStandardMaterial color="#6a5a42" roughness={0.9} />
+      </mesh>
+      
+      {/* Paredes */}
+      <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
+        <boxGeometry args={[slot.width, 0.8, slot.depth]} />
+        <meshStandardMaterial color={colors.walls || colors.wood} roughness={0.7} />
+      </mesh>
+      
+      {/* Detalhes das paredes (janelas/portas) */}
+      {slot.type === 'academy' && (
+        <>
+          <mesh position={[0.3, 0.5, slot.depth/2 + 0.05]} castShadow>
+            <boxGeometry args={[0.2, 0.3, 0.05]} />
+            <meshStandardMaterial color="#c8b07a" emissive="#321" />
+          </mesh>
+          <mesh position={[-0.3, 0.5, slot.depth/2 + 0.05]} castShadow>
+            <boxGeometry args={[0.2, 0.3, 0.05]} />
+            <meshStandardMaterial color="#c8b07a" emissive="#321" />
+          </mesh>
+        </>
       )}
-    </g>
+      
+      {/* Telhado */}
+      <mesh position={[0, 0.85, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        <coneGeometry args={[slot.width * 0.7, 0.6, 4]} />
+        <meshStandardMaterial color={colors.roof} roughness={0.8} />
+      </mesh>
+      
+      {/* Chaminé (para alguns edifícios) */}
+      {(slot.type === 'sawmill' || slot.type === 'ironMine') && (
+        <mesh position={[0.3, 0.7, -0.2]} castShadow>
+          <boxGeometry args={[0.2, 0.5, 0.2]} />
+          <meshStandardMaterial color="#6a5a42" roughness={0.9} />
+        </mesh>
+      )}
+      
+      {/* Indicador de seleção (anel brilhante) */}
+      {isSelected && (
+        <>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+            <ringGeometry args={[slot.width * 0.8, slot.width * 0.9, 32]} />
+            <meshStandardMaterial color="#ffaa00" emissive="#442200" transparent opacity={0.6} />
+          </mesh>
+          <Html position={[0, 1.5, 0]} center>
+            <div className="bg-amber-900/90 text-amber-100 px-3 py-1 rounded-full border border-amber-500 shadow-lg text-sm whitespace-nowrap">
+              {slot.icon} {slot.label}
+            </div>
+          </Html>
+        </>
+      )}
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CASTELO PRINCIPAL (DETALHADO)
+───────────────────────────────────────────────────────────────────────────── */
+
+function Castle() {
+  return (
+    <group position={[0, 0.2, 0.8]}>
+      {/* Plataforma da colina */}
+      <mesh position={[0, -0.1, 0]} receiveShadow>
+        <cylinderGeometry args={[2.2, 2.5, 0.4, 16]} />
+        <meshStandardMaterial color="#6a5e4a" roughness={0.9} />
+      </mesh>
+      
+      {/* Torre principal */}
+      <mesh position={[0, 1.0, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.9, 1.0, 2.0, 8]} />
+        <meshStandardMaterial color="#8a7a68" roughness={0.8} />
+      </mesh>
+      
+      {/* Topo da torre principal */}
+      <mesh position={[0, 2.1, 0]} castShadow>
+        <cylinderGeometry args={[0.8, 0.9, 0.3, 8]} />
+        <meshStandardMaterial color="#9a8a72" roughness={0.7} />
+      </mesh>
+      
+      {/* Telhado da torre principal */}
+      <mesh position={[0, 2.4, 0]} castShadow>
+        <coneGeometry args={[0.7, 0.8, 8]} />
+        <meshStandardMaterial color="#6a4e2e" roughness={0.6} />
+      </mesh>
+      
+      {/* Torres laterais */}
+      {[-1.2, 1.2].map((x, i) => (
+        <group key={i} position={[x, 0.5, 0.7]}>
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[0.5, 0.55, 1.2, 6]} />
+            <meshStandardMaterial color="#7a6e5a" roughness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.7, 0]} castShadow>
+            <coneGeometry args={[0.4, 0.5, 6]} />
+            <meshStandardMaterial color="#5d3a1a" roughness={0.7} />
+          </mesh>
+        </group>
+      ))}
+      
+      {/* Muralha conectando as torres */}
+      <mesh position={[0, 0.7, 1.1]} castShadow receiveShadow>
+        <boxGeometry args={[3.0, 0.8, 0.4]} />
+        <meshStandardMaterial color="#8a7a68" roughness={0.8} />
+      </mesh>
+      
+      {/* Bandeira no topo */}
+      <mesh position={[0.4, 2.7, 0.1]} rotation={[0, 0.2, 0.1]} castShadow>
+        <boxGeometry args={[0.05, 0.4, 0.2]} />
+        <meshStandardMaterial color="#c82" />
+      </mesh>
+      
+      {/* Entrada principal */}
+      <mesh position={[0, 0.5, 1.3]} castShadow>
+        <boxGeometry args={[0.8, 1.0, 0.2]} />
+        <meshStandardMaterial color="#4a3a28" />
+      </mesh>
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PORTO COM ÁGUA ANIMADA
+───────────────────────────────────────────────────────────────────────────── */
+
+function Harbor() {
+  const waterRef = useRef<THREE.Mesh>(null);
+  
+  // Animação da água
+  useFrame((state) => {
+    if (waterRef.current) {
+      const material = waterRef.current.material as THREE.ShaderMaterial;
+      if (material.uniforms) {
+        material.uniforms.time.value = state.clock.elapsedTime;
+      }
+    }
+  });
+  
+  // Shader personalizado para água
+  const waterShader = {
+    uniforms: {
+      time: { value: 0 },
+      colorDeep: { value: new THREE.Color('#1a4a6a') },
+      colorShallow: { value: new THREE.Color('#3a8ab0') }
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying float vElevation;
+      void main() {
+        vUv = uv;
+        vec3 pos = position;
+        vElevation = sin(pos.x * 2.0 + time * 2.0) * cos(pos.z * 1.5 + time) * 0.03;
+        pos.y += vElevation;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 colorDeep;
+      uniform vec3 colorShallow;
+      uniform float time;
+      varying vec2 vUv;
+      varying float vElevation;
+      
+      void main() {
+        float mixFactor = (sin(vUv.x * 20.0 + time * 3.0) * cos(vUv.y * 15.0 + time * 2.0) + 1.0) * 0.5;
+        vec3 color = mix(colorDeep, colorShallow, mixFactor);
+        float alpha = 0.85 + vElevation * 2.0;
+        gl_FragColor = vec4(color, alpha);
+      }
+    `
+  };
+  
+  return (
+    <group position={[0, -0.1, 3.5]}>
+      {/* Água com shader */}
+      <mesh 
+        ref={waterRef} 
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, 0, 0]} 
+        receiveShadow
+      >
+        <planeGeometry args={[8, 5, 32, 32]} />
+        <shaderMaterial 
+          args={[waterShader]} 
+          transparent 
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      
+      {/* Docas de madeira */}
+      {[-2, 0, 2].map((x, i) => (
+        <group key={i} position={[x, 0.1, -0.5]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[1.2, 0.15, 4.0]} />
+            <meshStandardMaterial color="#8b5e3c" roughness={0.9} />
+          </mesh>
+          {/* Pilares */}
+          {[-1.5, 0, 1.5].map((z, j) => (
+            <mesh key={j} position={[0, -0.3, z]} castShadow receiveShadow>
+              <cylinderGeometry args={[0.15, 0.2, 0.6, 6]} />
+              <meshStandardMaterial color="#5d3a1a" roughness={0.8} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      
+      {/* Barco 1 */}
+      <group position={[1.5, 0.2, 0.8]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.8, 0.2, 0.4]} />
+          <meshStandardMaterial color="#5d3a1a" roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 0.3, 0]} castShadow>
+          <coneGeometry args={[0.2, 0.5, 6]} />
+          <meshStandardMaterial color="#a57c52" roughness={0.6} />
+        </mesh>
+        <mesh position={[0.3, 0.1, 0]} castShadow>
+          <boxGeometry args={[0.05, 0.3, 0.3]} />
+          <meshStandardMaterial color="#8b6b4b" roughness={0.8} />
+        </mesh>
+      </group>
+      
+      {/* Barco 2 */}
+      <group position={[-1.2, 0.15, 1.2]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.7, 0.15, 0.35]} />
+          <meshStandardMaterial color="#5d3a1a" roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 0.25, 0]} castShadow>
+          <coneGeometry args={[0.15, 0.4, 6]} />
+          <meshStandardMaterial color="#a57c52" roughness={0.6} />
+        </mesh>
+      </group>
+      
+      {/* Farol/Poste na ponta do cais */}
+      <group position={[2.8, 0.4, -1.2]}>
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[0.1, 0.15, 0.8, 6]} />
+          <meshStandardMaterial color="#6a5a42" />
+        </mesh>
+        <mesh position={[0, 0.5, 0]} castShadow>
+          <sphereGeometry args={[0.15]} />
+          <meshStandardMaterial color="#ffaa30" emissive="#442200" />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   VEGETAÇÃO VARIADA
+───────────────────────────────────────────────────────────────────────────── */
+
+function Tree({ x, z, type = 'oak' }: { x: number; z: number; type?: 'oak' | 'cypress' | 'pine' }) {
+  const [worldX, , worldZ] = svgToWorld(x, z);
+  const scale = 0.3 + Math.random() * 0.2;
+  const treeRef = useRef<THREE.Group>(null);
+  
+  // Pequena animação de balanço
+  useFrame((state) => {
+    if (treeRef.current) {
+      treeRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + x) * 0.02;
+    }
+  });
+  
+  if (type === 'cypress') {
+    return (
+      <group ref={treeRef} position={[worldX, 0, worldZ]} scale={[scale, scale, scale]}>
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[0.1, 0.2, 1.4]} />
+          <meshStandardMaterial color="#5c3a1e" roughness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.7, 0]} castShadow>
+          <coneGeometry args={[0.5, 1.0, 6]} />
+          <meshStandardMaterial color="#1e4a1a" roughness={0.7} emissive="#0a1a0a" />
+        </mesh>
+      </group>
+    );
+  } else if (type === 'pine') {
+    return (
+      <group ref={treeRef} position={[worldX, 0, worldZ]} scale={[scale, scale, scale]}>
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[0.15, 0.25, 1.6]} />
+          <meshStandardMaterial color="#4a321a" roughness={0.9} />
+        </mesh>
+        {[0.4, 0.7, 1.0].map((y, i) => (
+          <mesh key={i} position={[0, y, 0]} castShadow>
+            <coneGeometry args={[0.6 - i * 0.15, 0.4, 6]} />
+            <meshStandardMaterial color="#2a5e1a" roughness={0.7} />
+          </mesh>
+        ))}
+      </group>
+    );
+  } else { // oak
+    return (
+      <group ref={treeRef} position={[worldX, 0, worldZ]} scale={[scale, scale, scale]}>
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[0.2, 0.3, 1.2]} />
+          <meshStandardMaterial color="#5c3a1e" roughness={0.9} />
+        </mesh>
+        <mesh position={[0, 0.7, 0]} castShadow>
+          <sphereGeometry args={[0.7]} />
+          <meshStandardMaterial color="#3a7a2a" roughness={0.6} emissive="#1a3a1a" />
+        </mesh>
+        {[-0.3, 0.3].map((x, i) => (
+          <mesh key={i} position={[x, 0.5, 0]} castShadow>
+            <sphereGeometry args={[0.4]} />
+            <meshStandardMaterial color="#2a6a1a" roughness={0.7} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+}
+
+function Bush({ x, z }: { x: number; z: number }) {
+  const [worldX, , worldZ] = svgToWorld(x, z);
+  const scale = 0.2 + Math.random() * 0.15;
+  
+  return (
+    <group position={[worldX, 0, worldZ]} scale={[scale, scale, scale]}>
+      <mesh castShadow receiveShadow>
+        <sphereGeometry args={[0.6]} />
+        <meshStandardMaterial color="#3a7228" roughness={0.8} />
+      </mesh>
+      <mesh position={[0.2, 0.2, 0.1]} castShadow>
+        <sphereGeometry args={[0.4]} />
+        <meshStandardMaterial color="#4a8a32" roughness={0.7} />
+      </mesh>
+      <mesh position={[-0.2, 0.1, -0.2]} castShadow>
+        <sphereGeometry args={[0.5]} />
+        <meshStandardMaterial color="#2a5e1a" roughness={0.8} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ELEMENTOS DE CENA (NUVENS, PASSAROS, ETC)
+───────────────────────────────────────────────────────────────────────────── */
+
+function Clouds() {
+  return (
+    <>
+      <Cloud position={[-3, 4, -2]} opacity={0.5} speed={0.2} />
+      <Cloud position={[2, 5, 1]} opacity={0.6} speed={0.15} />
+      <Cloud position={[4, 4.5, -3]} opacity={0.4} speed={0.25} />
+    </>
+  );
+}
+
+function Birds() {
+  const birdsRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (birdsRef.current) {
+      birdsRef.current.position.x = Math.sin(state.clock.elapsedTime * 0.2) * 2;
+      birdsRef.current.position.z = Math.cos(state.clock.elapsedTime * 0.3) * 2;
+      birdsRef.current.rotation.y += 0.002;
+    }
+  });
+  
+  return (
+    <group ref={birdsRef} position={[2, 3, 1]}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <group key={i} position={[i * 0.2, Math.sin(i) * 0.1, i * 0.1]}>
+          <mesh rotation={[0, 0, 0.3]} castShadow>
+            <coneGeometry args={[0.05, 0.15, 3]} />
+            <meshStandardMaterial color="#222" />
+          </mesh>
+          <mesh position={[0.1, 0, 0]} rotation={[0, 0, -0.3]} castShadow>
+            <coneGeometry args={[0.05, 0.15, 3]} />
+            <meshStandardMaterial color="#222" />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ILUMINAÇÃO E ATMOSFERA
+───────────────────────────────────────────────────────────────────────────── */
+
+function SceneLights() {
+  return (
+    <>
+      {/* Luz ambiente suave */}
+      <ambientLight intensity={0.3} color="#b0b8d0" />
+      
+      {/* Luz solar principal */}
+      <directionalLight
+        position={[10, 20, 5]}
+        intensity={1.2}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-far={30}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+        shadow-bias={-0.0005}
+        color="#faf0d0"
+      />
+      
+      {/* Preenchimento lateral (luz do céu) */}
+      <directionalLight position={[-5, 5, 10]} intensity={0.4} color="#a0b0d0" />
+      
+      {/* Luz de fundo (contraluz) */}
+      <directionalLight position={[-5, 2, -10]} intensity={0.2} color="#7080a0" />
+      
+      {/* Tochas/lanternas (pontos de luz quente) */}
+      <pointLight position={[2.5, 1.2, -1.5]} intensity={0.5} color="#ffa050" distance={4} />
+      <pointLight position={[-2.2, 1.2, 2.0]} intensity={0.4} color="#ffa050" distance={4} />
+      <pointLight position={[1.0, 1.5, 3.2]} intensity={0.3} color="#ffa050" distance={5} />
+      
+      {/* Névoa */}
+      <fog attach="fog" args={['#1a1a2e', 12, 25]} />
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CENA PRINCIPAL
+───────────────────────────────────────────────────────────────────────────── */
+
+function Scene({ selectedSlot, onSlotClick }: {
+  selectedSlot: BuildingType | null;
+  onSlotClick: (type: BuildingType) => void;
+}) {
+  return (
+    <>
+      <SceneLights />
+      <Terrain />
+      <VillageWalls />
+      <Castle />
+      <Harbor />
+      <Clouds />
+      <Birds />
+      
+      {/* ÁRVORES - Posicionadas conforme o mapa SVG original */}
+      {/* Ciprestes nas muralhas norte */}
+      <Tree x={420} z={254} type="cypress" />
+      <Tree x={490} z={238} type="cypress" />
+      <Tree x={1310} z={238} type="cypress" />
+      <Tree x={1382} z={254} type="cypress" />
+      <Tree x={560} z={250} type="pine" />
+      <Tree x={1242} z={250} type="pine" />
+      
+      {/* Carvalhos na colina do castelo */}
+      <Tree x={520} z={432} type="oak" />
+      <Tree x={560} z={408} type="oak" />
+      <Tree x={1280} z={432} type="oak" />
+      <Tree x={1240} z={408} type="oak" />
+      <Tree x={620} z={382} type="oak" />
+      <Tree x={1180} z={382} type="oak" />
+      
+      {/* Árvores ao redor da plataforma do castelo */}
+      <Tree x={640} z={470} type="oak" />
+      <Tree x={1160} z={468} type="oak" />
+      
+      {/* Vegetação no distrito central */}
+      <Tree x={380} z={540} type="oak" />
+      <Tree x={340} z={570} type="pine" />
+      <Tree x={308} z={530} type="cypress" />
+      <Tree x={1420} z={540} type="oak" />
+      <Tree x={1460} z={568} type="pine" />
+      <Tree x={1492} z={528} type="cypress" />
+      
+      {/* Árvores entre as fundações */}
+      <Tree x={536} z={555} type="oak" />
+      <Tree x={1268} z={552} type="oak" />
+      
+      {/* Vegetação na área sul (perto do porto) */}
+      <Tree x={380} z={720} type="oak" />
+      <Tree x={420} z={750} type="pine" />
+      <Tree x={1420} z={718} type="oak" />
+      <Tree x={1460} z={748} type="pine" />
+      <Tree x={352} z={718} type="cypress" />
+      <Tree x={1448} z={716} type="cypress" />
+      
+      {/* Árvores fora das muralhas */}
+      <Tree x={100} z={480} type="oak" />
+      <Tree x={155} z={510} type="pine" />
+      <Tree x={60} z={460} type="cypress" />
+      <Tree x={120} z={420} type="cypress" />
+      <Tree x={1650} z={480} type="oak" />
+      <Tree x={1700} z={512} type="pine" />
+      <Tree x={1740} z={456} type="cypress" />
+      
+      {/* Arbustos */}
+      <Bush x={680} z={490} />
+      <Bush x={750} z={480} />
+      <Bush x={1050} z={478} />
+      <Bush x={1120} z={490} />
+      <Bush x={560} z={578} />
+      <Bush x={508} z={562} />
+      <Bush x={1300} z={575} />
+      <Bush x={355} z={738} />
+      <Bush x={455} z={760} />
+      <Bush x={1488} z={736} />
+      <Bush x={680} z={858} />
+      <Bush x={720} z={870} />
+      <Bush x={1082} z={858} />
+      <Bush x={1120} z={870} />
+      <Bush x={80} z={540} />
+      <Bush x={180} z={580} />
+      <Bush x={1622} z={545} />
+      <Bush x={1720} z={572} />
+      <Bush x={280} z={888} />
+      <Bush x={320} z={904} />
+      <Bush x={1478} z={888} />
+      <Bush x={1520} z={904} />
+      
+      {/* FUNDAÇÕES / EDIFÍCIOS CONSTRUÍVEIS */}
+      {SLOTS.map((slot) => (
+        <Building
+          key={slot.type}
+          slot={slot}
+          isSelected={selectedSlot === slot.type}
+          onClick={() => onSlotClick(slot.type)}
+        />
+      ))}
+      
+      {/* Chão invisível para capturar cliques fora dos objetos */}
+      <mesh 
+        rotation={[-Math.PI / 2, 0, 0]} 
+        position={[0, -0.3, 0]} 
+        onClick={() => onSlotClick(null as any)}
+        visible={false}
+      >
+        <planeGeometry args={[30, 30]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   COMPONENTE PRINCIPAL
+   COMPONENTE PRINCIPAL (com HUD e Canvas)
 ═══════════════════════════════════════════════════════════════════════════ */
+
 export const CastleView: React.FC = () => {
-  const castle    = useGameStore((s) => s.castle);
+  const castle = useGameStore((s) => s.castle);
   const resources = useResources();
   const [selected, setSelected] = useState<BuildingType | null>(null);
 
-  if (!castle) return (
-    <div className="flex items-center justify-center h-64 text-stone-400 text-sm">
-      Carregando castelo…
-    </div>
-  );
+  if (!castle) {
+    return (
+      <div className="flex items-center justify-center h-screen text-stone-400 text-sm bg-stone-950">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-pulse">🏰</div>
+          <div>Carregando vila medieval...</div>
+        </div>
+      </div>
+    );
+  }
 
   const res = resources ?? castle.resources;
-  const toggleSlot = (t: BuildingType) => setSelected(p => p === t ? null : t);
 
   return (
-    <div className="relative w-full overflow-hidden select-none"
-      style={{ background: 'linear-gradient(180deg,#08051a 0%,#0d0a1e 100%)' }}>
-
-      {/* ── HUD de Recursos ─────────────────────────────────────────── */}
-      <div className="relative z-20 flex flex-wrap items-center gap-2 px-4 py-2 text-sm"
-        style={{ background: 'linear-gradient(90deg,rgba(8,5,2,.97),rgba(22,14,5,.97))',
-          borderBottom: '1px solid #b8860b44' }}>
-        <span className="font-medieval text-yellow-500 text-base mr-1">🏰 Nível {castle.level}</span>
-        <span className="text-amber-300 bg-black/30 px-2 py-0.5 rounded">🌾 {Math.floor(res.food).toLocaleString()}</span>
-        <span className="text-green-300 bg-black/30 px-2 py-0.5 rounded">🪵 {Math.floor(res.wood).toLocaleString()}</span>
-        <span className="text-stone-300 bg-black/30 px-2 py-0.5 rounded">🪨 {Math.floor(res.stone).toLocaleString()}</span>
-        <span className="text-sky-300 bg-black/30 px-2 py-0.5 rounded">⚙️ {Math.floor(res.iron).toLocaleString()}</span>
-        <span className="ml-auto text-stone-500 text-xs">[{castle.mapX},{castle.mapY}]</span>
+    <div className="relative w-full h-screen overflow-hidden bg-stone-950">
+      {/* HUD de recursos (estilo original) */}
+      <div
+        className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center gap-2 px-4 py-2 text-sm"
+        style={{
+          background: 'linear-gradient(90deg, rgba(8,5,2,0.97), rgba(22,14,5,0.97))',
+          borderBottom: '1px solid #b8860b44',
+          backdropFilter: 'blur(4px)',
+        }}
+      >
+        <span className="font-medieval text-yellow-500 text-base mr-1 flex items-center">
+          🏰 Nível {castle.level}
+        </span>
+        <span className="text-amber-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span>🌾</span> {Math.floor(res.food).toLocaleString()}
+        </span>
+        <span className="text-green-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span>🪵</span> {Math.floor(res.wood).toLocaleString()}
+        </span>
+        <span className="text-stone-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span>🪨</span> {Math.floor(res.stone).toLocaleString()}
+        </span>
+        <span className="text-sky-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span>⚙️</span> {Math.floor(res.iron).toLocaleString()}
+        </span>
+        <span className="ml-auto text-stone-500 text-xs bg-black/30 px-2 py-0.5 rounded">
+          [{castle.mapX},{castle.mapY}]
+        </span>
       </div>
 
-      {/* ── MAPA ISOMÉTRICO SVG ─────────────────────────────────────── */}
-      <div className="relative overflow-hidden" style={{ height: '78vh', minHeight: 520, maxHeight: 860 }}>
-
-        <svg viewBox="0 0 1800 1230" preserveAspectRatio="xMidYMid meet"
-          className="absolute inset-0 w-full h-full" style={{ display: 'block' }}>
-
-          {/* ══ DEFS ════════════════════════════════════════════════════ */}
-          <defs>
-
-            {/* ── Gradientes de ambiente ─────────────────────────────── */}
-            <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#070514" />
-              <stop offset="55%" stopColor="#0e1030" />
-              <stop offset="100%" stopColor="#1a2040" />
-            </linearGradient>
-            <linearGradient id="gOcean" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0a2240" />
-              <stop offset="40%" stopColor="#0c2a4e" />
-              <stop offset="100%" stopColor="#060f1e" />
-            </linearGradient>
-            <linearGradient id="gOceanShallow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1a4060" />
-              <stop offset="100%" stopColor="#0c2a4e" />
-            </linearGradient>
-            <linearGradient id="gShoreLine" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2a3820" />
-              <stop offset="100%" stopColor="#0c2a4e" />
-            </linearGradient>
-            <linearGradient id="gGrass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2a4820" />
-              <stop offset="60%" stopColor="#233a1a" />
-              <stop offset="100%" stopColor="#1a2c14" />
-            </linearGradient>
-            <linearGradient id="gGrassInner" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#304a24" />
-              <stop offset="100%" stopColor="#263c1c" />
-            </linearGradient>
-            <linearGradient id="gDirt" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4a3820" />
-              <stop offset="100%" stopColor="#382a16" />
-            </linearGradient>
-            <linearGradient id="gClifTop" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7a6848" />
-              <stop offset="100%" stopColor="#5c4e34" />
-            </linearGradient>
-            <linearGradient id="gClifFace" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4a3e2c" />
-              <stop offset="50%" stopColor="#3a3020" />
-              <stop offset="100%" stopColor="#1e1a10" />
-            </linearGradient>
-            <linearGradient id="gCastleHill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8a7a5a" />
-              <stop offset="35%" stopColor="#6e6244" />
-              <stop offset="100%" stopColor="#54483a" />
-            </linearGradient>
-            <linearGradient id="gCastlePlatTop" x1="0" y1="0" x2="0.4" y2="1">
-              <stop offset="0%" stopColor="#a09070" />
-              <stop offset="40%" stopColor="#8a7a5c" />
-              <stop offset="100%" stopColor="#6e6248" />
-            </linearGradient>
-            <linearGradient id="gCastleCourtyard" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#9a8a6a" />
-              <stop offset="100%" stopColor="#7a6e52" />
-            </linearGradient>
-
-            {/* ── Gradientes de muro ────────────────────────────────── */}
-            <linearGradient id="gWallTop" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#9a8a6a" />
-              <stop offset="100%" stopColor="#7a6a4e" />
-            </linearGradient>
-            <linearGradient id="gWallFront" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5a5040" />
-              <stop offset="50%" stopColor="#4a4232" />
-              <stop offset="100%" stopColor="#2e2a1e" />
-            </linearGradient>
-            <linearGradient id="gWallSide" x1="1" y1="0" x2="0" y2="0">
-              <stop offset="0%" stopColor="#3e3828" />
-              <stop offset="100%" stopColor="#2a2418" />
-            </linearGradient>
-            <linearGradient id="gBattlement" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8a7a5c" />
-              <stop offset="100%" stopColor="#6a5e44" />
-            </linearGradient>
-            <linearGradient id="gTowerFace" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7a6e54" />
-              <stop offset="40%" stopColor="#5e5440" />
-              <stop offset="100%" stopColor="#3a3224" />
-            </linearGradient>
-            <linearGradient id="gTowerSide" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3a3426" />
-              <stop offset="100%" stopColor="#1e1c12" />
-            </linearGradient>
-
-            {/* ── Gradientes de estrada ─────────────────────────────── */}
-            <linearGradient id="gRoad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7a6e56" />
-              <stop offset="100%" stopColor="#5e5440" />
-            </linearGradient>
-            <linearGradient id="gCobble" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#8a7e64" />
-              <stop offset="50%" stopColor="#6e6450" />
-              <stop offset="100%" stopColor="#5a5040" />
-            </linearGradient>
-            <linearGradient id="gStair" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a09070" />
-              <stop offset="100%" stopColor="#5a5040" />
-            </linearGradient>
-
-            {/* ── Fundações ────────────────────────────────────────── */}
-            <radialGradient id="gSlot" cx="50%" cy="40%" r="60%">
-              <stop offset="0%" stopColor="#8a7e62" stopOpacity="0.95" />
-              <stop offset="60%" stopColor="#6a6048" stopOpacity="0.90" />
-              <stop offset="100%" stopColor="#4a4232" stopOpacity="0.85" />
-            </radialGradient>
-            <radialGradient id="gSlotSel" cx="50%" cy="40%" r="60%">
-              <stop offset="0%" stopColor="#b0a478" stopOpacity="0.98" />
-              <stop offset="60%" stopColor="#8a7c58" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#5e5438" stopOpacity="0.90" />
-            </radialGradient>
-            <linearGradient id="gFoundSide" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#4a4030" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#1e1c14" stopOpacity="0.9" />
-            </linearGradient>
-
-            {/* ── Porto / madeira ──────────────────────────────────── */}
-            <linearGradient id="gDock" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6a4e30" />
-              <stop offset="100%" stopColor="#3a2c1c" />
-            </linearGradient>
-            <linearGradient id="gHarborWall" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#54483a" />
-              <stop offset="100%" stopColor="#2e2820" />
-            </linearGradient>
-            <linearGradient id="gBoatHull" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5c4228" />
-              <stop offset="100%" stopColor="#3a2818" />
-            </linearGradient>
-
-            {/* ── Vegetação ────────────────────────────────────────── */}
-            <linearGradient id="gCypTop" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1e4a1a" />
-              <stop offset="100%" stopColor="#2a5e22" />
-            </linearGradient>
-            <linearGradient id="gCypMid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#245820" />
-              <stop offset="100%" stopColor="#306828" />
-            </linearGradient>
-            <linearGradient id="gCypBot" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2c6226" />
-              <stop offset="100%" stopColor="#3a7432" />
-            </linearGradient>
-            <radialGradient id="gOak" cx="35%" cy="30%" r="65%">
-              <stop offset="0%" stopColor="#4a8c38" />
-              <stop offset="50%" stopColor="#307028" />
-              <stop offset="100%" stopColor="#1e4c18" />
-            </radialGradient>
-
-            {/* ── Efeito Luz Ambiental ──────────────────────────────── */}
-            <radialGradient id="gAmbient" cx="50%" cy="0%" r="75%">
-              <stop offset="0%" stopColor="#e8d090" stopOpacity="0.14" />
-              <stop offset="100%" stopColor="transparent" />
-            </radialGradient>
-            <radialGradient id="gVignette" cx="50%" cy="50%" r="70%">
-              <stop offset="40%" stopColor="transparent" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0.70)" />
-            </radialGradient>
-            <radialGradient id="gMoonlight" cx="70%" cy="5%" r="45%">
-              <stop offset="0%" stopColor="#b8c8e8" stopOpacity="0.10" />
-              <stop offset="100%" stopColor="transparent" />
-            </radialGradient>
-
-            {/* ── Filtro hand-painted ───────────────────────────────── */}
-            <filter id="fPaint" x="-5%" y="-5%" width="110%" height="110%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.018 0.022" numOctaves="4" seed="8" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-            <filter id="fSoftShadow">
-              <feGaussianBlur stdDeviation="7" />
-            </filter>
-            <filter id="fDrop">
-              <feDropShadow dx="3" dy="5" stdDeviation="5" floodColor="#000" floodOpacity="0.35" />
-            </filter>
-            <filter id="fGlow">
-              <feGaussianBlur stdDeviation="6" result="b" />
-              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-            </filter>
-            <filter id="fWater">
-              <feTurbulence type="turbulence" baseFrequency="0.025 0.008" numOctaves="3" seed="12" result="wn">
-                <animate attributeName="baseFrequency" values="0.025 0.008;0.028 0.010;0.025 0.008" dur="8s" repeatCount="indefinite" />
-              </feTurbulence>
-              <feDisplacementMap in="SourceGraphic" in2="wn" scale="8" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-
-            {/* ── Padrão pedra de calçada ───────────────────────────── */}
-            <pattern id="pCobble" x="0" y="0" width="28" height="18" patternUnits="userSpaceOnUse">
-              <rect width="28" height="18" fill="#6e6450" />
-              <rect x="1" y="1" width="11" height="7" rx="1" fill="#7e7460" />
-              <rect x="14" y="1" width="13" height="7" rx="1" fill="#786e58" />
-              <rect x="1" y="10" width="13" height="7" rx="1" fill="#7a7060" />
-              <rect x="16" y="10" width="11" height="7" rx="1" fill="#746a54" />
-            </pattern>
-
-            {/* ── Padrão pedra da muralha ───────────────────────────── */}
-            <pattern id="pStone" x="0" y="0" width="40" height="24" patternUnits="userSpaceOnUse">
-              <rect width="40" height="24" fill="#5a5040" />
-              <rect x="1" y="1" width="17" height="10" rx="1" fill="#645a48" opacity="0.9" />
-              <rect x="20" y="1" width="19" height="10" rx="1" fill="#5e5444" opacity="0.9" />
-              <rect x="1" y="13" width="20" height="10" rx="1" fill="#625848" opacity="0.9" />
-              <rect x="23" y="13" width="16" height="10" rx="1" fill="#5c5242" opacity="0.9" />
-            </pattern>
-
-            {/* ── Padrão tábua de madeira ───────────────────────────── */}
-            <pattern id="pPlank" x="0" y="0" width="20" height="80" patternUnits="userSpaceOnUse">
-              <rect width="20" height="80" fill="#5c4430" />
-              <rect x="1" y="0" width="8" height="80" fill="#644c38" />
-              <rect x="11" y="0" width="8" height="80" fill="#5a4030" />
-              <line x1="0" y1="20" x2="20" y2="20" stroke="#3a2c1c" strokeWidth="1" opacity="0.6" />
-              <line x1="0" y1="40" x2="20" y2="40" stroke="#3a2c1c" strokeWidth="1" opacity="0.6" />
-              <line x1="0" y1="60" x2="20" y2="60" stroke="#3a2c1c" strokeWidth="1" opacity="0.6" />
-            </pattern>
-
-            {/* ── Padrão grama ─────────────────────────────────────── */}
-            <pattern id="pGrass" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
-              <rect width="32" height="32" fill="#2a4820" />
-              <circle cx="6"  cy="9"  r="3"  fill="#304e24" opacity="0.6" />
-              <circle cx="20" cy="5"  r="4"  fill="#2c4a22" opacity="0.5" />
-              <circle cx="14" cy="22" r="3"  fill="#325224" opacity="0.6" />
-              <circle cx="28" cy="18" r="2.5" fill="#2e5020" opacity="0.5" />
-              <circle cx="4"  cy="26" r="3.5" fill="#284618" opacity="0.5" />
-            </pattern>
-
-            {/* ── Cortina de névoa ─────────────────────────────────── */}
-            <linearGradient id="gFog" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1a1e40" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="transparent" />
-            </linearGradient>
-
-            {/* ── Gradiente água rasa do porto ──────────────────────── */}
-            <linearGradient id="gHarborWater" x1="0" y1="0" x2="0.1" y2="1">
-              <stop offset="0%" stopColor="#183858" />
-              <stop offset="100%" stopColor="#0a1e38" />
-            </linearGradient>
-
-          </defs>
-
-          {/* ═══ 1. FUNDO / CÉU ═══════════════════════════════════════════ */}
-          <rect x="0" y="0" width="1800" height="1230" fill="url(#gSky)" />
-
-          {/* Estrelas */}
-          {[
-            [120,45],[350,22],[580,60],[820,18],[1040,42],[1280,28],[1520,55],[1740,20],
-            [200,88],[460,75],[700,90],[960,68],[1180,82],[1420,72],[1660,88],
-            [80,120],[310,105],[550,130],[790,108],[1030,118],[1270,100],[1510,125],
-          ].map(([sx, sy], i) => (
-            <circle key={i} cx={sx} cy={sy} r={i % 3 === 0 ? 1.5 : 1}
-              fill="white" opacity={0.4 + (i % 4) * 0.12}
-              style={{ animation: `starTwinkle ${2.5 + (i % 4) * 0.7}s ease-in-out infinite ${(i % 5) * 0.5}s` }} />
-          ))}
-
-          {/* Lua crescente */}
-          <circle cx={1560} cy={65} r={44} fill="#e8dfc0" opacity={0.82} filter="url(#fGlow)" />
-          <circle cx={1580} cy={58} r={40} fill="#1a1e3a" />
-
-          {/* Nuvens de névoa */}
-          <ellipse cx={320} cy={140} rx={280} ry={68} fill="#1e224a" opacity={0.38} filter="url(#fSoftShadow)" />
-          <ellipse cx={900} cy={108} rx={350} ry={60} fill="#22264e" opacity={0.32} filter="url(#fSoftShadow)" />
-          <ellipse cx={1500} cy={130} rx={260} ry={65} fill="#1e224a" opacity={0.35} filter="url(#fSoftShadow)" />
-          <rect x="0" y="0" width="1800" height="210" fill="url(#gFog)" />
-
-          {/* ═══ 2. OCEANO / PORTO ════════════════════════════════════════ */}
-          {/* Oceano fundo */}
-          <rect x="0" y="870" width="1800" height="360" fill="url(#gOcean)" />
-          {/* Água animada com filtro */}
-          <rect x="0" y="870" width="1800" height="360" fill="url(#gOcean)" filter="url(#fWater)" opacity={0.7} />
-
-          {/* Reflexos de lua na água */}
-          <ellipse cx={900} cy={1020} rx={80} ry={18} fill="#c8c0a0" opacity={0.08} />
-          <ellipse cx={900} cy={1060} rx={50} ry={10} fill="#c8c0a0" opacity={0.06} />
-          <ellipse cx={1400} cy={980} rx={60} ry={12} fill="#8090b0" opacity={0.06} />
-
-          {/* Linhas de ondas */}
-          {[920, 960, 1000, 1055, 1110, 1170, 1230].map((wy, i) => (
-            <path key={i}
-              d={`M${80 + i * 15},${wy} Q${480},${wy - 9} ${900},${wy} Q${1320},${wy + 9} ${1720 - i * 15},${wy}`}
-              fill="none" stroke="#2a5070" strokeWidth={1.2} opacity={0.22 + i * 0.028}
-              style={{ animation: `waveMove ${4 + i * 0.6}s ease-in-out infinite ${i * 0.4}s` }} />
-          ))}
-
-          {/* Água rasa do porto (interior) */}
-          <path d="M260,872 Q460,858 700,864 Q900,856 1100,864 Q1340,858 1540,872 L1540,930 Q1300,940 900,938 Q500,940 260,930 Z"
-            fill="url(#gOceanShallow)" opacity={0.92} />
-
-          {/* ═══ 3. TERRENO EXTERIOR (fora das muralhas) ══════════════════ */}
-          {/* Grama fora das muralhas */}
-          <path d="M0,165 Q300,145 600,160 Q900,148 1200,160 Q1500,148 1800,165 L1800,880 Q1300,860 900,858 Q500,860 0,880 Z"
-            fill="url(#pGrass)" opacity={0.82} filter="url(#fPaint)" />
-          <path d="M0,165 Q300,145 600,160 Q900,148 1200,160 Q1500,148 1800,165 L1800,880 Q1300,860 900,858 Q500,860 0,880 Z"
-            fill="url(#gGrass)" opacity={0.35} />
-
-          {/* Colinas externas */}
-          <ellipse cx={180} cy={550} rx={260} ry={95} fill="#263820" opacity={0.55} filter="url(#fPaint)" />
-          <ellipse cx={1620} cy={520} rx={250} ry={90} fill="#263820" opacity={0.52} filter="url(#fPaint)" />
-          <ellipse cx={300} cy={800} rx={180} ry={60} fill="#1e3016" opacity={0.45} filter="url(#fPaint)" />
-          <ellipse cx={1500} cy={810} rx={190} ry={58} fill="#1e3016" opacity={0.45} filter="url(#fPaint)" />
-
-          {/* ═══ 4. MURALHAS DEFENSIVAS ═══════════════════════════════════ */}
-          {/* ── sombra projetada das muralhas ── */}
-          <path d="M355,215 Q580,168 900,152 Q1220,168 1445,215 L1620,580 L1540,886 Q1200,918 900,924 Q600,918 260,886 L180,580 Z"
-            fill="rgba(0,0,0,0.40)" filter="url(#fSoftShadow)" transform="translate(12,18)" />
-
-          {/* ── chão interior da cidade ── */}
-          <path d="M355,215 Q580,168 900,152 Q1220,168 1445,215 L1620,580 L1540,886 Q1200,918 900,924 Q600,918 260,886 L180,580 Z"
-            fill="url(#pGrass)" opacity={0.75} filter="url(#fPaint)" />
-          <path d="M355,215 Q580,168 900,152 Q1220,168 1445,215 L1620,580 L1540,886 Q1200,918 900,924 Q600,918 260,886 L180,580 Z"
-            fill="url(#gGrassInner)" opacity={0.50} />
-
-          {/* ── Face frontal/esterna da Muralha Norte ── */}
-          <path d="M355,215 Q580,168 900,152 Q1220,168 1445,215 L1445,262 Q1220,212 900,196 Q580,212 355,262 Z"
-            fill="url(#pStone)" opacity={0.94} />
-          <path d="M355,215 Q580,168 900,152 Q1220,168 1445,215 L1445,262 Q1220,212 900,196 Q580,212 355,262 Z"
-            fill="url(#gWallTop)" opacity={0.60} />
-
-          {/* ── Muralha Oeste ── */}
-          {/* Topo */}
-          <path d="M180,580 L260,886 L310,886 L228,580 Z" fill="url(#gWallTop)" opacity={0.85} />
-          <path d="M180,580 L260,886 L310,886 L228,580 Z" fill="url(#pStone)" opacity={0.55} />
-          {/* Face externa */}
-          <path d="M140,575 L180,580 L260,886 L218,886 Z" fill="url(#gWallSide)" opacity={0.88} />
-          {/* Face interna vista */}
-          <path d="M355,215 L355,262 L260,886 L228,580 Z" fill="url(#gWallFront)" opacity={0.90} />
-          <path d="M355,215 L355,262 L260,886 L228,580 Z" fill="url(#pStone)" opacity={0.50} />
-
-          {/* ── Muralha Leste ── */}
-          {/* Topo */}
-          <path d="M1620,580 L1572,580 L1490,886 L1540,886 Z" fill="url(#gWallTop)" opacity={0.85} />
-          <path d="M1620,580 L1572,580 L1490,886 L1540,886 Z" fill="url(#pStone)" opacity={0.55} />
-          {/* Face externa */}
-          <path d="M1660,575 L1620,580 L1540,886 L1582,886 Z" fill="url(#gWallSide)" opacity={0.88} />
-          {/* Face interna vista */}
-          <path d="M1445,215 L1445,262 L1540,886 L1572,580 Z" fill="url(#gWallFront)" opacity={0.90} />
-          <path d="M1445,215 L1445,262 L1540,886 L1572,580 Z" fill="url(#pStone)" opacity={0.50} />
-
-          {/* ── Ameias Norte ── */}
-          {Array.from({ length: 24 }).map((_, i) => {
-            const t = i / 23;
-            const cx = 355 + (1090) * t;
-            const baseY = 215 + (47) * t - 28;
-            return (
-              <g key={i}>
-                <rect x={cx - 10} y={baseY - 20} width={18} height={22}
-                  fill="#8a7a5e" rx={2} opacity={0.95} />
-              </g>
-            );
-          })}
-
-          {/* ── Ameias Oeste ── */}
-          {Array.from({ length: 14 }).map((_, i) => {
-            const t = i / 13;
-            const px = 355 + (260 - 355) * t;
-            const py = 215 + (886 - 215) * t - 28;
-            return (
-              <g key={i} transform={`translate(${px},${py})`}>
-                <rect x={-9} y={-22} width={17} height={22} fill="#8a7a5e" rx={2} opacity={0.92} />
-              </g>
-            );
-          })}
-
-          {/* ── Ameias Leste ── */}
-          {Array.from({ length: 14 }).map((_, i) => {
-            const t = i / 13;
-            const px = 1445 + (1540 - 1445) * t;
-            const py = 215 + (886 - 215) * t - 28;
-            return (
-              <g key={i} transform={`translate(${px},${py})`}>
-                <rect x={-9} y={-22} width={17} height={22} fill="#8a7a5e" rx={2} opacity={0.92} />
-              </g>
-            );
-          })}
-
-          {/* ═══ 5. TORRES DEFENSIVAS ═════════════════════════════════════ */}
-          {/* NW */}
-          <Tower x={352} y={218} s={1.20} lit />
-          {/* N Centro */}
-          <Tower x={900} y={155} s={1.05} lit />
-          {/* NE */}
-          <Tower x={1448} y={218} s={1.20} lit />
-          {/* W Centro */}
-          <Tower x={218} y={580} s={0.95} />
-          {/* E Centro */}
-          <Tower x={1582} y={580} s={0.95} />
-          {/* SW */}
-          <Tower x={260} y={882} s={1.10} />
-          {/* SE */}
-          <Tower x={1540} y={882} s={1.10} />
-
-          {/* ═══ 6. PORTÃO PRINCIPAL (Sul → Porto) ═══════════════════════ */}
-          <g filter="url(#fDrop)">
-            {/* Arco do portão */}
-            <path d="M760,890 L760,845 Q760,810 800,808 L900,805 Q940,808 940,845 L940,890 Z"
-              fill="url(#pStone)" />
-            <path d="M760,890 L760,845 Q760,810 800,808 L900,805 Q940,808 940,845 L940,890 Z"
-              fill="url(#gWallFront)" opacity={0.7} />
-            {/* Abertura do portão */}
-            <path d="M798,888 L798,845 Q798,822 825,820 L975,820 Q1002,822 1002,845 L1002,888 Z"
-              fill="#080604" />
-            <path d="M798,888 L798,845 Q798,822 825,820 L975,820 Q1002,822 1002,845 L1002,888 Z"
-              fill="#201508" opacity={0.5} />
-            {/* Arco decorativo */}
-            <path d="M810,888 Q810,828 900,822 Q990,828 990,888"
-              fill="none" stroke="#a09070" strokeWidth={3} opacity={0.7} />
-            {/* Torres flanqueando */}
-            <Tower x={758} y={888} s={0.92} />
-            <Tower x={1042} y={888} s={0.92} />
-            {/* Escudo heráldico */}
-            <ellipse cx={900} cy={790} rx={18} ry={22} fill="#8a6028" stroke="#c8a040" strokeWidth={2} />
-            <text x={900} y={793} textAnchor="middle" dominantBaseline="middle" fontSize={18} fill="#d4a020">🏰</text>
-            {/* Correntes do portão */}
-            <line x1={840} y1={820} x2={840} y2={888} stroke="#685040" strokeWidth={3} strokeDasharray="4 3" opacity={0.7} />
-            <line x1={960} y1={820} x2={960} y2={888} stroke="#685040" strokeWidth={3} strokeDasharray="4 3" opacity={0.7} />
-          </g>
-
-          {/* ═══ 7. COLINA DO CASTELO ══════════════════════════════════════ */}
-          {/* Talude lateral da colina */}
-          <path d="M420,260 Q560,220 720,210 Q900,202 1080,210 Q1240,220 1380,260 L1360,420 Q1240,380 900,370 Q560,380 440,420 Z"
-            fill="url(#gClifFace)" opacity={0.95} filter="url(#fPaint)" />
-          <path d="M420,260 Q560,220 720,210 Q900,202 1080,210 Q1240,220 1380,260 L1360,420 Q1240,380 900,370 Q560,380 440,420 Z"
-            fill="url(#pStone)" opacity={0.35} />
-
-          {/* Topo da colina (plataforma base) */}
-          <path d="M440,420 Q560,380 900,370 Q1240,380 1360,420 Q1340,480 1180,500 Q1060,512 900,514 Q740,512 620,500 Q460,480 440,420 Z"
-            fill="url(#gCastleHill)" filter="url(#fPaint)" />
-
-          {/* Pátio de pedra do castelo */}
-          <ellipse cx={900} cy={460} rx={390} ry={118} fill="url(#gCastlePlatTop)" opacity={0.95} />
-          <ellipse cx={900} cy={460} rx={390} ry={118} fill="url(#pStone)" opacity={0.38} />
-          <ellipse cx={900} cy={460} rx={360} ry={108} fill="none" stroke="#c8a860" strokeWidth={2.5} opacity={0.55} />
-
-          {/* Decoração de paralelepípedos no pátio */}
-          {Array.from({ length: 5 }).map((_, i) => (
-            <ellipse key={i} cx={900} cy={460} rx={80 + i * 62} ry={24 + i * 18}
-              fill="none" stroke="#a09060" strokeWidth={0.8} opacity={0.22} />
-          ))}
-
-          {/* Slot CASTELO (plataforma central elevada) */}
-          <g>
-            <ellipse cx={900} cy={450} rx={230} ry={72} fill="url(#gCastleCourtyard)" opacity={0.92} />
-            <ellipse cx={900} cy={450} rx={230} ry={72} fill="none"
-              stroke="#d4a820" strokeWidth={3} opacity={0.7} />
-            <ellipse cx={900} cy={450} rx={218} ry={66} fill="none"
-              stroke="#c89820" strokeWidth={1} strokeDasharray="8 6" opacity={0.5} />
-            <text x={900} y={444} textAnchor="middle" dominantBaseline="middle"
-              fontSize={17} fill="#f0d070" fontFamily="'Cinzel','Georgia',serif" fontWeight="700">
-              🏰 CASTELO Nv.{castle.level}
-            </text>
-            <text x={900} y={466} textAnchor="middle" dominantBaseline="middle"
-              fontSize={11} fill="#c8a840" fontFamily="'Cinzel','Georgia',serif" opacity={0.8}>
-              Fundação Principal
-            </text>
-          </g>
-
-          {/* Escadaria principal descendo da colina */}
-          {Array.from({ length: 9 }).map((_, i) => {
-            const t   = i / 8;
-            const ey  = 512 + t * 68;
-            const ew  = 180 - t * 30;
-            return (
-              <ellipse key={i} cx={900} cy={ey} rx={ew} ry={9 - t * 2}
-                fill={i % 2 === 0 ? '#8a7a5a' : '#7a6a4e'}
-                opacity={0.88 - i * 0.04} />
-            );
-          })}
-
-          {/* Mureta da escadaria */}
-          <path d="M730,512 Q820,520 860,580 L840,588 Q800,530 712,520 Z" fill="#6a5e44" opacity={0.8} />
-          <path d="M1070,512 Q980,520 940,580 L960,588 Q1000,530 1088,520 Z" fill="#6a5e44" opacity={0.8} />
-
-          {/* Lanternas na escadaria */}
-          {[0.25, 0.55, 0.80].map((t, i) => {
-            const lx = 730 + t * 340;
-            const ly = 516 + t * 70;
-            return (
-              <g key={i}>
-                <line x1={lx} y1={ly - 18} x2={lx} y2={ly - 8} stroke="#6a5040" strokeWidth={2} />
-                <rect x={lx - 5} y={ly - 26} width={10} height={12} rx={2} fill="#8a6030" />
-                <ellipse cx={lx} cy={ly - 20} rx={8} ry={5} fill="#ffa030" opacity={0.65}
-                  style={{ animation: `torchFlicker ${1.3 + i * 0.4}s ease-in-out infinite ${i * 0.3}s` }} />
-              </g>
-            );
-          })}
-
-          {/* ═══ 8. ESTRADAS E CAMINHOS ═══════════════════════════════════ */}
-          {/* Estrada principal (portão → escada do castelo) */}
-          <path d="M900,884 Q898,820 896,755 Q894,700 898,640 Q900,600 902,582"
-            fill="none" stroke="url(#pCobble)" strokeWidth={58} opacity={0.88} strokeLinecap="round" />
-          <path d="M900,884 Q898,820 896,755 Q894,700 898,640 Q900,600 902,582"
-            fill="none" stroke="url(#gRoad)" strokeWidth={58} opacity={0.45} strokeLinecap="round" />
-          {/* Bordas da estrada principal */}
-          <path d="M900,884 Q898,820 896,755 Q894,700 898,640 Q900,600 902,582"
-            fill="none" stroke="#504838" strokeWidth={62} opacity={0.30} strokeLinecap="round" />
-
-          {/* Estrada para Serraria (esquerda superior) */}
-          <path d="M896,640 Q800,610 700,550 Q650,510 622,490"
-            fill="none" stroke="url(#pCobble)" strokeWidth={38} opacity={0.80} strokeLinecap="round" />
-          <path d="M896,640 Q800,610 700,550 Q650,510 622,490"
-            fill="none" stroke="url(#gRoad)" strokeWidth={38} opacity={0.42} strokeLinecap="round" />
-
-          {/* Estrada para Mina de Ferro (direita superior) */}
-          <path d="M900,640 Q1000,610 1100,555 Q1148,510 1178,490"
-            fill="none" stroke="url(#pCobble)" strokeWidth={38} opacity={0.80} strokeLinecap="round" />
-          <path d="M900,640 Q1000,610 1100,555 Q1148,510 1178,490"
-            fill="none" stroke="url(#gRoad)" strokeWidth={38} opacity={0.42} strokeLinecap="round" />
-
-          {/* Estrada para Fazenda (esquerda) */}
-          <path d="M898,755 Q750,730 600,700 Q520,685 462,658"
-            fill="none" stroke="url(#pCobble)" strokeWidth={34} opacity={0.78} strokeLinecap="round" />
-          <path d="M898,755 Q750,730 600,700 Q520,685 462,658"
-            fill="none" stroke="url(#gRoad)" strokeWidth={34} opacity={0.40} strokeLinecap="round" />
-
-          {/* Estrada para Quartel (direita) */}
-          <path d="M900,755 Q1020,730 1080,690 Q1108,660 1082,628"
-            fill="none" stroke="url(#pCobble)" strokeWidth={34} opacity={0.78} strokeLinecap="round" />
-          <path d="M900,755 Q1020,730 1080,690 Q1108,660 1082,628"
-            fill="none" stroke="url(#gRoad)" strokeWidth={34} opacity={0.40} strokeLinecap="round" />
-
-          {/* Estrada para Pedreira */}
-          <path d="M898,755 Q848,750 800,730 Q778,710 760,690"
-            fill="none" stroke="url(#pCobble)" strokeWidth={30} opacity={0.75} strokeLinecap="round" />
-
-          {/* Estrada para Armazém (direita baixo) */}
-          <path d="M900,755 Q1100,740 1240,680 Q1272,655 1280,640"
-            fill="none" stroke="url(#pCobble)" strokeWidth={30} opacity={0.75} strokeLinecap="round" />
-
-          {/* Estrada para Academia */}
-          <path d="M900,820 Q900,790 900,770"
-            fill="none" stroke="url(#pCobble)" strokeWidth={36} opacity={0.80} strokeLinecap="round" />
-          <path d="M898,770 Q900,760 900,750"
-            fill="none" stroke="url(#pCobble)" strokeWidth={36} opacity={0.78} strokeLinecap="round" />
-
-          {/* Pequenas vielas internas */}
-          <path d="M622,490 Q660,600 762,666"
-            fill="none" stroke="#5e5440" strokeWidth={18} opacity={0.50} strokeLinecap="round" />
-          <path d="M1178,490 Q1140,600 1076,660"
-            fill="none" stroke="#5e5440" strokeWidth={18} opacity={0.50} strokeLinecap="round" />
-
-          {/* Canteiro central na intersecção */}
-          <ellipse cx={900} cy={660} rx={38} ry={22} fill="#304820" opacity={0.8} />
-          <ellipse cx={900} cy={660} rx={30} ry={17} fill="#3a5a26" opacity={0.9} />
-          <circle cx={900} cy={656} r={6} fill="#c89030" opacity={0.75} />
-
-          {/* ═══ 9. FUNDAÇÕES DOS EDIFÍCIOS ═══════════════════════════════ */}
-          {SLOTS.map(slot => (
-            <Foundation
-              key={slot.type}
-              slot={slot}
-              selected={selected === slot.type}
-              onClick={toggleSlot}
-            />
-          ))}
-
-          {/* ═══ 10. PORTO MEDIEVAL ═══════════════════════════════════════ */}
-          {/* Muralha do porto */}
-          <path d="M260,886 Q400,908 620,916 L620,940 Q400,932 240,910 Z"
-            fill="url(#gHarborWall)" opacity={0.95} />
-          <path d="M1540,886 Q1400,908 1180,916 L1180,940 Q1400,932 1560,910 Z"
-            fill="url(#gHarborWall)" opacity={0.95} />
-
-          {/* Doca principal (madeira) */}
-          <path d="M700,920 L700,1040 L1100,1040 L1100,920 Z" fill="url(#pPlank)" opacity={0.88} />
-          <path d="M700,920 L700,1040 L1100,1040 L1100,920 Z" fill="url(#gDock)" opacity={0.45} />
-          {/* Bordas da doca */}
-          <rect x={697} y={918} width={9} height={124} rx={2} fill="#4a3220" />
-          <rect x={1094} y={918} width={9} height={124} rx={2} fill="#4a3220" />
-          {/* Pranchas transversais */}
-          {[940, 960, 980, 1000, 1020].map((dy, i) => (
-            <line key={i} x1={700} x2={1100} y1={dy} y2={dy} stroke="#3a2818" strokeWidth={3} opacity={0.5} />
-          ))}
-          {/* Pilares da doca */}
-          {[730, 790, 860, 940, 1010, 1070].map((px, i) => (
-            <g key={i}>
-              <rect x={px - 5} y={930} width={10} height={100} rx={3} fill="#3a2810" opacity={0.8} />
-              <ellipse cx={px} cy={930} rx={8} ry={3} fill="#4a3620" opacity={0.7} />
-            </g>
-          ))}
-
-          {/* Docas laterais menores */}
-          <path d="M380,900 L380,980 L520,980 L520,900" fill="url(#pPlank)" opacity={0.78} />
-          <path d="M380,900 L380,980 L520,980 L520,900" fill="url(#gDock)" opacity={0.40} />
-          <path d="M1280,900 L1280,980 L1420,980 L1420,900" fill="url(#pPlank)" opacity={0.78} />
-          <path d="M1280,900 L1280,980 L1420,980 L1420,900" fill="url(#gDock)" opacity={0.40} />
-
-          {/* Barco Medieval 1 — doca principal */}
-          <g transform="translate(750, 985)">
-            <ellipse cx={0} cy={8} rx={115} ry={14} fill="rgba(0,0,0,0.25)" />
-            <path d="M-115,0 Q-100,-28 0,-32 Q100,-28 115,0 Q80,8 0,10 Q-80,8 -115,0 Z"
-              fill="url(#gBoatHull)" />
-            <path d="M-100,0 Q-85,-25 0,-28 Q85,-25 100,0 Z" fill="#4a3220" opacity={0.5} />
-            <line x1={0} y1={-28} x2={0} y2={-110} stroke="#3a2818" strokeWidth={4} />
-            <path d="M0,-110 L55,-75 L0,-42 Z" fill="#c8b070" opacity={0.85} />
-            <path d="M0,-110 L-42,-80 L0,-52 Z" fill="#b0985e" opacity={0.75} />
-            <line x1={-115} y1={0} x2={-130} y2={14} stroke="#5a4030" strokeWidth={2} opacity={0.6} />
-          </g>
-
-          {/* Barco Medieval 2 — doca lateral esq */}
-          <g transform="translate(450, 968)">
-            <ellipse cx={0} cy={6} rx={78} ry={10} fill="rgba(0,0,0,0.22)" />
-            <path d="M-78,0 Q-65,-20 0,-22 Q65,-20 78,0 Q50,6 0,8 Q-50,6 -78,0 Z"
-              fill="url(#gBoatHull)" />
-            <line x1={0} y1={-20} x2={0} y2={-75} stroke="#3a2818" strokeWidth={3} />
-            <path d="M0,-75 L38,-52 L0,-30 Z" fill="#b0985e" opacity={0.80} />
-          </g>
-
-          {/* Barco Medieval 3 — doca lateral dir */}
-          <g transform="translate(1350, 970)">
-            <ellipse cx={0} cy={6} rx={82} ry={10} fill="rgba(0,0,0,0.22)" />
-            <path d="M-82,0 Q-68,-22 0,-24 Q68,-22 82,0 Q54,7 0,8 Q-54,7 -82,0 Z"
-              fill="url(#gBoatHull)" />
-            <line x1={0} y1={-22} x2={0} y2={-80} stroke="#3a2818" strokeWidth={3} />
-            <path d="M0,-80 L40,-55 L0,-33 Z" fill="#c8b070" opacity={0.82} />
-          </g>
-
-          {/* Escadas do porto para a cidade */}
-          {Array.from({ length: 7 }).map((_, i) => (
-            <rect key={i} x={870} y={870 + i * 10} width={60} height={9}
-              rx={1} fill={i % 2 === 0 ? '#8a7a5a' : '#7a6a4a'} opacity={0.85 - i * 0.05} />
-          ))}
-
-          {/* Lanternas do porto */}
-          {[420, 580, 760, 960, 1130, 1320, 1480].map((lx, i) => (
-            <g key={i} transform={`translate(${lx}, 892)`}>
-              <line x1={0} y1={-25} x2={0} y2={-12} stroke="#5a4030" strokeWidth={2.5} />
-              <rect x={-6} y={-36} width={12} height={14} rx={2} fill="#7a5830" />
-              <ellipse cx={0} cy={-30} rx={10} ry={6} fill="#ff9020" opacity={0.55}
-                style={{ animation: `torchFlicker ${1.5 + i * 0.3}s ease-in-out infinite ${i * 0.25}s` }} />
-            </g>
-          ))}
-
-          {/* ═══ 11. VEGETAÇÃO ════════════════════════════════════════════ */}
-          {/* Ciprestes ao longo das muralhas internas Norte */}
-          <CypressTree x={420} y={254} s={0.75} />
-          <CypressTree x={490} y={238} s={0.70} />
-          <CypressTree x={1310} y={238} s={0.72} />
-          <CypressTree x={1382} y={254} s={0.76} />
-          <CypressTree x={560} y={250} s={0.65} />
-          <CypressTree x={1242} y={250} s={0.66} />
-
-          {/* Carvalhos na colina do castelo */}
-          <OakTree x={520} y={432} s={0.90} />
-          <OakTree x={560} y={408} s={0.80} />
-          <OakTree x={1280} y={432} s={0.88} />
-          <OakTree x={1240} y={408} s={0.82} />
-          <OakTree x={620} y={382} s={0.72} />
-          <OakTree x={1180} y={382} s={0.70} />
-
-          {/* Jardim ao redor da plataforma do castelo */}
-          <OakTree x={640} y={470} s={0.65} />
-          <OakTree x={1160} y={468} s={0.68} />
-          <Bush x={680} y={490} />
-          <Bush x={750} y={480} />
-          <Bush x={1050} y={478} />
-          <Bush x={1120} y={490} />
-
-          {/* Vegetação no distrito central */}
-          <OakTree x={380} y={540} s={0.88} />
-          <OakTree x={340} y={570} s={0.78} />
-          <CypressTree x={308} y={530} s={0.82} />
-          <OakTree x={1420} y={540} s={0.85} />
-          <OakTree x={1460} y={568} s={0.78} />
-          <CypressTree x={1492} y={528} s={0.80} />
-
-          {/* Árvores entre as fundações */}
-          <OakTree x={536} y={555} s={0.72} />
-          <Bush x={560} y={578} />
-          <Bush x={508} y={562} />
-          <OakTree x={1268} y={552} s={0.70} />
-          <Bush x={1300} y={575} />
-
-          {/* Vegetação na área sul (perto do porto) */}
-          <OakTree x={380} y={720} s={0.82} />
-          <OakTree x={420} y={750} s={0.74} />
-          <Bush x={355} y={738} />
-          <Bush x={455} y={760} />
-          <OakTree x={1420} y={718} s={0.80} />
-          <OakTree x={1460} y={748} s={0.76} />
-          <Bush x={1488} y={736} />
-          <CypressTree x={352} y={718} s={0.70} />
-          <CypressTree x={1448} y={716} s={0.68} />
-
-          {/* Jardim em frente ao portão */}
-          <Bush x={680} y={858} />
-          <Bush x={720} y={870} />
-          <OakTree x={650} y={842} s={0.60} />
-          <Bush x={1082} y={858} />
-          <Bush x={1120} y={870} />
-          <OakTree x={1152} y={842} s={0.60} />
-
-          {/* Vegetação fora das muralhas */}
-          <OakTree x={100} y={480} s={1.0} />
-          <OakTree x={155} y={510} s={0.88} />
-          <CypressTree x={60} y={460} s={0.95} />
-          <CypressTree x={120} y={420} s={0.85} />
-          <OakTree x={1650} y={480} s={0.98} />
-          <OakTree x={1700} y={512} s={0.88} />
-          <CypressTree x={1740} y={456} s={0.92} />
-          <Bush x={80} y={540} s={1.1} />
-          <Bush x={180} y={580} s={1.0} />
-          <Bush x={1622} y={545} s={1.1} />
-          <Bush x={1720} y={572} s={1.0} />
-
-          {/* Vegetação costa */}
-          <Bush x={280} y={888} />
-          <Bush x={320} y={904} />
-          <Bush x={1478} y={888} />
-          <Bush x={1520} y={904} />
-
-          {/* ═══ 12. POÇO CENTRAL ════════════════════════════════════════ */}
-          <g transform="translate(900, 810)">
-            <ellipse cx={0} cy={8} rx={38} ry={12} fill="rgba(0,0,0,0.25)" />
-            <ellipse cx={0} cy={0} rx={32} ry={10} fill="#3a3228" />
-            <ellipse cx={0} cy={0} rx={28} ry={8} fill="#0a1828" />
-            <rect x={-34} y={-28} width={12} height={30} rx={2} fill="#6a5a40" />
-            <rect x={22} y={-28} width={12} height={30} rx={2} fill="#6a5a40" />
-            <rect x={-38} y={-34} width={76} height={9} rx={2} fill="#8a7a5a" />
-            <line x1={0} y1={-25} x2={0} y2={-4} stroke="#4a3820" strokeWidth={2.5} />
-            <ellipse cx={0} cy={-26} rx={9} ry={5} fill="#5a4820" />
-          </g>
-
-          {/* ═══ 13. NÉVOA E ATMOSFERA ════════════════════════════════════ */}
-          {/* Névoa no fundo do porto */}
-          <rect x={0} y={880} width={1800} height={80} fill="url(#gFog)" opacity={0.22} />
-
-          {/* Luz ambiente dourada (luz da lua / tochas) */}
-          <rect x={0} y={0} width={1800} height={1230} fill="url(#gAmbient)" />
-          <rect x={0} y={0} width={1800} height={1230} fill="url(#gMoonlight)" />
-
-          {/* Vignet */}
-          <rect x={0} y={0} width={1800} height={1230} fill="url(#gVignette)" />
-
-          {/* Partículas de faísca (tochas) */}
-          {[352, 900, 1448, 218, 1582].map((px, i) => (
-            <g key={i}>
-              {[0, 1, 2].map((j) => (
-                <circle key={j} cx={px + (j - 1) * 6} cy={-90 - j * 8}
-                  r={1.5} fill="#ffb030" opacity={0.6}
-                  style={{ animation: `sparkFloat ${1.8 + j * 0.5}s ease-in-out infinite ${i * 0.4 + j * 0.2}s` }} />
-              ))}
-            </g>
-          ))}
-
-        </svg>
+      {/* MINIMAP (canto inferior direito) */}
+      <div className="absolute bottom-4 right-4 z-20 w-48 h-48 bg-stone-900/80 rounded-lg border border-amber-700/50 overflow-hidden backdrop-blur-sm">
+        <div className="absolute top-1 left-1 text-amber-500 text-xs">MINIMAP</div>
+        <div className="w-full h-full relative">
+          {/* Representação simples do mapa */}
+          <div className="absolute inset-2 bg-stone-800 rounded">
+            {/* Posição do jogador */}
+            <div className="absolute w-2 h-2 bg-amber-500 rounded-full animate-pulse" style={{ left: '50%', top: '50%' }}></div>
+          </div>
+        </div>
       </div>
 
-      {/* ── Painel do Edifício Selecionado ───────────────────────────── */}
+      {/* CANVAS 3D */}
+      <Canvas
+        shadows
+        camera={{ 
+          position: [6, 5, 10], 
+          fov: 50,
+          near: 0.1,
+          far: 50
+        }}
+        style={{ width: '100%', height: '100%' }}
+        gl={{ 
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2
+        }}
+      >
+        <Sky 
+          distance={450000} 
+          sunPosition={[5, 30, 10]} 
+          inclination={0.5} 
+          azimuth={0.25}
+          turbidity={8}
+          rayleigh={2}
+          mieCoefficient={0.005}
+          mieDirectionalG={0.8}
+        />
+        <Environment preset="forest" background={false} />
+        
+        <OrbitControls
+          enablePan
+          enableZoom
+          enableRotate
+          minPolarAngle={0.2}
+          maxPolarAngle={Math.PI / 2.2}
+          maxDistance={18}
+          minDistance={4}
+          target={[0, 0.5, 0]}
+          makeDefault
+        />
+        
+        <Scene selectedSlot={selected} onSlotClick={setSelected} />
+      </Canvas>
+
+      {/* Painel do Edifício Selecionado */}
       {selected && (
-        <div className="relative z-20 px-4 pb-4">
-          <BuildingCard buildingType={selected} />
-          <button
-            className="absolute top-0 right-6 text-stone-400 hover:text-parchment-100 text-xl leading-none"
-            onClick={() => setSelected(null)}
-          >
-            ✕
-          </button>
+        <div className="absolute bottom-4 left-4 md:left-auto md:right-4 md:w-96 z-20 animate-slideUp">
+          <div className="relative">
+            <BuildingCard buildingType={selected} />
+            <button
+              className="absolute top-2 right-2 text-stone-400 hover:text-amber-300 text-xl leading-none w-8 h-8 rounded-full bg-black/50 flex items-center justify-center transition-colors"
+              onClick={() => setSelected(null)}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
+
+      {/* INSTRUÇÕES */}
+      <div className="absolute bottom-4 left-4 z-20 text-stone-400 text-xs bg-black/50 px-3 py-1 rounded-full">
+        🖱️ Arraste para rotacionar | Scroll para zoom | Clique nos edifícios
+      </div>
     </div>
   );
 };
