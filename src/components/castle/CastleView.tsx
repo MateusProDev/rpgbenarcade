@@ -283,6 +283,91 @@ function createRoofTex(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+/**
+ * Textura de folhagem pintada à mão
+ */
+function createFoliageTex(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#2e6b1e';
+  ctx.fillRect(0, 0, size, size);
+
+  for (let i = 0; i < 1200; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 4 + Math.random() * 18;
+    const hue = 90 + (Math.random() * 50 - 25);
+    const light = 25 + Math.random() * 35;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${hue}, 60%, ${light}%)`;
+    ctx.globalAlpha = 0.18 + Math.random() * 0.25;
+    ctx.fill();
+  }
+  // veias das folhas
+  ctx.globalAlpha = 0.25;
+  ctx.strokeStyle = '#1a4810';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 300; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  return tex;
+}
+
+/**
+ * Textura de casca de árvore
+ */
+function createBarkTex(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#5c3218';
+  ctx.fillRect(0, 0, size, size);
+
+  // Fissuras verticais
+  ctx.strokeStyle = '#3a1e0a';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * size;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    for (let y = 0; y < size; y += 20) {
+      ctx.lineTo(x + (Math.random() * 12 - 6), y + 20);
+    }
+    ctx.stroke();
+  }
+  // variações de cor
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const w = 10 + Math.random() * 40;
+    const h = 5 + Math.random() * 20;
+    ctx.fillStyle = `hsl(${20 + Math.random() * 15}, 55%, ${20 + Math.random() * 25}%)`;
+    ctx.globalAlpha = 0.2;
+    ctx.fillRect(x, y, w, h);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 4);
+  return tex;
+}
+
 /* ============================================================================
    TERRENO COM RELEVO E TEXTURA PINTADA
    ========================================================================= */
@@ -659,42 +744,56 @@ function CastleModel() {
   const { scene } = useGLTF('/casteloteste.glb');
   const model = useMemo(() => scene.clone(), [scene]);
   const stoneTex = useMemo(() => createStoneTex(), []);
-  const roofTex = useMemo(() => createRoofTex(), []);
+  const roofTex  = useMemo(() => createRoofTex(), []);
+
+  // Normaliza bounding box para caber dentro das muralhas (~3.5 unidades)
+  const { normalizedScale, yOffset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const s = maxDim > 0 ? 2.2 / maxDim : 1;  // máx 2.2 unidades — não cobre tudo
+    const yOff = -box.min.y * s; // encosta no chão
+    return { normalizedScale: s, yOffset: yOff };
+  }, [model]);
 
   useEffect(() => {
     model.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        
-        // Aplicar texturas pintadas baseado no nome ou posição
-        if (mesh.name.toLowerCase().includes('wall') || mesh.name.toLowerCase().includes('stone')) {
-          if (Array.isArray(mesh.material)) {
-            (mesh.material as THREE.MeshStandardMaterial[]).forEach(mat => {
-              mat.map = stoneTex;
-              mat.color.setHex(0x948470);
-            });
-          } else {
-            (mesh.material as THREE.MeshStandardMaterial).map = stoneTex;
-            (mesh.material as THREE.MeshStandardMaterial).color.setHex(0x948470);
-          }
-        } else if (mesh.name.toLowerCase().includes('roof') || mesh.name.toLowerCase().includes('top')) {
-          if (Array.isArray(mesh.material)) {
-            (mesh.material as THREE.MeshStandardMaterial[]).forEach(mat => {
-              mat.map = roofTex;
-              mat.color.setHex(0x7a4a2a);
-            });
-          } else {
-            (mesh.material as THREE.MeshStandardMaterial).map = roofTex;
-            (mesh.material as THREE.MeshStandardMaterial).color.setHex(0x7a4a2a);
-          }
-        }
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const name = mesh.name.toLowerCase();
+      const isRoof = name.includes('roof') || name.includes('top') ||
+                     name.includes('tile') || name.includes('telhado') ||
+                     name.includes('torre') || name.includes('tower');
+
+      const applyMat = (mat: THREE.MeshStandardMaterial, roof: boolean) => {
+        mat.map     = roof ? roofTex : stoneTex;
+        mat.color.setHex(roof ? 0x7a4a2a : 0x948470);
+        mat.roughness = roof ? 0.75 : 0.88;
+        mat.emissive.setHex(0x1a1008);
+        mat.emissiveIntensity = 0.08;
+        mat.needsUpdate = true;
+      };
+
+      if (Array.isArray(mesh.material)) {
+        (mesh.material as THREE.MeshStandardMaterial[]).forEach(m => applyMat(m, isRoof));
+      } else {
+        applyMat(mesh.material as THREE.MeshStandardMaterial, isRoof);
       }
     });
   }, [model, stoneTex, roofTex]);
 
-  return <primitive object={model} position={[0, 0.3, 0.8]} scale={1.5} rotation={[0, 0.2, 0]} />;
+  return (
+    <primitive
+      object={model}
+      position={[0, yOffset, -1.5]}   // dentro das muralhas, área norte (pátio do castelo)
+      scale={normalizedScale}
+      rotation={[0, Math.PI, 0]}      // virado para a entrada sul
+    />
+  );
 }
 
 /* ============================================================================
@@ -715,22 +814,57 @@ function TreeModel({
   const { scene } = useGLTF('/arvoreum.glb');
   const model = useMemo(() => scene.clone(), [scene]);
   const [worldX, , worldZ] = svgToWorld(x, z);
+  const foliageTex = useMemo(() => createFoliageTex(), []);
+  const barkTex    = useMemo(() => createBarkTex(), []);
+
+  // Normaliza GLB e calcula yOffset para encostar no chão
+  const { normalizedScale, yOffset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const s = maxDim > 0 ? (0.85 * scale) / maxDim : scale * 0.1;
+    const yOff = box.min.y !== Infinity ? -box.min.y * s : 0;
+    return { normalizedScale: s, yOffset: yOff };
+  }, [scene, scale]);
 
   useEffect(() => {
     model.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh) {
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const name = mesh.name.toLowerCase();
+      // Detecta folhagem vs tronco pelo nome do mesh
+      const isLeaf = name.includes('leaf') || name.includes('folha') ||
+                     name.includes('crown') || name.includes('copa')  ||
+                     name.includes('canopy') || name.includes('branch') ||
+                     name.includes('galho')  || name.includes('top') ||
+                     name.includes('leaves') || name.includes('tree');
+
+      const applyMat = (mat: THREE.MeshStandardMaterial) => {
+        mat.map = isLeaf ? foliageTex : barkTex;
+        mat.color.setHex(isLeaf ? 0x3a8226 : 0x6b3d1a);
+        mat.roughness = isLeaf ? 0.88 : 0.95;
+        mat.emissive.setHex(isLeaf ? 0x0c2206 : 0x100804);
+        mat.emissiveIntensity = 0.1;
+        mat.needsUpdate = true;
+      };
+
+      if (Array.isArray(mesh.material)) {
+        (mesh.material as THREE.MeshStandardMaterial[]).forEach(applyMat);
+      } else {
+        applyMat(mesh.material as THREE.MeshStandardMaterial);
       }
     });
-  }, [model]);
+  }, [model, foliageTex, barkTex]);
 
   return (
     <primitive 
       object={model} 
-      position={[worldX, 0, worldZ]} 
-      scale={scale} 
+      position={[worldX, yOffset, worldZ]}   // yOffset corrige flutuação
+      scale={normalizedScale} 
       rotation={[0, rotation, 0]} 
     />
   );
