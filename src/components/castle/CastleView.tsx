@@ -127,72 +127,223 @@ function createHandPaintedGrassTex(): THREE.CanvasTexture {
 }
 
 /**
- * Cria textura de pedra com aparência envelhecida e pintada
+ * Cria textura de pedra medieval realista com pedras individuais,
+ * argamassa detalhada, musgo, desgaste e fissuras.
  */
 function createStoneTex(): THREE.CanvasTexture {
-  const size = 512;
+  // Use semente fixa para textura determinística (sem shimmer no reload)
+  let seed = 12345;
+  const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
+
+  const size = 1024;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  // Base de pedra
-  ctx.fillStyle = '#8a7a6a';
+  // ── 1. BASE ─ calcário envelhecido ──────────────────────────────────────
+  const baseGrad = ctx.createLinearGradient(0, 0, size, size);
+  baseGrad.addColorStop(0,   '#8c8070');
+  baseGrad.addColorStop(0.4, '#7a7060');
+  baseGrad.addColorStop(0.8, '#8a7c6c');
+  baseGrad.addColorStop(1,   '#7c7050');
+  ctx.fillStyle = baseGrad;
   ctx.fillRect(0, 0, size, size);
 
-  // Manchas de musgo e desgaste
-  for (let i = 0; i < 300; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const w = 20 + Math.random() * 100;
-    const h = 15 + Math.random() * 80;
-    const hue = 60 + Math.random() * 40;
-    ctx.fillStyle = `hsl(${hue}, 30%, ${30 + Math.random() * 30}%)`;
-    ctx.globalAlpha = 0.2 + Math.random() * 0.3;
-    ctx.fillRect(x, y, w, h);
+  // ruído de granito fino (microdetalhe)
+  for (let i = 0; i < 18000; i++) {
+    const px = rng() * size;
+    const py = rng() * size;
+    const br = 30 + rng() * 55;
+    ctx.fillStyle = `rgba(${br},${br - 5},${br - 10},0.12)`;
+    ctx.fillRect(px, py, 1 + rng() * 2, 1 + rng() * 2);
   }
 
-  // Linhas de argamassa
-  ctx.strokeStyle = '#5a4a3a';
-  ctx.lineWidth = 3;
-  ctx.globalAlpha = 0.3;
-  
-  // Linhas horizontais
-  for (let i = 0; i < 20; i++) {
-    const y = i * 45 + (Math.random() * 10 - 5);
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    for (let x = 0; x < size; x += 60) {
-      ctx.lineTo(x + 30, y + (Math.random() * 8 - 4));
+  // ── 2. BLOCOS INDIVIDUAIS ─────────────────────────────────────────────
+  // Grade irregular de pedras (fiadas horizontais com offset alternado)
+  const rowH = [52, 46, 58, 50, 44, 56, 48, 54, 42, 60, 50, 46, 58, 52, 44, 56, 48, 60, 42, 54];
+  const stoneColors = [
+    '#8f8070', '#827463', '#9a8c78', '#76705e', '#8a7c68',
+    '#936e52', '#7e7a62', '#8c856d', '#7a6858', '#948070',
+    '#6e6a52', '#8a7e6a', '#967a60', '#7c7460', '#8e8472',
+  ];
+
+  let y = 0;
+  for (let row = 0; row < rowH.length && y < size; row++) {
+    const h = rowH[row];
+    const offset = (row % 2) === 0 ? 0 : 30 + rng() * 20;
+    let x = -offset;
+    while (x < size) {
+      const w = 55 + rng() * 60;  // largura variável: 55–115 px
+      const inset = 2 + rng() * 3;
+
+      // ── face da pedra (cor individual) ──
+      const colIdx = Math.floor(rng() * stoneColors.length);
+      const light = 0.85 + rng() * 0.3;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = stoneColors[colIdx];
+      ctx.fillRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
+
+      // variação interna de luminosidade (simula facetas)
+      const faceGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+      faceGrad.addColorStop(0,   `rgba(255,255,255,${0.06 * light})`);
+      faceGrad.addColorStop(0.5, `rgba(0,0,0,0.0)`);
+      faceGrad.addColorStop(1,   `rgba(0,0,0,${0.10 * light})`);
+      ctx.fillStyle = faceGrad;
+      ctx.fillRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
+
+      // ── veios minerais ──
+      if (rng() < 0.35) {
+        ctx.globalAlpha = 0.08 + rng() * 0.10;
+        ctx.strokeStyle = rng() < 0.5 ? '#c8b88a' : '#a09080';
+        ctx.lineWidth = 0.8 + rng() * 1.2;
+        ctx.beginPath();
+        const vx0 = x + inset + rng() * (w - inset * 2);
+        const vy0 = y + inset + rng() * (h - inset * 2);
+        ctx.moveTo(vx0, vy0);
+        for (let s = 0; s < 4; s++) {
+          ctx.lineTo(vx0 + (rng() - 0.5) * 40, vy0 + (rng() - 0.5) * 30);
+        }
+        ctx.stroke();
+      }
+
+      // ── micro-lascas nas bordas ──
+      if (rng() < 0.5) {
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = '#3a3028';
+        for (let c = 0; c < 3 + Math.floor(rng() * 5); c++) {
+          const cx = x + inset + rng() * (w - inset * 2);
+          const cy = (rng() < 0.5 ? y + inset : y + h - inset) + (rng() - 0.5) * 4;
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, 2 + rng() * 5, 1 + rng() * 2, rng() * Math.PI, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      x += w;
     }
-    ctx.lineTo(size, y + (Math.random() * 8 - 4));
-    ctx.stroke();
+    y += h;
   }
 
-  // Linhas verticais
-  for (let i = 0; i < 15; i++) {
-    const x = i * 70 + (Math.random() * 15 - 7.5);
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    for (let y = 0; y < size; y += 50) {
-      ctx.lineTo(x + (Math.random() * 10 - 5), y + 25);
+  // ── 3. ARGAMASSA ─────────────────────────────────────────────────────
+  // Preenche as juntas com cor arenosa + ruído
+  y = 0;
+  for (let row = 0; row < rowH.length && y < size; row++) {
+    const h = rowH[row];
+    const offset = (row % 2) === 0 ? 0 : 30 + rng() * 20;
+    let x = -offset;
+    while (x < size) {
+      const w = 55 + rng() * 60;
+      // junta horizontal
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = `hsl(35,${18 + rng() * 12}%,${28 + rng() * 10}%)`;
+      ctx.fillRect(x, y, w, 3 + rng() * 2);
+      // junta vertical
+      ctx.fillStyle = `hsl(35,${15 + rng() * 10}%,${25 + rng() * 12}%)`;
+      ctx.fillRect(x, y + 2, 3 + rng(), h - 2);
+      x += w;
     }
-    ctx.lineTo(x + (Math.random() * 10 - 5), size);
-    ctx.stroke();
+    y += h;
   }
 
-  // Sombras nas pedras
-  ctx.globalAlpha = 0.2;
-  for (let i = 0; i < 100; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.fillStyle = '#000000';
+  // ruído arenoso sobre argamassa
+  ctx.globalAlpha = 0.07;
+  for (let i = 0; i < 6000; i++) {
+    const grain = rng() * 100;
+    ctx.fillStyle = `rgb(${grain|0},${((grain * 0.9)|0)},${((grain * 0.7)|0)})`;
+    ctx.fillRect(rng() * size, rng() * size, 1, 1);
+  }
+
+  // ── 4. SOMBRAS DE PROFUNDIDADE (bevel escuro nas juntas) ─────────────
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#1a1410';
+  y = 0;
+  for (let row = 0; row < rowH.length && y < size; row++) {
+    const h = rowH[row];
+    // sombra inferior de cada fila
+    ctx.fillRect(0, y + h - 3, size, 4);
+    y += h;
+  }
+
+  // ── 5. MUSGO E LÍQUENS ───────────────────────────────────────────────
+  // Musgo concentrado na metade inferior (zona húmida)
+  for (let i = 0; i < 120; i++) {
+    const mx = rng() * size;
+    const my = size * 0.45 + rng() * size * 0.55;
+    const mr = 8 + rng() * 30;
+    const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr);
+    mg.addColorStop(0,   `hsla(${88 + rng() * 30},${55 + rng() * 30}%,${28 + rng() * 20}%,0.55)`);
+    mg.addColorStop(1,   'hsla(90,40%,22%,0)');
+    ctx.globalAlpha = 0.4 + rng() * 0.35;
+    ctx.fillStyle = mg;
     ctx.beginPath();
-    ctx.ellipse(x + 5, y + 5, 15, 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(mx, my, mr * (0.6 + rng() * 0.8), mr * (0.4 + rng() * 0.6), rng() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Líquens amarelados (topo exposto ao sol)
+  for (let i = 0; i < 60; i++) {
+    const lx = rng() * size;
+    const ly = rng() * size * 0.4;
+    const lr = 4 + rng() * 14;
+    ctx.globalAlpha = 0.18 + rng() * 0.20;
+    ctx.fillStyle = `hsl(${55 + rng() * 25},${60 + rng() * 30}%,${55 + rng() * 20}%)`;
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, lr, lr * (0.5 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  return new THREE.CanvasTexture(canvas);
+  // ── 6. FISSURAS ──────────────────────────────────────────────────────
+  ctx.globalAlpha = 0.50;
+  for (let i = 0; i < 18; i++) {
+    const fx = rng() * size;
+    const fy = rng() * size;
+    ctx.strokeStyle = `hsl(25,${20 + rng() * 15}%,${12 + rng() * 10}%)`;
+    ctx.lineWidth = 0.6 + rng() * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    let cx = fx;
+    let cy = fy;
+    for (let s = 0; s < 8 + Math.floor(rng() * 8); s++) {
+      cx += (rng() - 0.5) * 22;
+      cy += rng() * 18;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+
+  // ── 7. OXIDAÇÃO / EFLORESCÊNCIA ── manchas esbranquiçadas e ferruginosas
+  for (let i = 0; i < 40; i++) {
+    const ox = rng() * size;
+    const oy = rng() * size;
+    const or_ = 6 + rng() * 28;
+    ctx.globalAlpha = 0.08 + rng() * 0.12;
+    if (rng() < 0.5) {
+      // ferrugem laranja
+      ctx.fillStyle = `hsl(${18 + rng() * 20},${70 + rng() * 20}%,${40 + rng() * 20}%)`;
+    } else {
+      // eflorescência branca
+      ctx.fillStyle = `hsl(40,${10 + rng() * 15}%,${82 + rng() * 15}%)`;
+    }
+    ctx.beginPath();
+    ctx.ellipse(ox, oy, or_, or_ * (0.4 + rng() * 0.6), rng() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── 8. VINHETA ESCURA nas bordas (profundidade geral) ─────────────────
+  ctx.globalAlpha = 0.18;
+  const vig = ctx.createRadialGradient(size/2, size/2, size * 0.3, size/2, size/2, size * 0.75);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 2);   // repetição ajustada para que pedras não apareçam enorme
+  tex.anisotropy = 8;
+  tex.generateMipmaps = true;
+  return tex;
 }
 
 /**
@@ -450,32 +601,41 @@ function StoneWallSegment({
       {/* Corpo principal da muralha */}
       <mesh castShadow receiveShadow>
         <boxGeometry args={[length, height, 0.5]} />
-        <meshStandardMaterial 
-          map={stoneTex} 
-          roughness={0.8} 
-          color="#948470"
-          emissive="#322a22"
-          emissiveIntensity={0.1}
+        <meshStandardMaterial
+          map={stoneTex}
+          roughness={0.85}
+          metalness={0.02}
+          color="#9e9080"
+          emissive="#1a130a"
+          emissiveIntensity={0.18}
+          envMapIntensity={0.4}
         />
       </mesh>
-      
-      {/* Base da muralha (mais larga) */}
+
+      {/* Base da muralha — bloco mais escuro e desgastado */}
       <mesh position={[0, -height / 2 + 0.2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length + 0.2, 0.3, 0.7]} />
-        <meshStandardMaterial 
-          map={stoneTex} 
-          roughness={0.9} 
-          color="#6a5e4a"
+        <boxGeometry args={[length + 0.25, 0.35, 0.75]} />
+        <meshStandardMaterial
+          map={stoneTex}
+          roughness={0.95}
+          metalness={0.0}
+          color="#6e6250"
+          emissive="#100c06"
+          emissiveIntensity={0.25}
         />
       </mesh>
-      
-      {/* Topo da muralha (caminho de ronda) */}
+
+      {/* Topo da muralha — caminho de ronda levemente polido */}
       <mesh position={[0, height / 2 - 0.1, 0.1]} castShadow receiveShadow>
-        <boxGeometry args={[length, 0.15, 0.6]} />
-        <meshStandardMaterial 
-          map={stoneTex} 
-          roughness={0.7} 
-          color="#a5947a"
+        <boxGeometry args={[length, 0.18, 0.65]} />
+        <meshStandardMaterial
+          map={stoneTex}
+          roughness={0.70}
+          metalness={0.03}
+          color="#aea090"
+          emissive="#1e1810"
+          emissiveIntensity={0.08}
+          envMapIntensity={0.6}
         />
       </mesh>
       
