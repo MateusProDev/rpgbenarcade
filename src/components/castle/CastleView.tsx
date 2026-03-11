@@ -880,11 +880,10 @@ function VillageScene({
 
 function HUD({ resources }: { resources: ReturnType<typeof useResources> }) {
   const items = [
-    { icon: '🪵', label: 'Madeira', value: resources.wood  ?? 0 },
-    { icon: '🪨', label: 'Pedra',   value: resources.stone ?? 0 },
-    { icon: '⚙️', label: 'Ferro',   value: resources.iron  ?? 0 },
-    { icon: '🌾', label: 'Comida',  value: resources.food  ?? 0 },
-    { icon: '💰', label: 'Ouro',    value: resources.gold  ?? 0 },
+    { icon: '🪵', label: 'Madeira', value: resources?.wood  ?? 0 },
+    { icon: '🪨', label: 'Pedra',   value: resources?.stone ?? 0 },
+    { icon: '⚙️', label: 'Ferro',   value: resources?.iron  ?? 0 },
+    { icon: '🌾', label: 'Comida',  value: resources?.food  ?? 0 },
   ];
   return (
     <div style={{
@@ -915,7 +914,7 @@ function HUD({ resources }: { resources: ReturnType<typeof useResources> }) {
 export function CastleView() {
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const resources = useResources();
-  const { buildings } = useGameStore();
+  const buildings = useGameStore(s => s.castle?.buildings);
 
   const builtBuildings = useMemo(
     () => new Set(Object.keys(buildings || {}) as BuildingType[]),
@@ -952,7 +951,7 @@ export function CastleView() {
           position: 'absolute', bottom: 16, left: '50%',
           transform: 'translateX(-50%)', zIndex: 20,
         }}>
-          <BuildingCard type={selectedSlotData.type} onClose={() => setSelectedSlot(null)} />
+          <BuildingCard buildingType={selectedSlotData.type} />
         </div>
       )}
     </div>
