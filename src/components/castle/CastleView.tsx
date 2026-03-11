@@ -1,21 +1,28 @@
-/**
- * CastleView — Vila Medieval 3D com Estilo Pintado à Mão (VERSÃO COMPLETA)
- * 
- * - Neblina e nuvens removidas
- * - Castelo principal: casteloteste.glb com texturas pintadas
- * - Árvores: arvoreum.glb
- * - Muralhas de pedra realistas com textura pintada
- * - Estradas de terra com textura pintada
- * - Vegetação variada com modelos GLB
- * - Porto com água animada
- * - Edifícios construíveis com seleção e feedback visual
- * - HUD completo com recursos e minimapa
- * - Iluminação suave estilo pintura antiga
+﻿/**
+ * CastleView — Vila Medieval Isométrica Realista
+ *
+ * Câmera ortográfica isométrica fixa (sem rotação)
+ * Muralha circular perfeita com 8 torres simétricas
+ * Texturas procedurais realistas com simplex-noise
+ * Iluminação de fim de tarde com sombras suaves
+ * 8 slots de construção em layout radial simétrico
  */
 
-import React, { useState, useRef, useMemo, useEffect, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Sky, Environment, Html, useGLTF, Loader } from '@react-three/drei';
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  Suspense,
+} from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import {
+  MapControls,
+  Environment,
+  Html,
+  useGLTF,
+} from '@react-three/drei';
+import { createNoise2D } from 'simplex-noise';
 import * as THREE from 'three';
 import type { BuildingType } from '../../types';
 import { useGameStore } from '../../stores/useGameStore';
@@ -23,1094 +30,551 @@ import { useResources } from '../../hooks/useResources';
 import { BuildingCard } from './BuildingCard';
 
 /* ============================================================================
-   TIPOS E CONFIGURAÇÕES
+   CONSTANTES
    ========================================================================= */
 
-interface Slot {
-  type: BuildingType;
-  label: string;
-  icon: string;
-  x: number;   // coordenada X no mundo 3D
-  z: number;   // coordenada Z no mundo 3D
-  width: number;
-  depth: number;
-}
+const WALL_RADIUS = 5.2;
+const TOWER_COUNT = 8;
+const SLOT_RADIUS = 3.4;
 
-const SLOTS: Slot[] = [
-  { type: 'sawmill',   label: 'Serraria', icon: '🪵', x: 620,  z: 430, width: 1.2, depth: 1.0 },
-  { type: 'ironMine',  label: 'Mina de Ferro', icon: '⚙️', x: 1180, z: 430, width: 1.3, depth: 1.1 },
-  { type: 'farm',      label: 'Fazenda', icon: '🌾', x: 460,  z: 620, width: 1.8, depth: 1.4 },
-  { type: 'quarry',    label: 'Pedreira', icon: '🪨', x: 760,  z: 660, width: 1.5, depth: 1.2 },
-  { type: 'barracks',  label: 'Quartel', icon: '⚔️', x: 1080, z: 595, width: 1.6, depth: 1.3 },
-  { type: 'warehouse', label: 'Armazém', icon: '🏚️', x: 1280, z: 620, width: 1.4, depth: 1.2 },
-  { type: 'academy',   label: 'Academia', icon: '📚', x: 900,  z: 740, width: 1.5, depth: 1.2 },
+const SLOT_TYPES: { type: BuildingType; label: string; icon: string }[] = [
+  { type: 'sawmill',   label: 'Serraria',      icon: '🪵' },
+  { type: 'ironMine',  label: 'Mina de Ferro',  icon: '⚙️' },
+  { type: 'farm',      label: 'Fazenda',        icon: '🌾' },
+  { type: 'quarry',    label: 'Pedreira',       icon: '🪨' },
+  { type: 'barracks',  label: 'Quartel',        icon: '⚔️' },
+  { type: 'warehouse', label: 'Armazém',        icon: '🏚️' },
+  { type: 'academy',   label: 'Academia',       icon: '📚' },
+  { type: 'sawmill',   label: 'Serraria II',    icon: '🪵' },
 ];
 
-const MAP_SCALE = 0.0055;  // Escala para converter coordenadas SVG para mundo 3D
-const MAP_CENTER_X = 900;   // Centro do mapa original
-const MAP_CENTER_Z = 600;
-const WORLD_SIZE = 12;      // Tamanho do mundo em unidades 3D
-
-// Função para converter coordenadas SVG para mundo 3D
-const svgToWorld = (x: number, z: number): [number, number, number] => {
-  const worldX = (x - MAP_CENTER_X) * MAP_SCALE;
-  const worldZ = (z - MAP_CENTER_Z) * MAP_SCALE;
-  return [worldX, 0, worldZ];
-};
-
 /* ============================================================================
-   TEXTURAS PINTADAS À MÃO (geradas via Canvas 2D)
+   TEXTURAS PROCEDURAIS REALISTAS
    ========================================================================= */
 
-/**
- * Cria textura de grama com estilo aquarela/pinceladas
- */
-function createHandPaintedGrassTex(): THREE.CanvasTexture {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  // Base verde pastel
-  ctx.fillStyle = '#8ba87a';
-  ctx.fillRect(0, 0, size, size);
-
-  // Pinceladas suaves com variação de cor
-  for (let i = 0; i < 2000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const radius = 15 + Math.random() * 50;
-    const hue = 90 + (Math.random() * 40 - 20);
-    const sat = 30 + Math.random() * 40;
-    const light = 50 + Math.random() * 30;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
-    ctx.globalAlpha = 0.1 + Math.random() * 0.2;
-    ctx.fill();
-  }
-
-  // Traços de grama
-  ctx.globalAlpha = 0.3;
-  ctx.strokeStyle = '#5a724a';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 800; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (Math.random() - 0.5) * 30, y - 15 - Math.random() * 30);
-    ctx.stroke();
-  }
-
-  // Pequenas flores silvestres
-  ctx.globalAlpha = 0.8;
-  for (let i = 0; i < 50; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.fillStyle = `hsl(${Math.random() * 60 + 300}, 80%, 70%)`; // tons de rosa/lilás
-    ctx.beginPath();
-    ctx.arc(x, y, 3 + Math.random() * 5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = `hsl(50, 80%, 60%)`; // centro amarelo
-    ctx.beginPath();
-    ctx.arc(x - 1, y - 1, 1 + Math.random() * 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(25, 25);
-  return tex;
-}
-
-/**
- * Cria textura de pedra medieval realista com pedras individuais,
- * argamassa detalhada, musgo, desgaste e fissuras.
- */
-function createStoneTex(): THREE.CanvasTexture {
-  // Use semente fixa para textura determinística (sem shimmer no reload)
-  let seed = 12345;
-  const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; };
-
+function createRealisticStoneTex(): THREE.CanvasTexture {
+  const noise2D = createNoise2D();
   const size = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
 
-  // ── 1. BASE ─ calcário envelhecido ──────────────────────────────────────
-  const baseGrad = ctx.createLinearGradient(0, 0, size, size);
-  baseGrad.addColorStop(0,   '#8c8070');
-  baseGrad.addColorStop(0.4, '#7a7060');
-  baseGrad.addColorStop(0.8, '#8a7c6c');
-  baseGrad.addColorStop(1,   '#7c7050');
-  ctx.fillStyle = baseGrad;
+  ctx.fillStyle = '#8a8070';
   ctx.fillRect(0, 0, size, size);
 
-  // ruído de granito fino (microdetalhe)
-  for (let i = 0; i < 18000; i++) {
-    const px = rng() * size;
-    const py = rng() * size;
-    const br = 30 + rng() * 55;
-    ctx.fillStyle = `rgba(${br},${br - 5},${br - 10},0.12)`;
-    ctx.fillRect(px, py, 1 + rng() * 2, 1 + rng() * 2);
-  }
-
-  // ── 2. BLOCOS INDIVIDUAIS ─────────────────────────────────────────────
-  // Grade irregular de pedras (fiadas horizontais com offset alternado)
-  const rowH = [52, 46, 58, 50, 44, 56, 48, 54, 42, 60, 50, 46, 58, 52, 44, 56, 48, 60, 42, 54];
-  const stoneColors = [
-    '#8f8070', '#827463', '#9a8c78', '#76705e', '#8a7c68',
-    '#936e52', '#7e7a62', '#8c856d', '#7a6858', '#948070',
-    '#6e6a52', '#8a7e6a', '#967a60', '#7c7460', '#8e8472',
-  ];
-
-  let y = 0;
-  for (let row = 0; row < rowH.length && y < size; row++) {
-    const h = rowH[row];
-    const offset = (row % 2) === 0 ? 0 : 30 + rng() * 20;
-    let x = -offset;
-    while (x < size) {
-      const w = 55 + rng() * 60;  // largura variável: 55–115 px
-      const inset = 2 + rng() * 3;
-
-      // ── face da pedra (cor individual) ──
-      const colIdx = Math.floor(rng() * stoneColors.length);
-      const light = 0.85 + rng() * 0.3;
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = stoneColors[colIdx];
-      ctx.fillRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
-
-      // variação interna de luminosidade (simula facetas)
-      const faceGrad = ctx.createLinearGradient(x, y, x + w, y + h);
-      faceGrad.addColorStop(0,   `rgba(255,255,255,${0.06 * light})`);
-      faceGrad.addColorStop(0.5, `rgba(0,0,0,0.0)`);
-      faceGrad.addColorStop(1,   `rgba(0,0,0,${0.10 * light})`);
-      ctx.fillStyle = faceGrad;
-      ctx.fillRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
-
-      // ── veios minerais ──
-      if (rng() < 0.35) {
-        ctx.globalAlpha = 0.08 + rng() * 0.10;
-        ctx.strokeStyle = rng() < 0.5 ? '#c8b88a' : '#a09080';
-        ctx.lineWidth = 0.8 + rng() * 1.2;
-        ctx.beginPath();
-        const vx0 = x + inset + rng() * (w - inset * 2);
-        const vy0 = y + inset + rng() * (h - inset * 2);
-        ctx.moveTo(vx0, vy0);
-        for (let s = 0; s < 4; s++) {
-          ctx.lineTo(vx0 + (rng() - 0.5) * 40, vy0 + (rng() - 0.5) * 30);
-        }
-        ctx.stroke();
-      }
-
-      // ── micro-lascas nas bordas ──
-      if (rng() < 0.5) {
-        ctx.globalAlpha = 0.18;
-        ctx.fillStyle = '#3a3028';
-        for (let c = 0; c < 3 + Math.floor(rng() * 5); c++) {
-          const cx = x + inset + rng() * (w - inset * 2);
-          const cy = (rng() < 0.5 ? y + inset : y + h - inset) + (rng() - 0.5) * 4;
-          ctx.beginPath();
-          ctx.ellipse(cx, cy, 2 + rng() * 5, 1 + rng() * 2, rng() * Math.PI, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      x += w;
+  const imgData = ctx.getImageData(0, 0, size, size);
+  const d = imgData.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n =
+        noise2D(x / 120, y / 120) * 0.5 +
+        noise2D(x / 40,  y / 40)  * 0.3 +
+        noise2D(x / 15,  y / 15)  * 0.2;
+      const br = Math.floor(128 + n * 55);
+      const i = (y * size + x) * 4;
+      d[i]     = THREE.MathUtils.clamp(br + 10, 80,  200);
+      d[i + 1] = THREE.MathUtils.clamp(br,      70,  185);
+      d[i + 2] = THREE.MathUtils.clamp(br - 15, 55,  165);
+      d[i + 3] = 255;
     }
-    y += h;
   }
+  ctx.putImageData(imgData, 0, 0);
 
-  // ── 3. ARGAMASSA ─────────────────────────────────────────────────────
-  // Preenche as juntas com cor arenosa + ruído
-  y = 0;
-  for (let row = 0; row < rowH.length && y < size; row++) {
-    const h = rowH[row];
-    const offset = (row % 2) === 0 ? 0 : 30 + rng() * 20;
-    let x = -offset;
-    while (x < size) {
-      const w = 55 + rng() * 60;
-      // junta horizontal
-      ctx.globalAlpha = 0.75;
-      ctx.fillStyle = `hsl(35,${18 + rng() * 12}%,${28 + rng() * 10}%)`;
-      ctx.fillRect(x, y, w, 3 + rng() * 2);
-      // junta vertical
-      ctx.fillStyle = `hsl(35,${15 + rng() * 10}%,${25 + rng() * 12}%)`;
-      ctx.fillRect(x, y + 2, 3 + rng(), h - 2);
-      x += w;
+  const rowHeights = [48, 52, 44, 56, 50, 46, 54, 48, 58, 42, 50, 52, 46, 54, 48];
+  const stoneHues  = [0, 4, -3, 6, -5, 8, -2, 5, -6, 3];
+  let ry = 0;
+  for (let row = 0; row < rowHeights.length && ry < size; row++) {
+    const rh = rowHeights[row];
+    const offsetX = (row % 2) * (45 + Math.sin(row) * 12);
+    let rx = -offsetX;
+    while (rx < size) {
+      const rw = 60 + (stoneHues[row % stoneHues.length] + 6) * 5 + 20;
+      const hShift = stoneHues[row % stoneHues.length];
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = `hsl(${30 + hShift},${25 + Math.abs(hShift) * 2}%,${52 + hShift}%)`;
+      ctx.fillRect(rx + 2, ry + 2, rw - 3, rh - 3);
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(rx + 2, ry + 2, rw - 4, 2);
+      ctx.fillRect(rx + 2, ry + 2, 2, rh - 4);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(rx + 2, ry + rh - 4, rw - 4, 2);
+      ctx.fillRect(rx + rw - 4, ry + 2, 2, rh - 4);
+      rx += rw;
     }
-    y += h;
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#4a3e30';
+    ctx.fillRect(0, ry + rh - 3, size, 5);
+    ry += rh;
   }
 
-  // ruído arenoso sobre argamassa
-  ctx.globalAlpha = 0.07;
-  for (let i = 0; i < 6000; i++) {
-    const grain = rng() * 100;
-    ctx.fillStyle = `rgb(${grain|0},${((grain * 0.9)|0)},${((grain * 0.7)|0)})`;
-    ctx.fillRect(rng() * size, rng() * size, 1, 1);
+  ry = 0;
+  for (let row = 0; row < rowHeights.length && ry < size; row++) {
+    const rh = rowHeights[row];
+    const offsetX = (row % 2) * (45 + Math.sin(row) * 12);
+    let rx = -offsetX;
+    while (rx < size) {
+      const rw = 60 + (stoneHues[row % stoneHues.length] + 6) * 5 + 20;
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#3e3228';
+      ctx.fillRect(rx + rw - 3, ry, 5, rh - 2);
+      rx += rw;
+    }
+    ry += rh;
   }
 
-  // ── 4. SOMBRAS DE PROFUNDIDADE (bevel escuro nas juntas) ─────────────
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#1a1410';
-  y = 0;
-  for (let row = 0; row < rowH.length && y < size; row++) {
-    const h = rowH[row];
-    // sombra inferior de cada fila
-    ctx.fillRect(0, y + h - 3, size, 4);
-    y += h;
-  }
+  const mossGrad = ctx.createLinearGradient(0, size * 0.6, 0, size);
+  mossGrad.addColorStop(0, 'rgba(40,80,30,0)');
+  mossGrad.addColorStop(1, 'rgba(40,75,25,0.32)');
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = mossGrad;
+  ctx.fillRect(0, 0, size, size);
 
-  // ── 5. MUSGO E LÍQUENS ───────────────────────────────────────────────
-  // Musgo concentrado na metade inferior (zona húmida)
-  for (let i = 0; i < 120; i++) {
-    const mx = rng() * size;
-    const my = size * 0.45 + rng() * size * 0.55;
-    const mr = 8 + rng() * 30;
-    const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr);
-    mg.addColorStop(0,   `hsla(${88 + rng() * 30},${55 + rng() * 30}%,${28 + rng() * 20}%,0.55)`);
-    mg.addColorStop(1,   'hsla(90,40%,22%,0)');
-    ctx.globalAlpha = 0.4 + rng() * 0.35;
-    ctx.fillStyle = mg;
-    ctx.beginPath();
-    ctx.ellipse(mx, my, mr * (0.6 + rng() * 0.8), mr * (0.4 + rng() * 0.6), rng() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // Líquens amarelados (topo exposto ao sol)
-  for (let i = 0; i < 60; i++) {
-    const lx = rng() * size;
-    const ly = rng() * size * 0.4;
-    const lr = 4 + rng() * 14;
-    ctx.globalAlpha = 0.18 + rng() * 0.20;
-    ctx.fillStyle = `hsl(${55 + rng() * 25},${60 + rng() * 30}%,${55 + rng() * 20}%)`;
-    ctx.beginPath();
-    ctx.ellipse(lx, ly, lr, lr * (0.5 + rng() * 0.5), rng() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // ── 6. FISSURAS ──────────────────────────────────────────────────────
-  ctx.globalAlpha = 0.50;
-  for (let i = 0; i < 18; i++) {
-    const fx = rng() * size;
-    const fy = rng() * size;
-    ctx.strokeStyle = `hsl(25,${20 + rng() * 15}%,${12 + rng() * 10}%)`;
-    ctx.lineWidth = 0.6 + rng() * 1.2;
+  ctx.globalAlpha = 0.4;
+  for (let i = 0; i < 14; i++) {
+    const fx = Math.random() * size;
+    const fy = Math.random() * size;
+    ctx.strokeStyle = `hsl(25,20%,${10 + Math.random() * 12}%)`;
+    ctx.lineWidth = 0.8 + Math.random() * 1.2;
     ctx.beginPath();
     ctx.moveTo(fx, fy);
-    let cx = fx;
-    let cy = fy;
-    for (let s = 0; s < 8 + Math.floor(rng() * 8); s++) {
-      cx += (rng() - 0.5) * 22;
-      cy += rng() * 18;
-      ctx.lineTo(cx, cy);
+    let cx2 = fx; let cy2 = fy;
+    for (let s = 0; s < 10; s++) {
+      cx2 += (Math.random() - 0.5) * 20;
+      cy2 += Math.random() * 16;
+      ctx.lineTo(cx2, cy2);
     }
     ctx.stroke();
   }
 
-  // ── 7. OXIDAÇÃO / EFLORESCÊNCIA ── manchas esbranquiçadas e ferruginosas
-  for (let i = 0; i < 40; i++) {
-    const ox = rng() * size;
-    const oy = rng() * size;
-    const or_ = 6 + rng() * 28;
-    ctx.globalAlpha = 0.08 + rng() * 0.12;
-    if (rng() < 0.5) {
-      // ferrugem laranja
-      ctx.fillStyle = `hsl(${18 + rng() * 20},${70 + rng() * 20}%,${40 + rng() * 20}%)`;
-    } else {
-      // eflorescência branca
-      ctx.fillStyle = `hsl(40,${10 + rng() * 15}%,${82 + rng() * 15}%)`;
-    }
-    ctx.beginPath();
-    ctx.ellipse(ox, oy, or_, or_ * (0.4 + rng() * 0.6), rng() * Math.PI, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // ── 8. VINHETA ESCURA nas bordas (profundidade geral) ─────────────────
-  ctx.globalAlpha = 0.18;
-  const vig = ctx.createRadialGradient(size/2, size/2, size * 0.3, size/2, size/2, size * 0.75);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,1)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, size, size);
-
   ctx.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 2);   // repetição ajustada para que pedras não apareçam enorme
-  tex.anisotropy = 8;
+  tex.repeat.set(3, 2);
+  tex.anisotropy = 16;
   tex.generateMipmaps = true;
   return tex;
 }
 
-/**
- * Cria textura de terra para estradas
- */
-function createRoadTex(): THREE.CanvasTexture {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  // Base terrosa
-  ctx.fillStyle = '#6a5a42';
+function createRealisticGroundTex(): THREE.CanvasTexture {
+  const noise2D = createNoise2D();
+  const size = 1024;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#5a8040';
   ctx.fillRect(0, 0, size, size);
 
-  // Textura de terra batida
-  for (let i = 0; i < 1000; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const w = 5 + Math.random() * 20;
-    const h = 3 + Math.random() * 15;
-    const dark = Math.random() > 0.5;
-    ctx.fillStyle = dark ? '#4a3a2a' : '#8a7a5a';
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(x, y, w, h);
-  }
-
-  // Pegadas e marcas de carroça
-  ctx.globalAlpha = 0.2;
-  ctx.strokeStyle = '#3a2a1a';
-  ctx.lineWidth = 4;
-  for (let i = 0; i < 20; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 40, y + 20);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.ellipse(x + 20, y + 10, 5, 3, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#2a1a0a';
-    ctx.fill();
-  }
-
-  return new THREE.CanvasTexture(canvas);
-}
-
-/**
- * Cria textura para telhados (estilo madeira pintada)
- */
-function createRoofTex(): THREE.CanvasTexture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = '#7a4a2a';
-  ctx.fillRect(0, 0, size, size);
-
-  // Textura de madeira
-  for (let i = 0; i < 200; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const w = 30 + Math.random() * 80;
-    const h = 5 + Math.random() * 15;
-    ctx.fillStyle = `hsl(${20 + Math.random() * 20}, 60%, ${30 + Math.random() * 20}%)`;
-    ctx.globalAlpha = 0.3;
-    ctx.fillRect(x, y, w, h);
-  }
-
-  // Linhas de telhas
-  ctx.strokeStyle = '#5a3a1a';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.4;
-  for (let i = 0; i < 30; i++) {
-    const y = i * 20;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    for (let x = 0; x < size; x += 25) {
-      ctx.lineTo(x + 12, y + 5);
+  const imgData = ctx.getImageData(0, 0, size, size);
+  const px = imgData.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n =
+        noise2D(x / 80, y / 80) * 0.6 +
+        noise2D(x / 25, y / 25) * 0.3 +
+        noise2D(x / 8,  y / 8)  * 0.1;
+      const g = 75 + Math.floor(n * 40);
+      const i = (y * size + x) * 4;
+      px[i]     = THREE.MathUtils.clamp((30 + g * 0.3) | 0, 20,  80);
+      px[i + 1] = THREE.MathUtils.clamp((55 + g * 0.7) | 0, 50, 160);
+      px[i + 2] = THREE.MathUtils.clamp((20 + g * 0.1) | 0, 15,  55);
+      px[i + 3] = 255;
     }
-    ctx.stroke();
   }
+  ctx.putImageData(imgData, 0, 0);
 
-  return new THREE.CanvasTexture(canvas);
-}
-
-/**
- * Textura de folhagem pintada à mão
- */
-function createFoliageTex(): THREE.CanvasTexture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = '#2e6b1e';
-  ctx.fillRect(0, 0, size, size);
-
-  for (let i = 0; i < 1200; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const r = 4 + Math.random() * 18;
-    const hue = 90 + (Math.random() * 50 - 25);
-    const light = 25 + Math.random() * 35;
+  ctx.globalAlpha = 0.35;
+  for (let i = 0; i < 400; i++) {
+    const px2 = Math.random() * size;
+    const py2 = Math.random() * size;
+    const r   = 2 + Math.random() * 5;
+    ctx.fillStyle = `hsl(${30 + Math.random() * 20},${15 + Math.random() * 20}%,${50 + Math.random() * 30}%)`;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = `hsl(${hue}, 60%, ${light}%)`;
-    ctx.globalAlpha = 0.18 + Math.random() * 0.25;
+    ctx.ellipse(px2, py2, r, r * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
   }
-  // veias das folhas
-  ctx.globalAlpha = 0.25;
-  ctx.strokeStyle = '#1a4810';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 300; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
+
+  ctx.globalAlpha = 0.5;
+  for (let i = 0; i < 1200; i++) {
+    const gx = Math.random() * size;
+    const gy = Math.random() * size;
+    const h  = 8 + Math.random() * 18;
+    ctx.strokeStyle = `hsl(${100 + Math.random() * 30},${50 + Math.random() * 30}%,${25 + Math.random() * 20}%)`;
+    ctx.lineWidth = 1 + Math.random();
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20);
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + (Math.random() - 0.5) * 8, gy - h);
     ctx.stroke();
   }
-  const tex = new THREE.CanvasTexture(canvas);
+
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 3);
+  tex.repeat.set(20, 20);
+  tex.anisotropy = 16;
   return tex;
 }
 
-/**
- * Textura de casca de árvore
- */
-function createBarkTex(): THREE.CanvasTexture {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  ctx.fillStyle = '#5c3218';
+function createRoofTex(): THREE.CanvasTexture {
+  const noise2D = createNoise2D();
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#5a3820';
   ctx.fillRect(0, 0, size, size);
 
-  // Fissuras verticais
-  ctx.strokeStyle = '#3a1e0a';
-  ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.5;
-  for (let i = 0; i < 30; i++) {
-    const x = Math.random() * size;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    for (let y = 0; y < size; y += 20) {
-      ctx.lineTo(x + (Math.random() * 12 - 6), y + 20);
+  for (let row = 0; row * 12 < size; row++) {
+    const y2  = row * 12;
+    const off = (row % 2) * 30;
+    let x2 = -off;
+    while (x2 < size) {
+      const w  = 35 + Math.random() * 20;
+      const nv = noise2D(x2 / 60, y2 / 60);
+      const lt = 30 + nv * 15;
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = `hsl(20,${40 + nv * 15}%,${lt}%)`;
+      ctx.fillRect(x2 + 1, y2 + 1, w - 1, 10);
+      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = '#1a0e08';
+      ctx.fillRect(x2 + w - 1, y2, 2, 12);
+      x2 += w;
     }
-    ctx.stroke();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#1a0e08';
+    ctx.fillRect(0, y2 + 11, size, 2);
   }
-  // variações de cor
-  for (let i = 0; i < 400; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const w = 10 + Math.random() * 40;
-    const h = 5 + Math.random() * 20;
-    ctx.fillStyle = `hsl(${20 + Math.random() * 15}, 55%, ${20 + Math.random() * 25}%)`;
-    ctx.globalAlpha = 0.2;
-    ctx.fillRect(x, y, w, h);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
+
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(2, 4);
+  tex.repeat.set(4, 4);
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function createDirtPathTex(): THREE.CanvasTexture {
+  const noise2D = createNoise2D();
+  const size = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  const imgData = ctx.createImageData(size, size);
+  const px = imgData.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n = noise2D(x / 60, y / 60) * 0.7 + noise2D(x / 20, y / 20) * 0.3;
+      const v = THREE.MathUtils.clamp(Math.floor(105 + n * 40), 70, 160);
+      const i = (y * size + x) * 4;
+      px[i]     = v;
+      px[i + 1] = Math.floor(v * 0.82);
+      px[i + 2] = Math.floor(v * 0.55);
+      px[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  ctx.globalAlpha = 0.15;
+  for (let i = 0; i < 80; i++) {
+    const tx = Math.random() * size;
+    const ty = Math.random() * size;
+    ctx.fillStyle = '#3a2810';
+    ctx.beginPath();
+    ctx.ellipse(tx, ty, 6 + Math.random() * 8, 4 + Math.random() * 4, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  tex.anisotropy = 8;
   return tex;
 }
 
 /* ============================================================================
-   TERRENO COM RELEVO E TEXTURA PINTADA
+   CÂMERA ISOMÉTRICA — fixa no ângulo, sem rotação
+   ========================================================================= */
+
+function IsometricCamera() {
+  const { camera, size } = useThree();
+
+  useEffect(() => {
+    if (camera instanceof THREE.OrthographicCamera) {
+      const aspect = size.width / size.height;
+      const f = 10;
+      camera.left   = -f * aspect;
+      camera.right  =  f * aspect;
+      camera.top    =  f;
+      camera.bottom = -f;
+      camera.near   = 0.1;
+      camera.far    = 200;
+      camera.position.set(12, 10, 12);
+      camera.lookAt(0, 0.5, 0);
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, size]);
+
+  useFrame(({ camera, size: s }) => {
+    if (camera instanceof THREE.OrthographicCamera) {
+      const aspect = s.width / s.height;
+      const f = 10;
+      camera.left   = -f * aspect;
+      camera.right  =  f * aspect;
+      camera.top    =  f;
+      camera.bottom = -f;
+      camera.updateProjectionMatrix();
+    }
+  });
+
+  return null;
+}
+
+/* ============================================================================
+   TERRENO
    ========================================================================= */
 
 function Terrain() {
-  const grassTex = useMemo(() => createHandPaintedGrassTex(), []);
+  const groundTex = useMemo(() => createRealisticGroundTex(), []);
+  const noise2D   = useMemo(() => createNoise2D(), []);
 
-  // Geometria com relevo calculada uma única vez
   const geometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2, 128, 128);
+    const geo = new THREE.PlaneGeometry(30, 30, 80, 80);
     const pos = geo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
-      const z = pos.getY(i); // PlaneGeometry usa Y antes de rotacionar
-      
-      // Ruído senoidal para colinas suaves
-      const noise1 = Math.sin(x * 1.5) * Math.cos(z * 1.3) * 0.15;
-      const noise2 = Math.sin(x * 3.0) * Math.cos(z * 2.8) * 0.08;
-      const noise3 = Math.sin(x * 0.8) * Math.cos(z * 0.9) * 0.2;
-      
-      // Elevação central (colina do castelo)
+      const z = pos.getY(i);
+      const n =
+        noise2D(x / 8, z / 8) * 0.12 +
+        noise2D(x / 3, z / 3) * 0.04;
       const dist = Math.sqrt(x * x + z * z);
-      const hill = Math.max(0, 1 - dist / 6) * 0.35;
-      
-      // Pequenas elevações perto das muralhas
-      const wallDistX = Math.min(Math.abs(x + 4.5), Math.abs(x - 4.5));
-      const wallDistZ = Math.min(Math.abs(z + 4.2), Math.abs(z - 4.2));
-      const wallHill = Math.max(0, 0.8 - Math.min(wallDistX, wallDistZ)) * 0.1;
-      
-      pos.setZ(i, noise1 + noise2 + noise3 + hill + wallHill);
+      const hill = Math.max(0, 1 - dist / 5) * 0.25;
+      pos.setZ(i, n + hill);
     }
     geo.computeVertexNormals();
     return geo;
-  }, []);
+  }, [noise2D]);
 
   return (
-    <mesh
-      geometry={geometry}
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, -0.2, 0]}
-      receiveShadow
-    >
-      <meshStandardMaterial
-        map={grassTex}
-        roughness={0.9}
-        color="#b0c09a"
-        emissive="#2a3a1a"
-        emissiveIntensity={0.1}
-      />
+    <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <meshStandardMaterial map={groundTex} roughness={0.95} color="#b8c8a0" />
     </mesh>
   );
 }
 
 /* ============================================================================
-   MURALHAS DE PEDRA REALISTAS
+   TORRE DA MURALHA
    ========================================================================= */
 
-function StoneWallSegment({ 
-  start, 
-  end, 
-  height = 1.4
-}: { 
-  start: [number, number]; 
-  end: [number, number]; 
-  height?: number;
-  hasTower?: boolean;
-}) {
-  const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
-  const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
-  const midX = (start[0] + end[0]) / 2;
-  const midZ = (start[1] + end[1]) / 2;
-  
-  const stoneTex = useMemo(() => createStoneTex(), []);
-
-  const numCrenellations = Math.floor(length / 0.35);
-  const numDetails = Math.floor(length / 0.5);
+function WallTower({ angle }: { angle: number }) {
+  const stoneTex = useMemo(() => createRealisticStoneTex(), []);
+  const roofTex  = useMemo(() => createRoofTex(), []);
+  const x = Math.cos(angle) * WALL_RADIUS;
+  const z = Math.sin(angle) * WALL_RADIUS;
+  const isGateS = Math.abs(angle + Math.PI / 2) < 0.05;
+  const isGateN = Math.abs(angle - Math.PI / 2) < 0.05;
 
   return (
-    <group position={[midX, height / 2, midZ]} rotation={[0, -angle, 0]}>
-      {/* Corpo principal da muralha */}
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[length, height, 0.5]} />
-        <meshStandardMaterial
-          map={stoneTex}
-          roughness={0.85}
-          metalness={0.02}
-          color="#9e9080"
-          emissive="#1a130a"
-          emissiveIntensity={0.18}
-          envMapIntensity={0.4}
-        />
+    <group position={[x, 0, z]}>
+      <mesh castShadow receiveShadow position={[0, 1.0, 0]}>
+        <boxGeometry args={[0.9, 2.0, 0.9]} />
+        <meshStandardMaterial map={stoneTex} roughness={0.85} color="#9a8e7c" />
       </mesh>
-
-      {/* Base da muralha — bloco mais escuro e desgastado */}
-      <mesh position={[0, -height / 2 + 0.2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length + 0.25, 0.35, 0.75]} />
-        <meshStandardMaterial
-          map={stoneTex}
-          roughness={0.95}
-          metalness={0.0}
-          color="#6e6250"
-          emissive="#100c06"
-          emissiveIntensity={0.25}
-        />
+      <mesh castShadow receiveShadow position={[0, 2.3, 0]}>
+        <boxGeometry args={[1.1, 0.6, 1.1]} />
+        <meshStandardMaterial map={stoneTex} roughness={0.8} color="#a09484" />
       </mesh>
-
-      {/* Topo da muralha — caminho de ronda levemente polido */}
-      <mesh position={[0, height / 2 - 0.1, 0.1]} castShadow receiveShadow>
-        <boxGeometry args={[length, 0.18, 0.65]} />
-        <meshStandardMaterial
-          map={stoneTex}
-          roughness={0.70}
-          metalness={0.03}
-          color="#aea090"
-          emissive="#1e1810"
-          emissiveIntensity={0.08}
-          envMapIntensity={0.6}
-        />
+      <mesh castShadow position={[0, 2.85, 0]}>
+        <coneGeometry args={[0.72, 0.8, 8]} />
+        <meshStandardMaterial map={roofTex} roughness={0.7} color="#5a3820" />
       </mesh>
-      
-      {/* Ameias */}
-      {Array.from({ length: numCrenellations }).map((_, i) => {
-        const t = (i + 0.5) / numCrenellations - 0.5;
-        const xPos = t * length;
-        const gap = i % 2 === 0; // alterna para criar ameias e gaps
-        
-        if (gap) {
-          return (
-            <mesh key={i} position={[xPos, height / 2 + 0.25, 0.15]} castShadow receiveShadow>
-              <boxGeometry args={[0.25, 0.4, 0.65]} />
-              <meshStandardMaterial 
-                map={stoneTex} 
-                roughness={0.7} 
-                color="#a5947a"
-              />
-            </mesh>
-          );
-        }
-        return null;
-      })}
-      
-      {/* Detalhes de pedra (protuberâncias) */}
-      {Array.from({ length: numDetails }).map((_, i) => {
-        const t = (i + 0.5) / numDetails - 0.5;
-        const xPos = t * length;
-        const yPos = -height/2 + 0.3 + Math.random() * height * 0.6;
-        if (Math.random() > 0.7) {
-          return (
-            <mesh key={i} position={[xPos, yPos, 0.26]} castShadow>
-              <boxGeometry args={[0.15, 0.1 + Math.random()*0.1, 0.1]} />
-              <meshStandardMaterial color="#6a5a42" roughness={0.9} />
-            </mesh>
-          );
-        }
-        return null;
-      })}
-      
-      {/* Musgo */}
-      {Array.from({ length: 8 }).map((_, i) => {
-        const xPos = (i / 7 - 0.5) * length * 0.8;
-        const yPos = -height/2 + 0.2 + Math.random() * height * 0.6;
-        if (Math.random() > 0.6) {
-          return (
-            <mesh key={i} position={[xPos, yPos, 0.27]} castShadow>
-              <sphereGeometry args={[0.1 + Math.random()*0.15]} />
-              <meshStandardMaterial color="#3a7228" roughness={0.9} emissive="#1a3a0a" emissiveIntensity={0.1} />
-            </mesh>
-          );
-        }
-        return null;
-      })}
-    </group>
-  );
-}
-
-function Tower({ position, height = 2.0 }: { position: [number, number, number]; height?: number }) {
-  const stoneTex = useMemo(() => createStoneTex(), []);
-  const roofTex = useMemo(() => createRoofTex(), []);
-  
-  return (
-    <group position={position}>
-      {/* Base da torre */}
-      <mesh castShadow receiveShadow>
-        <cylinderGeometry args={[0.7, 0.8, height, 8]} />
-        <meshStandardMaterial map={stoneTex} roughness={0.8} color="#7a6e5a" />
-      </mesh>
-      
-      {/* Topo da torre (merlões) */}
-      {Array.from({ length: 8 }).map((_, i) => {
-        const angle = (i / 8) * Math.PI * 2;
-        const x = Math.cos(angle) * 0.7;
-        const z = Math.sin(angle) * 0.7;
+      {[0, 1, 2, 3].map(i => {
+        const a = (i / 4) * Math.PI * 2;
         return (
-          <mesh key={i} position={[x, height/2, z]} castShadow>
-            <boxGeometry args={[0.2, 0.3, 0.2]} />
-            <meshStandardMaterial map={stoneTex} color="#8a7e64" />
+          <mesh key={i} castShadow position={[Math.cos(a) * 0.45, 2.75, Math.sin(a) * 0.45]}>
+            <boxGeometry args={[0.18, 0.22, 0.18]} />
+            <meshStandardMaterial map={stoneTex} roughness={0.9} color="#8a8070" />
           </mesh>
         );
       })}
-      
-      {/* Telhado cônico */}
-      <mesh position={[0, height/2 + 0.4, 0]} castShadow>
-        <coneGeometry args={[0.6, 0.7, 8]} />
-        <meshStandardMaterial map={roofTex} color="#6a4e2e" emissive="#321" emissiveIntensity={0.1} />
+      <pointLight position={[0, 2.5, 0]} intensity={0.6} color="#ff9040" distance={5} />
+      <mesh position={[0.25, 2.1, 0.25]} castShadow>
+        <cylinderGeometry args={[0.03, 0.03, 0.3, 6]} />
+        <meshStandardMaterial color="#5a3010" roughness={1} />
       </mesh>
-      
-      {/* Bandeira */}
-      <group position={[0.4, height/2 + 0.6, 0.2]} rotation={[0, 0.2, 0.1]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.05, 0.4, 0.02]} />
-          <meshStandardMaterial color="#8b5a2b" />
-        </mesh>
-        <mesh position={[0.2, 0.15, 0]} castShadow>
-          <boxGeometry args={[0.25, 0.2, 0.02]} />
-          <meshStandardMaterial color="#b82" emissive="#420" emissiveIntensity={0.3} />
-        </mesh>
-      </group>
-      
-      {/* Janelas/Setas */}
-      {[0.3, 0.7].map((y, i) => (
-        <mesh key={i} position={[0.5, y, 0]} rotation={[0, 0, 0]} castShadow>
-          <boxGeometry args={[0.15, 0.25, 0.1]} />
-          <meshStandardMaterial color="#321" emissive="#210" />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function VillageWalls() {
-  // Pontos do perímetro da vila (em coordenadas mundo)
-  const wallPoints: [number, number][] = [
-    [-4.5, -3.2], [-1.5, -4.0], [1.8, -3.8], [4.8, -2.8],
-    [5.2, 0.5], [4.5, 3.2], [1.8, 4.2], [-1.2, 4.5],
-    [-4.2, 3.8], [-5.0, 0.8], [-4.5, -3.2]
-  ];
-  
-  return (
-    <group>
-      {/* Muralhas entre os pontos */}
-      {wallPoints.map((point, i) => {
-        if (i === wallPoints.length - 1) return null;
-        const start = point;
-        const end = wallPoints[i + 1];
-        return (
-          <StoneWallSegment 
-            key={i} 
-            start={start} 
-            end={end} 
-            height={1.3 + Math.sin(i) * 0.1} 
-          />
-        );
-      })}
-      
-      {/* Torres nos vértices */}
-      {wallPoints.slice(0, -1).map((point, i) => (
-        <Tower 
-          key={`tower-${i}`} 
-          position={[point[0], 0, point[1]]} 
-          height={2.0 + Math.sin(i) * 0.3}
-        />
-      ))}
-      
-      {/* Torres adicionais nos portões */}
-      <Tower position={[0.8, 0, -3.0]} height={2.2} />
-      <Tower position={[-0.8, 0, -3.0]} height={2.2} />
-      
-      {/* Portão principal */}
-      <group position={[0, 0, -3.2]}>
-        {/* Arco do portão */}
-        <mesh position={[0, 1.0, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.2, 2.0, 0.6]} />
-          <meshStandardMaterial map={createStoneTex()} color="#6a5a42" />
-        </mesh>
-        
-        {/* Abertura em arco */}
-        <mesh position={[0, 0.8, 0.31]} castShadow>
-          <cylinderGeometry args={[0.8, 0.8, 1.8, 16, 1, true, 0, Math.PI]} />
-          <meshStandardMaterial color="#321" emissive="#210" />
-        </mesh>
-        
-        {/* Portas de madeira */}
-        <mesh position={[-0.5, 0.5, 0.35]} castShadow>
-          <boxGeometry args={[0.9, 1.4, 0.1]} />
-          <meshStandardMaterial color="#5d3a1a" roughness={0.9} />
-        </mesh>
-        <mesh position={[0.5, 0.5, 0.35]} castShadow>
-          <boxGeometry args={[0.9, 1.4, 0.1]} />
-          <meshStandardMaterial color="#5d3a1a" roughness={0.9} />
-        </mesh>
-        
-        {/* Reforços de ferro */}
-        <mesh position={[-0.5, 0.5, 0.41]} castShadow>
-          <boxGeometry args={[0.1, 1.2, 0.05]} />
-          <meshStandardMaterial color="#aa9" metalness={0.8} roughness={0.3} />
-        </mesh>
-        <mesh position={[0.5, 0.5, 0.41]} castShadow>
-          <boxGeometry args={[0.1, 1.2, 0.05]} />
-          <meshStandardMaterial color="#aa9" metalness={0.8} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 0.9, 0.41]} castShadow>
-          <boxGeometry args={[1.6, 0.1, 0.05]} />
-          <meshStandardMaterial color="#aa9" metalness={0.8} roughness={0.3} />
-        </mesh>
-      </group>
+      {(isGateS || isGateN) && (
+        <Html center position={[0, 3.6, 0]} style={{ pointerEvents: 'none' }}>
+          <div style={{
+            color: '#ffe8a0', fontSize: 11, fontWeight: 700,
+            textShadow: '0 1px 3px #000', whiteSpace: 'nowrap',
+          }}>
+            {isGateS ? '🏰 Portão Sul' : '⚓ Porto Norte'}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
 
 /* ============================================================================
-   ESTRADA DE TERRA
+   MURALHA CIRCULAR
    ========================================================================= */
 
-function Road() {
-  const roadTex = useMemo(() => createRoadTex(), []);
-  
-  // Pontos da estrada principal
-  const points: [number, number][] = [
-    [-4, -2], [-2, -3], [0, -3.5], [2, -3], [4, -2],
-    [5, 0], [4, 2], [2, 3], [0, 3.5], [-2, 3], [-4, 2], [-5, 0], [-4, -2]
-  ];
+function CircularWall() {
+  const stoneTex = useMemo(() => createRealisticStoneTex(), []);
+  const SEGMENTS = 64;
+  const wallH     = 1.8;
 
-  return (
-    <group>
-      {points.map((_p, i) => {
-        if (i === points.length - 1) return null;
-        const start = points[i];
-        const end = points[i + 1];
-        const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
-        const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
-        const midX = (start[0] + end[0]) / 2;
-        const midZ = (start[1] + end[1]) / 2;
-        
-        return (
-          <mesh
-            key={i}
-            position={[midX, 0.02, midZ]}
-            rotation={[0, -angle, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[length, 1.8]} />
-            <meshStandardMaterial 
-              map={roadTex} 
-              transparent 
-              opacity={0.95} 
-              roughness={0.9}
-              color="#8a7a5a"
-            />
+  const wallMeshes = useMemo(() => {
+    const out: React.ReactNode[] = [];
+    for (let i = 0; i < SEGMENTS; i++) {
+      const a0 = (i / SEGMENTS)       * Math.PI * 2;
+      const a1 = ((i + 1) / SEGMENTS) * Math.PI * 2;
+      const x0 = Math.cos(a0) * WALL_RADIUS, z0 = Math.sin(a0) * WALL_RADIUS;
+      const x1 = Math.cos(a1) * WALL_RADIUS, z1 = Math.sin(a1) * WALL_RADIUS;
+      const mx  = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const ang = Math.atan2(z1 - z0, x1 - x0);
+      out.push(
+        <mesh key={`w${i}`} position={[mx, wallH / 2, mz]} rotation={[0, -ang, 0]} castShadow receiveShadow>
+          <boxGeometry args={[len + 0.02, wallH, 0.45]} />
+          <meshStandardMaterial map={stoneTex} roughness={0.88} color="#9a8e7c"
+            emissive="#100a04" emissiveIntensity={0.15} />
+        </mesh>
+      );
+      if (i % 2 === 0) {
+        out.push(
+          <mesh key={`am${i}`} position={[mx, wallH + 0.12, mz]} rotation={[0, -ang, 0]} castShadow>
+            <boxGeometry args={[0.22, 0.24, 0.5]} />
+            <meshStandardMaterial map={stoneTex} roughness={0.9} color="#8a8070" />
           </mesh>
         );
-      })}
-      
-      {/* Praça central */}
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <circleGeometry args={[2.5, 16]} />
-        <meshStandardMaterial map={roadTex} roughness={0.9} color="#7a6a4a" />
-      </mesh>
-      
-      {/* Poço na praça */}
-      <group position={[0.5, 0.1, 0.3]}>
-        <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[0.4, 0.45, 0.5, 8]} />
-          <meshStandardMaterial map={createStoneTex()} color="#7a6e5a" />
-        </mesh>
-        <mesh position={[0, 0.3, 0]} castShadow>
-          <cylinderGeometry args={[0.45, 0.45, 0.1, 8]} />
-          <meshStandardMaterial color="#5d3a1a" />
-        </mesh>
-        <mesh position={[0.2, 0.4, 0]} castShadow>
-          <boxGeometry args={[0.05, 0.4, 0.05]} />
-          <meshStandardMaterial color="#8b5e3c" />
-        </mesh>
-      </group>
-    </group>
-  );
+      }
+    }
+    return out;
+  }, [stoneTex]);
+
+  const towers = useMemo(() =>
+    Array.from({ length: TOWER_COUNT }, (_, i) => {
+      const angle = (i / TOWER_COUNT) * Math.PI * 2 - Math.PI / 2;
+      return <WallTower key={i} angle={angle} />;
+    }), []);
+
+  return <group>{wallMeshes}{towers}</group>;
 }
 
 /* ============================================================================
-   CASTELO PRINCIPAL (MODELO GLB)
+   CASTELO CENTRAL (GLB)
    ========================================================================= */
 
 function CastleModel() {
+  const stoneTex = useMemo(() => createRealisticStoneTex(), []);
   const { scene } = useGLTF('/casteloteste.glb');
-  const model = useMemo(() => scene.clone(), [scene]);
-  const stoneTex = useMemo(() => createStoneTex(), []);
-  const roofTex  = useMemo(() => createRoofTex(), []);
 
-  // Normaliza bounding box para caber dentro das muralhas (~3.5 unidades)
-  const { normalizedScale, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const s = maxDim > 0 ? 2.2 / maxDim : 1;  // máx 2.2 unidades — não cobre tudo
-    const yOff = -box.min.y * s; // encosta no chão
-    return { normalizedScale: s, yOffset: yOff };
-  }, [model]);
-
-  useEffect(() => {
-    model.traverse((obj) => {
+  const model = useMemo(() => {
+    const clone = scene.clone();
+    const box = new THREE.Box3().setFromObject(clone);
+    const sz  = new THREE.Vector3();
+    box.getSize(sz);
+    const maxDim = Math.max(sz.x, sz.y, sz.z);
+    clone.scale.setScalar(2.8 / maxDim);
+    const box2 = new THREE.Box3().setFromObject(clone);
+    clone.position.y = -box2.min.y;
+    clone.traverse(obj => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-
+      mesh.castShadow     = true;
+      mesh.receiveShadow  = true;
       const name = mesh.name.toLowerCase();
-      const isRoof = name.includes('roof') || name.includes('top') ||
-                     name.includes('tile') || name.includes('telhado') ||
-                     name.includes('torre') || name.includes('tower');
-
-      const applyMat = (mat: THREE.MeshStandardMaterial, roof: boolean) => {
-        mat.map     = roof ? roofTex : stoneTex;
-        mat.color.setHex(roof ? 0x7a4a2a : 0x948470);
-        mat.roughness = roof ? 0.75 : 0.88;
-        mat.emissive.setHex(0x1a1008);
-        mat.emissiveIntensity = 0.08;
-        mat.needsUpdate = true;
+      const apply = (mat: THREE.MeshStandardMaterial) => {
+        if (name.includes('wall') || name.includes('stone') || name.includes('tower')) {
+          mat.map = stoneTex;
+          mat.color.set('#9e9080');
+          mat.roughness = 0.85;
+        }
       };
-
       if (Array.isArray(mesh.material)) {
-        (mesh.material as THREE.MeshStandardMaterial[]).forEach(m => applyMat(m, isRoof));
+        (mesh.material as THREE.MeshStandardMaterial[]).forEach(apply);
       } else {
-        applyMat(mesh.material as THREE.MeshStandardMaterial, isRoof);
+        apply(mesh.material as THREE.MeshStandardMaterial);
       }
     });
-  }, [model, stoneTex, roofTex]);
+    return clone;
+  }, [scene, stoneTex]);
 
-  return (
-    <primitive
-      object={model}
-      position={[0, yOffset, -1.5]}   // dentro das muralhas, área norte (pátio do castelo)
-      scale={normalizedScale}
-      rotation={[0, Math.PI, 0]}      // virado para a entrada sul
-    />
-  );
+  return <primitive object={model} position={[0, 0, 0]} />;
 }
 
 /* ============================================================================
-   ÁRVORES (MODELO GLB) COM VARIAÇÕES
+   ÁRVORES (GLB)
    ========================================================================= */
 
-function TreeModel({ 
-  x, 
-  z, 
-  scale = 1,
-  rotation = 0 
-}: { 
-  x: number; 
-  z: number; 
-  scale?: number;
-  rotation?: number;
-}) {
+const TREE_POSITIONS: [number, number, number, number][] = [
+  [ 7.5, 0,  7.5, 0.0],
+  [-7.5, 0,  7.5, 1.1],
+  [ 7.5, 0, -7.5, 2.3],
+  [-7.5, 0, -7.5, 3.4],
+  [ 9.0, 0,  0.0, 0.5],
+  [-9.0, 0,  0.0, 1.6],
+  [ 0.0, 0,  9.0, 2.7],
+  [ 0.0, 0, -9.0, 3.8],
+  [ 8.0, 0,  4.0, 1.0],
+  [-8.0, 0,  4.0, 2.0],
+  [ 8.0, 0, -4.0, 0.8],
+  [-8.0, 0, -4.0, 2.9],
+];
+
+function TreeModel({ position, rotation }: { position: [number, number, number]; rotation: number }) {
   const { scene } = useGLTF('/arvoreum.glb');
-  const model = useMemo(() => scene.clone(), [scene]);
-  const [worldX, , worldZ] = svgToWorld(x, z);
-  const foliageTex = useMemo(() => createFoliageTex(), []);
-  const barkTex    = useMemo(() => createBarkTex(), []);
-
-  // Normaliza GLB e calcula yOffset para encostar no chão
-  const { normalizedScale, yOffset } = useMemo(() => {
-    const box = new THREE.Box3().setFromObject(scene);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const s = maxDim > 0 ? (0.85 * scale) / maxDim : scale * 0.1;
-    const yOff = box.min.y !== Infinity ? -box.min.y * s : 0;
-    return { normalizedScale: s, yOffset: yOff };
-  }, [scene, scale]);
-
-  useEffect(() => {
-    model.traverse((obj) => {
+  const model = useMemo(() => {
+    const clone = scene.clone();
+    const box  = new THREE.Box3().setFromObject(clone);
+    const sz   = new THREE.Vector3();
+    box.getSize(sz);
+    const maxD = Math.max(sz.x, sz.y, sz.z);
+    clone.scale.setScalar((1.4 + Math.sin(rotation) * 0.3) / maxD);
+    const box2 = new THREE.Box3().setFromObject(clone);
+    clone.position.y = -box2.min.y;
+    clone.traverse(obj => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
-      mesh.castShadow = true;
+      mesh.castShadow    = true;
       mesh.receiveShadow = true;
-
-      const name = mesh.name.toLowerCase();
-      // Detecta folhagem vs tronco pelo nome do mesh
-      const isLeaf = name.includes('leaf') || name.includes('folha') ||
-                     name.includes('crown') || name.includes('copa')  ||
-                     name.includes('canopy') || name.includes('branch') ||
-                     name.includes('galho')  || name.includes('top') ||
-                     name.includes('leaves') || name.includes('tree');
-
-      const applyMat = (mat: THREE.MeshStandardMaterial) => {
-        mat.map = isLeaf ? foliageTex : barkTex;
-        mat.color.setHex(isLeaf ? 0x3a8226 : 0x6b3d1a);
-        mat.roughness = isLeaf ? 0.88 : 0.95;
-        mat.emissive.setHex(isLeaf ? 0x0c2206 : 0x100804);
-        mat.emissiveIntensity = 0.1;
-        mat.needsUpdate = true;
-      };
-
-      if (Array.isArray(mesh.material)) {
-        (mesh.material as THREE.MeshStandardMaterial[]).forEach(applyMat);
-      } else {
-        applyMat(mesh.material as THREE.MeshStandardMaterial);
-      }
+      const mat    = mesh.material as THREE.MeshStandardMaterial;
+      const isLeaf = /leaf|folha|foliage/i.test(mesh.name);
+      mat.color.set(isLeaf ? `hsl(${110 + Math.sin(rotation) * 20},55%,28%)` : '#5c3a1e');
+      mat.roughness = isLeaf ? 0.85 : 0.95;
     });
-  }, [model, foliageTex, barkTex]);
+    return clone;
+  }, [scene, rotation]);
 
-  return (
-    <primitive 
-      object={model} 
-      position={[worldX, yOffset, worldZ]}   // yOffset corrige flutuação
-      scale={normalizedScale} 
-      rotation={[0, rotation, 0]} 
-    />
-  );
-}
-
-function Vegetation() {
-  // Posições das árvores com variações
-  const treePositions = useMemo(() => [
-    // Ciprestes/árvores altas nas muralhas norte
-    { x: 420, z: 254, scale: 1.2, rot: 0.3 }, { x: 490, z: 238, scale: 1.0, rot: 0.7 },
-    { x: 1310, z: 238, scale: 1.2, rot: 0.2 }, { x: 1382, z: 254, scale: 1.0, rot: 0.5 },
-    { x: 560, z: 250, scale: 1.1, rot: 0.1 }, { x: 1242, z: 250, scale: 1.1, rot: 0.8 },
-    
-    // Carvalhos na colina do castelo
-    { x: 520, z: 432, scale: 0.9, rot: 0.4 }, { x: 560, z: 408, scale: 1.0, rot: 0.6 },
-    { x: 1280, z: 432, scale: 0.9, rot: 0.3 }, { x: 1240, z: 408, scale: 1.0, rot: 0.7 },
-    { x: 620, z: 382, scale: 0.8, rot: 0.2 }, { x: 1180, z: 382, scale: 0.8, rot: 0.5 },
-    { x: 640, z: 470, scale: 1.1, rot: 0.1 }, { x: 1160, z: 468, scale: 1.1, rot: 0.9 },
-    
-    // Vegetação no distrito central
-    { x: 380, z: 540, scale: 1.0, rot: 0.4 }, { x: 340, z: 570, scale: 0.9, rot: 0.2 },
-    { x: 308, z: 530, scale: 1.0, rot: 0.6 }, { x: 1420, z: 540, scale: 1.0, rot: 0.3 },
-    { x: 1460, z: 568, scale: 0.9, rot: 0.7 }, { x: 1492, z: 528, scale: 1.0, rot: 0.1 },
-    
-    // Árvores entre fundações
-    { x: 536, z: 555, scale: 0.9, rot: 0.5 }, { x: 1268, z: 552, scale: 0.9, rot: 0.8 },
-    
-    // Vegetação sul (perto do porto)
-    { x: 380, z: 720, scale: 1.0, rot: 0.2 }, { x: 420, z: 750, scale: 1.1, rot: 0.4 },
-    { x: 1420, z: 718, scale: 1.0, rot: 0.6 }, { x: 1460, z: 748, scale: 1.1, rot: 0.3 },
-    { x: 352, z: 718, scale: 1.0, rot: 0.7 }, { x: 1448, z: 716, scale: 1.0, rot: 0.1 },
-    
-    // Árvores fora das muralhas
-    { x: 100, z: 480, scale: 1.2, rot: 0.3 }, { x: 155, z: 510, scale: 1.1, rot: 0.5 },
-    { x: 60, z: 460, scale: 1.0, rot: 0.2 }, { x: 120, z: 420, scale: 1.0, rot: 0.8 },
-    { x: 1650, z: 480, scale: 1.2, rot: 0.4 }, { x: 1700, z: 512, scale: 1.1, rot: 0.6 },
-    { x: 1740, z: 456, scale: 1.0, rot: 0.7 },
-  ], []);
-
-  return (
-    <>
-      {treePositions.map((pos, i) => (
-        <TreeModel 
-          key={i} 
-          x={pos.x} 
-          z={pos.z} 
-          scale={pos.scale} 
-          rotation={pos.rot} 
-        />
-      ))}
-    </>
-  );
+  return <primitive object={model} position={position} rotation={[0, rotation, 0]} />;
 }
 
 /* ============================================================================
-   ARBUSTOS E FLORES (PROCEDURAIS)
+   ESTRADAS SIMÉTRICAS
    ========================================================================= */
 
-function Bush({ x, z }: { x: number; z: number }) {
-  const [worldX, , worldZ] = svgToWorld(x, z);
-  const scale = 0.15 + Math.random() * 0.1;
-  
+function Roads() {
+  const dirtTex = useMemo(() => createDirtPathTex(), []);
   return (
-    <group position={[worldX, 0, worldZ]} scale={[scale, scale, scale]}>
-      <mesh castShadow receiveShadow>
-        <sphereGeometry args={[0.8]} />
-        <meshStandardMaterial color="#3a7228" roughness={0.8} emissive="#1a3a0a" emissiveIntensity={0.1} />
-      </mesh>
-      <mesh position={[0.3, 0.2, 0.2]} castShadow>
-        <sphereGeometry args={[0.5]} />
-        <meshStandardMaterial color="#4a8a32" roughness={0.7} />
-      </mesh>
-      <mesh position={[-0.3, 0.1, -0.3]} castShadow>
-        <sphereGeometry args={[0.6]} />
-        <meshStandardMaterial color="#2a5e1a" roughness={0.8} />
-      </mesh>
-      
-      {/* Flores */}
-      {Array.from({ length: 5 }).map((_, i) => {
-        const fx = (Math.random() - 0.5) * 1.2;
-        const fz = (Math.random() - 0.5) * 1.2;
-        const color = `hsl(${Math.random() * 360}, 80%, 70%)`;
+    <group>
+      {[0, Math.PI / 2].map((rot, i) => (
+        <mesh key={i} rotation={[-Math.PI / 2, 0, rot]} position={[0, 0.01, 0]} receiveShadow>
+          <planeGeometry args={[1.4, 12]} />
+          <meshStandardMaterial map={dirtTex} roughness={0.95} color="#a09070" transparent opacity={0.95} />
+        </mesh>
+      ))}
+      {Array.from({ length: 32 }, (_, i) => {
+        const a  = (i / 32) * Math.PI * 2;
+        const a1 = ((i + 1) / 32) * Math.PI * 2;
+        const r  = 2.6;
+        const mx = ((Math.cos(a) + Math.cos(a1)) / 2) * r;
+        const mz = ((Math.sin(a) + Math.sin(a1)) / 2) * r;
+        const rl = 2 * r * Math.sin(Math.PI / 32);
+        const ag = Math.atan2(Math.sin(a1) - Math.sin(a), Math.cos(a1) - Math.cos(a));
         return (
-          <mesh key={i} position={[fx, 0.5, fz]} castShadow>
-            <sphereGeometry args={[0.1]} />
-            <meshStandardMaterial color={color} emissive="#321" emissiveIntensity={0.2} />
+          <mesh key={`ring${i}`} position={[mx, 0.01, mz]} rotation={[-Math.PI / 2, 0, -ag]} receiveShadow>
+            <planeGeometry args={[rl + 0.02, 0.9]} />
+            <meshStandardMaterial map={dirtTex} roughness={0.9} color="#a09068" transparent opacity={0.9} />
           </mesh>
         );
       })}
@@ -1118,132 +582,207 @@ function Bush({ x, z }: { x: number; z: number }) {
   );
 }
 
-function Undergrowth() {
-  const positions = useMemo(() => [
-    { x: 680, z: 490 }, { x: 750, z: 480 }, { x: 1050, z: 478 }, { x: 1120, z: 490 },
-    { x: 560, z: 578 }, { x: 508, z: 562 }, { x: 1300, z: 575 }, { x: 355, z: 738 },
-    { x: 455, z: 760 }, { x: 1488, z: 736 }, { x: 680, z: 858 }, { x: 720, z: 870 },
-    { x: 1082, z: 858 }, { x: 1120, z: 870 }, { x: 80, z: 540 }, { x: 180, z: 580 },
-    { x: 1622, z: 545 }, { x: 1720, z: 572 }, { x: 280, z: 888 }, { x: 320, z: 904 },
-    { x: 1478, z: 888 }, { x: 1520, z: 904 },
-  ], []);
+/* ============================================================================
+   SLOT DE CONSTRUÇÃO
+   ========================================================================= */
+
+interface SlotProps {
+  slotIndex: number;
+  type: BuildingType;
+  label: string;
+  icon: string;
+  selected: boolean;
+  built: boolean;
+  onClick: () => void;
+}
+
+function BuildingSlot({ slotIndex, label, icon, selected, built, onClick }: SlotProps) {
+  const stoneTex = useMemo(() => createRealisticStoneTex(), []);
+  const roofTex  = useMemo(() => createRoofTex(), []);
+  const meshRef  = useRef<THREE.Mesh>(null);
+  const angle    = (slotIndex / SLOT_TYPES.length) * Math.PI * 2 - Math.PI / 2;
+  const sx       = Math.cos(angle) * SLOT_RADIUS;
+  const sz       = Math.sin(angle) * SLOT_RADIUS;
+
+  useFrame(({ clock }) => {
+    if (!meshRef.current) return;
+    if (selected) {
+      meshRef.current.position.y = 0.18 + Math.sin(clock.getElapsedTime() * 3) * 0.06;
+    } else {
+      meshRef.current.position.y = THREE.MathUtils.lerp(
+        meshRef.current.position.y, built ? 0 : 0.05, 0.12,
+      );
+    }
+  });
 
   return (
-    <>
-      {positions.map((pos, i) => (
-        <Bush key={i} x={pos.x} z={pos.z} />
-      ))}
-    </>
+    <group position={[sx, 0, sz]} onClick={onClick}>
+      <mesh ref={meshRef} castShadow receiveShadow>
+        <boxGeometry args={[0.85, 0.22, 0.85]} />
+        <meshStandardMaterial
+          map={stoneTex} roughness={0.9}
+          color={selected ? '#d4c090' : built ? '#9a9080' : '#7a7870'}
+          emissive={selected ? '#604820' : '#000000'}
+          emissiveIntensity={selected ? 0.25 : 0}
+        />
+      </mesh>
+      {built ? (
+        <>
+          <mesh castShadow receiveShadow position={[0, 0.42, 0]}>
+            <boxGeometry args={[0.7, 0.5, 0.7]} />
+            <meshStandardMaterial map={stoneTex} roughness={0.85} color="#8a8272" />
+          </mesh>
+          <mesh castShadow position={[0, 0.78, 0]}>
+            <coneGeometry args={[0.52, 0.5, 4]} />
+            <meshStandardMaterial map={roofTex} roughness={0.7} color="#4a2c14" />
+          </mesh>
+        </>
+      ) : (
+        <Html center position={[0, 0.5, 0]} style={{ pointerEvents: 'none' }}>
+          <div style={{
+            background: selected ? 'rgba(60,40,10,0.85)' : 'rgba(20,15,8,0.72)',
+            border: `1.5px solid ${selected ? '#d4a840' : '#6a5a30'}`,
+            borderRadius: 8, padding: '3px 7px',
+            color: selected ? '#ffe8a0' : '#c8b878',
+            fontSize: 12, fontWeight: 700,
+            display: 'flex', alignItems: 'center', gap: 4,
+            whiteSpace: 'nowrap',
+            boxShadow: selected ? '0 0 10px #d4a84055' : 'none',
+          }}>
+            <span>{icon}</span>
+            <span style={{ fontSize: 10 }}>{label}</span>
+          </div>
+        </Html>
+      )}
+    </group>
   );
 }
 
 /* ============================================================================
-   PORTO COM ÁGUA ANIMADA
+   PORTO AO NORTE
    ========================================================================= */
 
 function Harbor() {
-  const waterRef = useRef<THREE.Mesh>(null);
-  
-  // Animação da água
-  useFrame((state) => {
-    if (waterRef.current) {
-      const material = waterRef.current.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = 0.2 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
-      
-      // Pequena ondulação (mexendo a posição)
-      waterRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
-    }
+  const stoneTex = useMemo(() => createRealisticStoneTex(), []);
+  const timeRef  = useRef(0);
+
+  const waterMat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      time:   { value: 0 },
+      colorA: { value: new THREE.Color('#1a5a8a') },
+      colorB: { value: new THREE.Color('#2a7aaa') },
+    },
+    vertexShader: `
+      uniform float time;
+      varying vec2 vUv;
+      varying float vElevation;
+      void main() {
+        vUv = uv;
+        vec3 p = position;
+        p.z += sin(p.x * 2.5 + time * 1.8) * 0.04 + sin(p.y * 2.0 + time * 2.2) * 0.03;
+        vElevation = p.z;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 colorA;
+      uniform vec3 colorB;
+      varying vec2 vUv;
+      varying float vElevation;
+      void main() {
+        float t   = vElevation * 6.0 + 0.5;
+        vec3  col = mix(colorA, colorB, clamp(t, 0.0, 1.0));
+        float spec = pow(max(0.0, vElevation * 8.0), 2.0);
+        col += vec3(spec * 0.15);
+        gl_FragColor = vec4(col, 0.88);
+      }
+    `,
+    transparent: true,
+    side: THREE.DoubleSide,
+  }), []);
+
+  useFrame((_, delta) => {
+    timeRef.current += delta;
+    waterMat.uniforms.time.value = timeRef.current;
   });
-  
+
   return (
-    <group position={[0, -0.1, 3.5]}>
-      {/* Água */}
-      <mesh 
-        ref={waterRef} 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        receiveShadow
-      >
-        <planeGeometry args={[8, 5, 16, 16]} />
-        <meshStandardMaterial 
-          color="#2a6a8a" 
-          emissive="#0a3a5a" 
-          transparent 
-          opacity={0.9}
-          roughness={0.2}
-          metalness={0.3}
-        />
+    <group position={[0, 0, -8]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+        <planeGeometry args={[8, 4, 30, 15]} />
+        <primitive object={waterMat} attach="material" />
       </mesh>
-      
-      {/* Docas de madeira */}
-      {[-2, 0, 2].map((x, i) => (
-        <group key={i} position={[x, 0.15, -0.5]}>
+      {[-1.2, 0, 1.2].map((ox, i) => (
+        <group key={i} position={[ox, 0.12, 0]}>
           <mesh castShadow receiveShadow>
-            <boxGeometry args={[1.2, 0.15, 4.0]} />
-            <meshStandardMaterial color="#8b5e3c" roughness={0.9} />
+            <boxGeometry args={[1.0, 0.14, 3.5]} />
+            <meshStandardMaterial color="#6b4a28" roughness={0.95} />
           </mesh>
-          {/* Pilares */}
-          {[-1.5, 0, 1.5].map((z, j) => (
-            <mesh key={j} position={[0, -0.3, z]} castShadow receiveShadow>
-              <cylinderGeometry args={[0.15, 0.2, 0.6, 6]} />
-              <meshStandardMaterial color="#5d3a1a" roughness={0.8} />
+          {[-1.4, 0, 1.4].map((oz, j) => (
+            <mesh key={j} position={[0, -0.22, oz]} castShadow receiveShadow>
+              <cylinderGeometry args={[0.1, 0.12, 0.5, 6]} />
+              <meshStandardMaterial map={stoneTex} color="#5a4a38" />
             </mesh>
           ))}
-          {/* Barris */}
-          {i === 1 && (
-            <group position={[0.3, 0.2, 0.8]}>
-              <mesh castShadow receiveShadow>
-                <cylinderGeometry args={[0.2, 0.2, 0.3, 6]} />
-                <meshStandardMaterial color="#8b5e3c" />
-              </mesh>
-            </group>
-          )}
         </group>
       ))}
-      
-      {/* Barcos */}
-      <group position={[1.5, 0.2, 0.8]}>
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[0.8, 0.2, 0.4]} />
-          <meshStandardMaterial color="#5d3a1a" roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.3, 0]} castShadow>
-          <coneGeometry args={[0.2, 0.5, 6]} />
-          <meshStandardMaterial color="#a57c52" roughness={0.7} />
-        </mesh>
-        <mesh position={[0.3, 0.1, 0]} castShadow>
-          <boxGeometry args={[0.05, 0.3, 0.3]} />
-          <meshStandardMaterial color="#8b6b4b" />
-        </mesh>
-      </group>
-      
-      <group position={[-1.2, 0.15, 1.2]}>
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[0.7, 0.15, 0.35]} />
-          <meshStandardMaterial color="#5d3a1a" roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.25, 0]} castShadow>
-          <coneGeometry args={[0.15, 0.4, 6]} />
-          <meshStandardMaterial color="#a57c52" />
-        </mesh>
-      </group>
-      
-      {/* Farol */}
-      <group position={[2.8, 0.4, -1.2]}>
-        <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[0.1, 0.15, 0.8, 6]} />
-          <meshStandardMaterial color="#6a5a42" />
-        </mesh>
-        <mesh position={[0, 0.5, 0]} castShadow>
-          <sphereGeometry args={[0.15]} />
-          <meshStandardMaterial color="#ffaa30" emissive="#442200" />
-        </mesh>
-      </group>
-      
-      {/* Peixes (pequenos pontos) */}
-      {Array.from({ length: 10 }).map((_, i) => (
-        <mesh key={i} position={[Math.random()*4-2, -0.1, Math.random()*3+1]} rotation={[0, Math.random()*Math.PI*2, 0]}>
-          <coneGeometry args={[0.05, 0.1, 3]} />
-          <meshStandardMaterial color="#c0a040" emissive="#321" />
+      <mesh position={[0, 0.9, -0.5]} castShadow>
+        <cylinderGeometry args={[0.04, 0.04, 1.8, 6]} />
+        <meshStandardMaterial color="#4a3018" roughness={1} />
+      </mesh>
+    </group>
+  );
+}
+
+/* ============================================================================
+   ELEMENTOS DE ESCALA (barris, pessoas, lenha)
+   ========================================================================= */
+
+function ScaleElements() {
+  const barrels = [
+    [2.0, 0.22, 2.0], [-2.0, 0.22, 2.0], [2.0, 0.22, -2.0], [-2.0, 0.22, -2.0],
+  ] as [number, number, number][];
+
+  const people = [
+    [1.2, 0, 1.2, 0.5], [-1.2, 0, 1.2, 2.1], [1.2, 0, -1.2, 4.0], [-1.2, 0, -1.2, 1.3],
+  ] as [number, number, number, number][];
+
+  return (
+    <group>
+      {barrels.map(([x, y, z], i) => (
+        <group key={i} position={[x, y, z]}>
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[0.18, 0.18, 0.35, 8]} />
+            <meshStandardMaterial color="#6a4020" roughness={0.9} />
+          </mesh>
+          <mesh position={[0, 0.19, 0]}>
+            <cylinderGeometry args={[0.19, 0.19, 0.04, 8]} />
+            <meshStandardMaterial color="#3a1e08" roughness={1} />
+          </mesh>
+        </group>
+      ))}
+      {people.map(([x, y, z, rot], i) => (
+        <group key={i} position={[x, y, z]} rotation={[0, rot, 0]}>
+          <mesh castShadow position={[0, 0.38, 0]}>
+            <boxGeometry args={[0.16, 0.32, 0.1]} />
+            <meshStandardMaterial color={`hsl(${20 + i * 40},40%,40%)`} roughness={0.9} />
+          </mesh>
+          <mesh castShadow position={[0, 0.65, 0]}>
+            <sphereGeometry args={[0.1, 8, 8]} />
+            <meshStandardMaterial color="#d4a878" roughness={0.85} />
+          </mesh>
+          {([-0.06, 0.06] as number[]).map((lx, j) => (
+            <mesh key={j} castShadow position={[lx, 0.12, 0]}>
+              <boxGeometry args={[0.07, 0.24, 0.08]} />
+              <meshStandardMaterial color={`hsl(${210 + i * 20},30%,30%)`} roughness={1} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {[0, 1, 2].map(i => (
+        <mesh key={i} castShadow receiveShadow position={[3.5, 0.1 + i * 0.14, 0]}>
+          <boxGeometry args={[0.6, 0.12, 0.14]} />
+          <meshStandardMaterial color="#5a3a18" roughness={1} />
         </mesh>
       ))}
     </group>
@@ -1251,420 +790,176 @@ function Harbor() {
 }
 
 /* ============================================================================
-   EDIFÍCIOS CONSTRUÍVEIS
+   ILUMINAÇÃO
    ========================================================================= */
 
-function Building({ slot, isSelected, onClick }: { slot: Slot; isSelected: boolean; onClick: () => void }) {
-  const [worldX, , worldZ] = svgToWorld(slot.x, slot.z);
-  const meshRef = useRef<THREE.Group>(null);
-  
-  // Animação de seleção
-  useFrame((state) => {
-    if (meshRef.current && isSelected) {
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 3) * 0.05;
-    } else if (meshRef.current) {
-      meshRef.current.position.y = 0;
-    }
-  });
-  
-  // Cores baseadas no tipo de construção
-  const colors = useMemo(() => {
-    switch(slot.type) {
-      case 'sawmill': return { wood: '#8b5a2b', roof: '#5d3a1a', walls: '#a57c52' };
-      case 'ironMine': return { wood: '#5a4a3a', roof: '#3a2a1a', stone: '#6a5a4a', walls: '#6a5a4a' };
-      case 'farm': return { wood: '#a57c52', roof: '#7a5a32', walls: '#c09a6a' };
-      case 'quarry': return { wood: '#6a5e4a', roof: '#4a3e2a', stone: '#8a7e6a', walls: '#8a7e6a' };
-      case 'barracks': return { wood: '#5a4a32', roof: '#3a2a18', walls: '#8a7a5a' };
-      case 'warehouse': return { wood: '#7a623a', roof: '#5a421a', walls: '#9a825a' };
-      case 'academy': return { wood: '#6a523a', roof: '#4a321a', walls: '#b89a6a', trim: '#c8a86a' };
-      default: return { wood: '#8b5a2b', roof: '#5d3a1a', walls: '#a57c52' };
-    }
-  }, [slot.type]);
-  
-  const stoneTex = useMemo(() => createStoneTex(), []);
-  const roofTex = useMemo(() => createRoofTex(), []);
-  
-  return (
-    <group 
-      ref={meshRef}
-      position={[worldX, 0, worldZ]} 
-      onClick={onClick}
-      onPointerOver={(e) => (e.stopPropagation(), (document.body.style.cursor = 'pointer'))}
-      onPointerOut={() => (document.body.style.cursor = 'auto')}
-    >
-      {/* Sombra projetada */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-        <planeGeometry args={[slot.width * 1.5, slot.depth * 1.5]} />
-        <shadowMaterial opacity={0.3} />
-      </mesh>
-      
-      {/* Base/Piso */}
-      <mesh position={[0, 0.05, 0]} receiveShadow>
-        <boxGeometry args={[slot.width * 1.1, 0.1, slot.depth * 1.1]} />
-        <meshStandardMaterial color="#6a5a42" roughness={0.9} />
-      </mesh>
-      
-      {/* Paredes */}
-      <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-        <boxGeometry args={[slot.width, 0.8, slot.depth]} />
-        <meshStandardMaterial 
-          color={colors.walls || colors.wood} 
-          roughness={0.7}
-          emissive="#221"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-      
-      {/* Detalhes das paredes (janelas) */}
-      {Math.random() > 0.3 && (
-        <>
-          <mesh position={[0.3, 0.5, slot.depth/2 + 0.05]} castShadow>
-            <boxGeometry args={[0.2, 0.3, 0.05]} />
-            <meshStandardMaterial color="#c8b07a" emissive="#321" />
-          </mesh>
-          <mesh position={[-0.3, 0.5, slot.depth/2 + 0.05]} castShadow>
-            <boxGeometry args={[0.2, 0.3, 0.05]} />
-            <meshStandardMaterial color="#c8b07a" emissive="#321" />
-          </mesh>
-        </>
-      )}
-      
-      {/* Telhado */}
-      <mesh position={[0, 0.85, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
-        <coneGeometry args={[slot.width * 0.7, 0.6, 4]} />
-        <meshStandardMaterial 
-          map={roofTex}
-          color={colors.roof} 
-          roughness={0.8}
-          emissive="#221"
-        />
-      </mesh>
-      
-      {/* Chaminé (para alguns edifícios) */}
-      {(slot.type === 'sawmill' || slot.type === 'ironMine' || slot.type === 'barracks') && (
-        <mesh position={[0.3, 0.7, -0.2]} castShadow>
-          <boxGeometry args={[0.2, 0.5, 0.2]} />
-          <meshStandardMaterial map={stoneTex} color="#6a5a42" roughness={0.9} />
-        </mesh>
-      )}
-      
-      {/* Indicador de seleção (anel brilhante) */}
-      {isSelected && (
-        <>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-            <ringGeometry args={[slot.width * 0.8, slot.width * 0.9, 32]} />
-            <meshStandardMaterial color="#ffaa00" emissive="#442200" transparent opacity={0.6} />
-          </mesh>
-          <Html position={[0, 1.5, 0]} center>
-            <div className="bg-amber-900/90 text-amber-100 px-3 py-1 rounded-full border border-amber-500 shadow-lg text-sm whitespace-nowrap">
-              {slot.icon} {slot.label}
-            </div>
-          </Html>
-        </>
-      )}
-    </group>
-  );
-}
-
-/* ============================================================================
-   ELEMENTOS DECORATIVOS (FOGUEIRAS, BANDEIRAS)
-   ========================================================================= */
-
-function Campfire({ x, z }: { x: number; z: number }) {
-  const [worldX, , worldZ] = svgToWorld(x, z);
-  const lightRef = useRef<THREE.PointLight>(null);
-  
-  useFrame((state) => {
-    if (lightRef.current) {
-      lightRef.current.intensity = 0.8 + Math.sin(state.clock.elapsedTime * 8) * 0.2;
-    }
-  });
-  
-  return (
-    <group position={[worldX, 0.1, worldZ]}>
-      <pointLight ref={lightRef} color="#ff6600" intensity={1} distance={5} />
-      <mesh castShadow>
-        <cylinderGeometry args={[0.3, 0.4, 0.1, 6]} />
-        <meshStandardMaterial color="#4a3a2a" />
-      </mesh>
-      <mesh position={[0, 0.2, 0]} castShadow>
-        <coneGeometry args={[0.2, 0.3, 6]} />
-        <meshStandardMaterial color="#ff8800" emissive="#442200" />
-      </mesh>
-      <mesh position={[0.1, 0.15, 0.1]} castShadow>
-        <boxGeometry args={[0.05, 0.2, 0.05]} />
-        <meshStandardMaterial color="#5d3a1a" />
-      </mesh>
-    </group>
-  );
-}
-
-function Flags() {
+function Lights() {
   return (
     <>
-      {/* Bandeiras nas torres */}
-      <group position={[-4.2, 2.2, 3.8]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.05, 0.6, 0.05]} />
-          <meshStandardMaterial color="#8b5a2b" />
-        </mesh>
-        <mesh position={[0.2, 0.3, 0]} rotation={[0, 0, 0.2]} castShadow>
-          <boxGeometry args={[0.4, 0.25, 0.02]} />
-          <meshStandardMaterial color="#b82" emissive="#420" />
-        </mesh>
-      </group>
-      <group position={[4.5, 2.2, 3.2]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.05, 0.6, 0.05]} />
-          <meshStandardMaterial color="#8b5a2b" />
-        </mesh>
-        <mesh position={[0.2, 0.3, 0]} rotation={[0, 0, 0.2]} castShadow>
-          <boxGeometry args={[0.4, 0.25, 0.02]} />
-          <meshStandardMaterial color="#28b" emissive="#124" />
-        </mesh>
-      </group>
-    </>
-  );
-}
-
-/* ============================================================================
-   ILUMINAÇÃO E ATMOSFERA
-   ========================================================================= */
-
-function SceneLights() {
-  return (
-    <>
-      {/* Luz ambiente suave */}
-      <ambientLight intensity={0.4} color="#d0c8b0" />
-      
-      {/* Luz solar principal */}
       <directionalLight
-        position={[10, 20, 5]}
-        intensity={1.2}
+        position={[15, 12, 8]}
+        intensity={1.35}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-far={30}
-        shadow-camera-left={-12}
-        shadow-camera-right={12}
-        shadow-camera-top={12}
-        shadow-camera-bottom={-12}
-        shadow-bias={-0.0005}
-        color="#faf0d0"
+        shadow-camera-near={1}
+        shadow-camera-far={60}
+        shadow-camera-left={-18}
+        shadow-camera-right={18}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
+        shadow-bias={-0.0004}
+        color="#ffe8b0"
       />
-      
-      {/* Preenchimento lateral */}
-      <directionalLight position={[-5, 5, 10]} intensity={0.5} color="#b0c0d0" />
-      
-      {/* Luz de fundo */}
-      <directionalLight position={[-5, 2, -10]} intensity={0.3} color="#7080a0" />
-      
-      {/* Pontos de luz quente (tochas) */}
-      <pointLight position={[2.5, 1.2, -1.5]} intensity={0.6} color="#ffb070" distance={6} />
-      <pointLight position={[-2.2, 1.2, 2.0]} intensity={0.5} color="#ffb070" distance={6} />
-      <pointLight position={[1.0, 1.5, 3.2]} intensity={0.4} color="#ffa050" distance={5} />
-      <pointLight position={[3.8, 1.0, -2.5]} intensity={0.4} color="#ffa050" distance={5} />
-      <pointLight position={[-3.5, 1.0, -2.0]} intensity={0.4} color="#ffa050" distance={5} />
+      <ambientLight intensity={0.28} color="#90b0d0" />
+      <hemisphereLight args={['#c8d8b0', '#6a5038', 0.25]} />
     </>
   );
 }
 
 /* ============================================================================
-   CENA PRINCIPAL
+   CENA INTERNA
    ========================================================================= */
 
-function Scene({ selectedSlot, onSlotClick }: {
-  selectedSlot: BuildingType | null;
-  onSlotClick: (type: BuildingType) => void;
+function VillageScene({
+  selectedSlot,
+  onSelectSlot,
+  builtBuildings,
+}: {
+  selectedSlot: number | null;
+  onSelectSlot: (i: number) => void;
+  builtBuildings: Set<BuildingType>;
 }) {
   return (
-    <Suspense fallback={null}>
-      <SceneLights />
+    <>
+      <IsometricCamera />
+      <Lights />
+      <Environment preset="forest" />
+      <fog attach="fog" args={['#c8d8c0', 35, 70]} />
       <Terrain />
-      <Road />
-      <VillageWalls />
-      <Flags />
-      <CastleModel />
+      <Roads />
+      <CircularWall />
+      <Suspense fallback={null}>
+        <CastleModel />
+        {TREE_POSITIONS.map(([x, y, z, rot], i) => (
+          <TreeModel key={i} position={[x, y, z]} rotation={rot} />
+        ))}
+      </Suspense>
       <Harbor />
-      <Vegetation />
-      <Undergrowth />
-      
-      {/* Fogueiras */}
-      <Campfire x={650} z={550} />
-      <Campfire x={1150} z={550} />
-      <Campfire x={400} z={680} />
-      <Campfire x={1400} z={680} />
-      
-      {/* Fundações / Edifícios construíveis */}
-      {SLOTS.map((slot) => (
-        <Building
-          key={slot.type}
-          slot={slot}
-          isSelected={selectedSlot === slot.type}
-          onClick={() => onSlotClick(slot.type)}
+      <ScaleElements />
+      {SLOT_TYPES.map((slot, i) => (
+        <BuildingSlot
+          key={i}
+          slotIndex={i}
+          type={slot.type}
+          label={slot.label}
+          icon={slot.icon}
+          selected={selectedSlot === i}
+          built={builtBuildings.has(slot.type)}
+          onClick={() => onSelectSlot(i)}
         />
       ))}
-      
-      {/* Chão invisível para capturar cliques fora dos objetos */}
-      <mesh 
-        rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -0.3, 0]} 
-        onClick={() => onSlotClick(null as any)}
-        visible={false}
-      >
-        <planeGeometry args={[30, 30]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh>
-    </Suspense>
+      <MapControls
+        enableRotate={false}
+        enablePan
+        enableZoom
+        minDistance={6}
+        maxDistance={28}
+        maxPolarAngle={Math.PI / 2}
+        panSpeed={0.8}
+        zoomSpeed={0.8}
+        screenSpacePanning
+      />
+    </>
   );
 }
 
 /* ============================================================================
-   COMPONENTE PRINCIPAL (com HUD e Canvas)
+   HUD
    ========================================================================= */
 
-export const CastleView: React.FC = () => {
-  const castle = useGameStore((s) => s.castle);
-  const resources = useResources();
-  const [selected, setSelected] = useState<BuildingType | null>(null);
-
-  if (!castle) {
-    return (
-      <div className="flex items-center justify-center h-screen text-stone-400 text-sm bg-stone-950">
-        <div className="text-center">
-          <div className="text-6xl mb-4 animate-pulse">🏰</div>
-          <div>Carregando vila medieval...</div>
-          <Loader />
-        </div>
-      </div>
-    );
-  }
-
-  const res = resources ?? castle.resources;
-
+function HUD({ resources }: { resources: ReturnType<typeof useResources> }) {
+  const items = [
+    { icon: '🪵', label: 'Madeira', value: resources.wood  ?? 0 },
+    { icon: '🪨', label: 'Pedra',   value: resources.stone ?? 0 },
+    { icon: '⚙️', label: 'Ferro',   value: resources.iron  ?? 0 },
+    { icon: '🌾', label: 'Comida',  value: resources.food  ?? 0 },
+    { icon: '💰', label: 'Ouro',    value: resources.gold  ?? 0 },
+  ];
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-stone-950">
-      {/* HUD de recursos */}
-      <div
-        className="absolute top-0 left-0 right-0 z-20 flex flex-wrap items-center gap-2 px-4 py-2 text-sm"
-        style={{
-          background: 'linear-gradient(90deg, rgba(8,5,2,0.97), rgba(22,14,5,0.97))',
-          borderBottom: '1px solid #b8860b44',
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        <span className="font-medieval text-yellow-500 text-base mr-1 flex items-center">
-          🏰 Nível {castle.level}
-        </span>
-        <span className="text-amber-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <span>🌾</span> {Math.floor(res.food).toLocaleString()}
-        </span>
-        <span className="text-green-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <span>🪵</span> {Math.floor(res.wood).toLocaleString()}
-        </span>
-        <span className="text-stone-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <span>🪨</span> {Math.floor(res.stone).toLocaleString()}
-        </span>
-        <span className="text-sky-300 bg-black/40 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <span>⚙️</span> {Math.floor(res.iron).toLocaleString()}
-        </span>
-        <span className="ml-auto text-stone-500 text-xs bg-black/30 px-2 py-0.5 rounded">
-          [{castle.mapX},{castle.mapY}]
-        </span>
-      </div>
-
-      {/* MINIMAP */}
-      <div className="absolute bottom-4 right-4 z-20 w-48 h-48 bg-stone-900/80 rounded-lg border border-amber-700/50 overflow-hidden backdrop-blur-sm">
-        <div className="absolute top-1 left-1 text-amber-500 text-xs">MINIMAP</div>
-        <div className="w-full h-full relative">
-          <div className="absolute inset-2 bg-stone-800 rounded">
-            {/* Representação simplificada do mapa */}
-            <div 
-              className="absolute w-2 h-2 bg-amber-500 rounded-full animate-pulse" 
-              style={{ left: '50%', top: '50%' }}
-            />
-            {/* Pontos dos edifícios */}
-            {SLOTS.map((slot, i) => {
-              const left = ((slot.x - 300) / 1500) * 100;
-              const top = ((slot.z - 200) / 800) * 100;
-              return (
-                <div 
-                  key={i}
-                  className="absolute w-1 h-1 bg-blue-400 rounded-full"
-                  style={{ left: `${left}%`, top: `${top}%` }}
-                />
-              );
-            })}
-          </div>
+    <div style={{
+      position: 'absolute', top: 12, left: 12,
+      display: 'flex', gap: 8, zIndex: 10, pointerEvents: 'none',
+    }}>
+      {items.map(({ icon, label, value }) => (
+        <div key={label} style={{
+          background: 'rgba(12,8,4,0.78)',
+          border: '1px solid rgba(200,160,80,0.45)',
+          borderRadius: 8, padding: '5px 10px',
+          display: 'flex', alignItems: 'center', gap: 5,
+          color: '#e8d090', fontSize: 13, fontWeight: 700,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+        }}>
+          <span>{icon}</span>
+          <span style={{ color: '#fff', fontSize: 12 }}>{Math.floor(value)}</span>
         </div>
-      </div>
-
-      {/* CANVAS 3D */}
-      <Canvas
-        shadows
-        camera={{ 
-          position: [6, 5, 10], 
-          fov: 50,
-          near: 0.1,
-          far: 50
-        }}
-        style={{ width: '100%', height: '100%' }}
-        gl={{ 
-          antialias: true,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2
-        }}
-      >
-        <Sky 
-          distance={450000} 
-          sunPosition={[5, 30, 10]} 
-          inclination={0.5} 
-          azimuth={0.25}
-          turbidity={10}
-          rayleigh={2}
-          mieCoefficient={0.005}
-          mieDirectionalG={0.8}
-        />
-        <Environment preset="forest" background={false} />
-        
-        <OrbitControls
-          enablePan
-          enableZoom
-          enableRotate
-          minPolarAngle={0.2}
-          maxPolarAngle={Math.PI / 2.2}
-          maxDistance={18}
-          minDistance={4}
-          target={[0, 0.5, 0]}
-          makeDefault
-        />
-        
-        <Scene selectedSlot={selected} onSlotClick={setSelected} />
-      </Canvas>
-
-      {/* Painel do Edifício Selecionado */}
-      {selected && (
-        <div className="absolute bottom-4 left-4 md:left-auto md:right-4 md:w-96 z-20 animate-slideUp">
-          <div className="relative">
-            <BuildingCard buildingType={selected} />
-            <button
-              className="absolute top-2 right-2 text-stone-400 hover:text-amber-300 text-xl leading-none w-8 h-8 rounded-full bg-black/50 flex items-center justify-center transition-colors"
-              onClick={() => setSelected(null)}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* INSTRUÇÕES */}
-      <div className="absolute bottom-4 left-4 z-20 text-stone-400 text-xs bg-black/50 px-3 py-1 rounded-full">
-        🖱️ Arraste para rotacionar | Scroll para zoom | Clique nos edifícios
-      </div>
+      ))}
     </div>
   );
-};
+}
 
-// Pré-carregar modelos para evitar delay
+/* ============================================================================
+   COMPONENTE PRINCIPAL
+   ========================================================================= */
+
+export function CastleView() {
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const resources = useResources();
+  const { buildings } = useGameStore();
+
+  const builtBuildings = useMemo(
+    () => new Set(Object.keys(buildings || {}) as BuildingType[]),
+    [buildings],
+  );
+
+  const selectedSlotData = selectedSlot !== null ? SLOT_TYPES[selectedSlot] : null;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <HUD resources={resources} />
+      <Canvas
+        shadows
+        orthographic
+        camera={{ position: [12, 10, 12], zoom: 55, near: 0.1, far: 200 }}
+        onCreated={({ camera }) => camera.lookAt(0, 0.5, 0)}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.1,
+        }}
+        style={{ background: '#a8c4a0' }}
+      >
+        <Suspense fallback={null}>
+          <VillageScene
+            selectedSlot={selectedSlot}
+            onSelectSlot={i => setSelectedSlot(prev => (prev === i ? null : i))}
+            builtBuildings={builtBuildings}
+          />
+        </Suspense>
+      </Canvas>
+      {selectedSlotData && (
+        <div style={{
+          position: 'absolute', bottom: 16, left: '50%',
+          transform: 'translateX(-50%)', zIndex: 20,
+        }}>
+          <BuildingCard type={selectedSlotData.type} onClose={() => setSelectedSlot(null)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default CastleView;
+
 useGLTF.preload('/casteloteste.glb');
 useGLTF.preload('/arvoreum.glb');
