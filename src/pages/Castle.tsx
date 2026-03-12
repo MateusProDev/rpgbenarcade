@@ -35,7 +35,7 @@ export const Castle: React.FC = () => {
       </nav>
 
       {/* Conteúdo */}
-      <main className="pb-10">
+      <main className="pb-0 overflow-hidden h-[calc(100vh-56px)]">
         {!player ? (
           <div className="flex justify-center items-center h-64 text-parchment-400">
             Faça login para continuar...
