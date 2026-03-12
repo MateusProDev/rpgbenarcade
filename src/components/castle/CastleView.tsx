@@ -346,9 +346,21 @@ function CastleFoundation() {
   const { scene } = useGLTF('/casteloteste.glb');
   const castleModel = useMemo(() => {
     const c = scene.clone(true);
-    c.scale.set(1.5, 1.5, 1.5);
+    
+    // Normalizar tamanho do modelo para garantir que caiba na plataforma
+    const box = new THREE.Box3().setFromObject(c);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    // Supondo que 4 seja um tamanho bom pra caber no círculo
+    const s = 4.0 / (maxDim || 1);
+    c.scale.set(s, s, s);
+    
     // Ajuste fino para encaixar no topo da plataforma
-    c.position.set(0, 0.70, 0); 
+    const box2 = new THREE.Box3().setFromObject(c);
+    c.position.set(0, 0.70 - box2.min.y, 0); 
+    
     // Pode ser necessário ajustar a rotação:
     c.rotation.y = Math.PI / 4; 
     c.traverse((node) => {
@@ -896,13 +908,13 @@ function IsometricCameraController() {
   // Mantém câmera bloqueada se o usuário tentar mexer, ajustando zoom para mobile e desktop
   useFrame(({ camera: cam, size }) => {
     cam.position.set(22, 18, 22);
-    // Para ver cerca de 22 ~ 24 unidades do mapa na tela em todas as resoluções
-    const targetMapWidth = 24; 
-    const calculatedZoom = size.width / targetMapWidth;
+    // Base de zoom que funcionava: 38 para desktop. No mobile a gente diminui para caber mais.
+    // Se a tela for menor que 800px de altura ou de largura, aplica fator de redução
+    const isMobile = size.width < 768;
+    const baseZoom = isMobile ? (size.width / 768) * 38 : 38;
     
-    // Deixa um mínimo de 12 para não ficar absurdamente pequeno em telas muito finas, 
-    // e na vertical também garante que não fuja muito
-    (cam as THREE.OrthographicCamera).zoom = Math.max(12, calculatedZoom);
+    // Deixa um mínimo de 20 para não ficar muito longe e máximo de 45
+    (cam as THREE.OrthographicCamera).zoom = Math.max(20, Math.min(baseZoom, 45));
     cam.updateProjectionMatrix();
   });
 
