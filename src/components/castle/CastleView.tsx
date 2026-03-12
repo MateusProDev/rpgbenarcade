@@ -16,7 +16,7 @@
  *  - Iluminação cinemática com sombras suaves
  */
 
-import React, { useMemo, useRef, useEffect, Suspense } from 'react';
+import { useMemo, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Environment } from '@react-three/drei';
 import { createNoise2D } from 'simplex-noise';
@@ -305,7 +305,6 @@ function Terrain() {
     const noise2D  = createNoise2D();
     const posAttr  = geo.attributes.position as THREE.BufferAttribute;
     const count    = posAttr.count;
-    const normAttr = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
       const x = posAttr.getX(i);
@@ -647,7 +646,6 @@ function Pond() {
 function Farmland() {
   const farmTex  = useMemo(() => makeFarmTex(),  []);
   const dirtTex  = useMemo(() => makeDirtTex(),  []);
-  const stoneTex = useMemo(() => makeStoneTex(), []);
 
   // Posts de cerca
   const fencePostsX = useMemo(() => {
@@ -1005,6 +1003,7 @@ function TerrainScene() {
       <Environment preset="forest" background={false} />
 
       <Terrain />
+      <MapFogPlanes />
       <CastleFoundation />
       <BuildingPads />
       <PathSystem />
