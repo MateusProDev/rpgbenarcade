@@ -1,12 +1,12 @@
 ﻿/**
- * VillageScene â€” Professional isometric 3D village (Clash of Kings style).
+ * VillageScene — Professional isometric 3D village (Clash of Kings style).
  *
- * Uses Three.js via @react-three/fiber.
- * - Castle GLB model at center
- * - Tree GLB models around edges
- * - Stylized placeholder bases for other buildings (ready for Blender imports)
- * - Lush terrain filling the entire viewport
- * - River, paths, decorations
+ * - Castle at center with stone textures
+ * - Textured trees around edges
+ * - Cobblestone roads connecting all structures
+ * - Building base platforms (ready for future structures)
+ * - Lush terrain with procedural grass
+ * - Flat river with animated water
  */
 
 import { Suspense, useMemo, useRef } from 'react';
@@ -19,17 +19,18 @@ import { BUILDING_DEFINITIONS } from '../../game/config/buildings.config';
 import { ASSET_MANIFEST } from '../../engine/rendering/assetManifest';
 import { ErrorBoundary } from '../../ui/ErrorBoundary';
 
-/* â•â•â• Props â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Props ══════════════════════════════════════════ */
 interface VillageSceneProps {
   city: City;
   onBuildingClick?: (buildingId: string) => void;
 }
 
-/* â•â•â• Layout â€” Circular ring around castle (slot 0 = center) â• */
+/* ══ Layout — Circular ring around castle (slot 0 = center) ═ */
 const RING_RADIUS = 18;
+const TOTAL_SLOTS = 12;
 
 function getSlotPosition(slotIndex: number, total: number): [number, number, number] {
-  if (slotIndex === 0) return [0, 0, 0]; // Castle at center
+  if (slotIndex === 0) return [0, 0, 0];
   const count = Math.max(total - 1, 1);
   const angle = ((slotIndex - 1) / count) * Math.PI * 2 - Math.PI / 2;
   return [
@@ -39,7 +40,15 @@ function getSlotPosition(slotIndex: number, total: number): [number, number, num
   ];
 }
 
-/* â•â•â• Building visual config â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+function getAllSlotPositions(): [number, number, number][] {
+  const positions: [number, number, number][] = [];
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    positions.push(getSlotPosition(i, TOTAL_SLOTS));
+  }
+  return positions;
+}
+
+/* ══ Building visual config ══════════════════════════ */
 interface BuildingStyle {
   color: string;
   roofColor: string;
@@ -49,45 +58,259 @@ interface BuildingStyle {
 }
 
 const BUILDING_STYLES: Record<BuildingType, BuildingStyle> = {
-  castle:     { color: '#8a8a8a', roofColor: '#b22222', height: 6, width: 5, icon: 'ðŸ°' },
-  house:      { color: '#deb887', roofColor: '#d2691e', height: 3, width: 3, icon: 'ðŸ ' },
-  farm:       { color: '#8fbc8f', roofColor: '#8b4513', height: 2.5, width: 4, icon: 'ðŸŒ¾' },
-  lumbermill: { color: '#d2b48c', roofColor: '#654321', height: 3.5, width: 3.5, icon: 'ðŸªµ' },
-  quarry:     { color: '#b0b0b0', roofColor: '#696969', height: 3, width: 3.5, icon: 'ðŸª¨' },
-  ironmine:   { color: '#708090', roofColor: '#2f4f4f', height: 3, width: 3.5, icon: 'â›ï¸' },
-  barracks:   { color: '#cd853f', roofColor: '#8b0000', height: 4, width: 4, icon: 'âš”ï¸' },
-  stable:     { color: '#deb887', roofColor: '#a0522d', height: 3, width: 4.5, icon: 'ðŸ´' },
-  market:     { color: '#ffd700', roofColor: '#daa520', height: 3.5, width: 4, icon: 'ðŸª™' },
-  warehouse:  { color: '#d2b48c', roofColor: '#8b7355', height: 4, width: 4.5, icon: 'ðŸ“¦' },
-  wall:       { color: '#808080', roofColor: '#696969', height: 5, width: 2.5, icon: 'ðŸ§±' },
-  tower:      { color: '#808080', roofColor: '#b22222', height: 6, width: 2.5, icon: 'ðŸ—¼' },
+  castle:     { color: '#8a8a8a', roofColor: '#b22222', height: 6, width: 5, icon: '🏰' },
+  house:      { color: '#deb887', roofColor: '#d2691e', height: 3, width: 3, icon: '🏠' },
+  farm:       { color: '#8fbc8f', roofColor: '#8b4513', height: 2.5, width: 4, icon: '🌾' },
+  lumbermill: { color: '#d2b48c', roofColor: '#654321', height: 3.5, width: 3.5, icon: '🪵' },
+  quarry:     { color: '#b0b0b0', roofColor: '#696969', height: 3, width: 3.5, icon: '🪨' },
+  ironmine:   { color: '#708090', roofColor: '#2f4f4f', height: 3, width: 3.5, icon: '⛏️' },
+  barracks:   { color: '#cd853f', roofColor: '#8b0000', height: 4, width: 4, icon: '⚔️' },
+  stable:     { color: '#deb887', roofColor: '#a0522d', height: 3, width: 4.5, icon: '🐴' },
+  market:     { color: '#ffd700', roofColor: '#daa520', height: 3.5, width: 4, icon: '🪙' },
+  warehouse:  { color: '#d2b48c', roofColor: '#8b7355', height: 4, width: 4.5, icon: '📦' },
+  wall:       { color: '#808080', roofColor: '#696969', height: 5, width: 2.5, icon: '🧱' },
+  tower:      { color: '#808080', roofColor: '#b22222', height: 6, width: 2.5, icon: '🗼' },
 };
 
-/* â•â•â• Terrain â€” lush isometric ground â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function Terrain() {
-  const grassMaterial = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#5a9e3e'),
-      roughness: 0.85,
-      metalness: 0,
-      flatShading: false,
-    });
-  }, []);
+/* ══ Procedural Texture Generators ═══════════════════ */
 
-  const dirtMaterial = useMemo(() => {
-    return new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#8B7355'),
-      roughness: 0.9,
-      metalness: 0,
-    });
-  }, []);
+function createStoneTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#7a7568';
+  ctx.fillRect(0, 0, 512, 512);
+  const bw = 64, bh = 32;
+  for (let row = 0; row < 16; row++) {
+    const off = row % 2 === 0 ? 0 : bw / 2;
+    for (let col = -1; col < 9; col++) {
+      const x = col * bw + off;
+      const y = row * bh;
+      const s = 100 + Math.floor(Math.random() * 50);
+      ctx.fillStyle = `rgb(${s + Math.floor(Math.random() * 15)}, ${s + Math.floor(Math.random() * 10)}, ${s - 5 + Math.floor(Math.random() * 10)})`;
+      ctx.fillRect(x + 2, y + 2, bw - 4, bh - 4);
+      ctx.strokeStyle = '#5a5548';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, bw - 2, bh - 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 3, y + 3);
+      ctx.lineTo(x + bw - 3, y + 3);
+      ctx.stroke();
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+function createRoofTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#8b2020';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let row = 0; row < 16; row++) {
+    const off = row % 2 === 0 ? 0 : 8;
+    for (let col = 0; col < 16; col++) {
+      const x = col * 16 + off, y = row * 16;
+      const s = 120 + Math.floor(Math.random() * 30);
+      ctx.fillStyle = `rgb(${s + 20}, ${Math.floor(s * 0.3)}, ${Math.floor(s * 0.3)})`;
+      ctx.beginPath();
+      ctx.arc(x + 8, y + 12, 7, Math.PI, 0, false);
+      ctx.fill();
+      ctx.fillRect(x + 1, y + 4, 14, 8);
+    }
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createBarkTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#5c3a1e';
+  ctx.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 40; i++) {
+    const x = Math.random() * 128;
+    const w = 1 + Math.random() * 4;
+    const h = 30 + Math.random() * 100;
+    const y = Math.random() * 256;
+    const s = 60 + Math.floor(Math.random() * 50);
+    ctx.fillStyle = `rgb(${s + 20}, ${s - 10}, ${Math.floor(s * 0.4)})`;
+    ctx.fillRect(x, y, w, h);
+  }
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.arc(20 + Math.random() * 88, 20 + Math.random() * 216, 3 + Math.random() * 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#3a2210';
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createLeafTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#2d7a2d';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 200; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    const sz = 4 + Math.random() * 12;
+    const g = 80 + Math.floor(Math.random() * 100);
+    ctx.fillStyle = `rgb(${20 + Math.floor(Math.random() * 40)}, ${g}, ${20 + Math.floor(Math.random() * 30)})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, sz, sz * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (let i = 0; i < 60; i++) {
+    ctx.fillStyle = `rgba(180, 255, 100, ${0.1 + Math.random() * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createCobblestoneTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#4a4035';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 130; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    const w = 12 + Math.random() * 20, h = 10 + Math.random() * 16;
+    const s = 130 + Math.floor(Math.random() * 60);
+    ctx.fillStyle = `rgb(${s}, ${s - 5}, ${s - 15})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, w / 2, h / 2, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+function createGrassTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#4a8e32';
+  ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 3000; i++) {
+    const x = Math.random() * 512, y = Math.random() * 512;
+    const h = 3 + Math.random() * 8;
+    const g = 100 + Math.floor(Math.random() * 80);
+    ctx.strokeStyle = `rgb(${30 + Math.floor(Math.random() * 30)}, ${g}, ${20 + Math.floor(Math.random() * 20)})`;
+    ctx.lineWidth = 0.5 + Math.random();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random() - 0.5) * 3, y - h);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 8);
+  return tex;
+}
+
+function createDirtTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#8B7355';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 800; i++) {
+    const x = Math.random() * 256, y = Math.random() * 256;
+    const r = 1 + Math.random() * 3;
+    const s = 100 + Math.floor(Math.random() * 60);
+    ctx.fillStyle = `rgb(${s + 20}, ${s}, ${s - 30})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  return tex;
+}
+
+/* ══ Flat Ribbon Geometry (for river/road curves) ═══ */
+function createRibbonGeometry(
+  curve: THREE.CatmullRomCurve3,
+  width: number,
+  segments: number
+): THREE.BufferGeometry {
+  const points = curve.getPoints(segments);
+  const verts: number[] = [];
+  const uvs: number[] = [];
+  const idx: number[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i];
+    let tan: THREE.Vector3;
+    if (i < points.length - 1) {
+      tan = points[i + 1].clone().sub(pt).normalize();
+    } else {
+      tan = pt.clone().sub(points[i - 1]).normalize();
+    }
+    const up = new THREE.Vector3(0, 1, 0);
+    const perp = new THREE.Vector3().crossVectors(tan, up).normalize().multiplyScalar(width / 2);
+
+    verts.push(pt.x - perp.x, pt.y, pt.z - perp.z);
+    verts.push(pt.x + perp.x, pt.y, pt.z + perp.z);
+
+    const t = i / (points.length - 1);
+    uvs.push(0, t);
+    uvs.push(1, t);
+
+    if (i < points.length - 1) {
+      const b = i * 2;
+      idx.push(b, b + 1, b + 2);
+      idx.push(b + 1, b + 3, b + 2);
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geom.setIndex(idx);
+  geom.computeVertexNormals();
+  return geom;
+}
+
+/* ══ Terrain — lush textured ground ══════════════════ */
+function Terrain() {
+  const grassTex = useMemo(() => createGrassTexture(), []);
+  const dirtTex = useMemo(() => createDirtTexture(), []);
 
   return (
     <group>
       {/* Main grass ground */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
         <circleGeometry args={[65, 64]} />
-        <primitive object={grassMaterial} attach="material" />
+        <meshStandardMaterial map={grassTex} color="#5a9e3e" roughness={0.85} metalness={0} />
       </mesh>
 
       {/* Darker grass ring (outer) */}
@@ -102,73 +325,80 @@ function Terrain() {
         <meshStandardMaterial color="#3d7a2a" roughness={0.95} />
       </mesh>
 
-      {/* Central platform (castle area) */}
+      {/* Central stone plaza (castle area) — flat octagonal platform */}
       <mesh position={[0, 0.08, 0]} receiveShadow castShadow>
-        <cylinderGeometry args={[8, 9, 0.4, 32]} />
-        <primitive object={dirtMaterial} attach="material" />
+        <cylinderGeometry args={[8, 9, 0.35, 8]} />
+        <meshStandardMaterial map={dirtTex} color="#9e9080" roughness={0.85} />
       </mesh>
 
-      {/* Stone foundation ring */}
-      <mesh position={[0, 0.02, 0]} receiveShadow>
-        <torusGeometry args={[9, 0.5, 8, 48]} />
-        <meshStandardMaterial color="#999" roughness={0.8} />
+      {/* Stone edge trim — low flat ring (no visible torus) */}
+      <mesh position={[0, 0.28, 0]} receiveShadow>
+        <cylinderGeometry args={[9.1, 9.3, 0.08, 32]} />
+        <meshStandardMaterial color="#807060" roughness={0.8} />
       </mesh>
     </group>
   );
 }
 
-/* â•â•â• River â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ River — flat ribbon with animated water ═════════ */
 function River() {
-  const ref = useRef<THREE.Mesh>(null);
+  const matRef = useRef<THREE.MeshStandardMaterial>(null);
 
   useFrame(({ clock }) => {
-    if (ref.current) {
-      const mat = ref.current.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = 0.1 + Math.sin(clock.elapsedTime * 2) * 0.05;
+    if (matRef.current) {
+      matRef.current.emissiveIntensity = 0.12 + Math.sin(clock.elapsedTime * 1.5) * 0.06;
     }
   });
 
-  const curve = useMemo(() => {
+  const riverCurve = useMemo(() => {
     return new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-60, 0.05, -20),
-      new THREE.Vector3(-30, 0.05, -15),
-      new THREE.Vector3(-10, 0.05, -8),
-      new THREE.Vector3(5, 0.05, 2),
-      new THREE.Vector3(20, 0.05, 12),
-      new THREE.Vector3(40, 0.05, 20),
-      new THREE.Vector3(65, 0.05, 28),
+      new THREE.Vector3(-60, 0.06, -20),
+      new THREE.Vector3(-30, 0.06, -15),
+      new THREE.Vector3(-10, 0.06, -8),
+      new THREE.Vector3(5, 0.06, 2),
+      new THREE.Vector3(20, 0.06, 12),
+      new THREE.Vector3(40, 0.06, 20),
+      new THREE.Vector3(65, 0.06, 28),
     ]);
   }, []);
 
-  const tubeGeom = useMemo(() => {
-    return new THREE.TubeGeometry(curve, 64, 2.5, 8, false);
-  }, [curve]);
+  const waterGeom = useMemo(() => createRibbonGeometry(riverCurve, 5, 80), [riverCurve]);
+  const bankGeom = useMemo(() => createRibbonGeometry(riverCurve, 7, 80), [riverCurve]);
+  const outerBankGeom = useMemo(() => createRibbonGeometry(riverCurve, 8.5, 80), [riverCurve]);
 
   return (
     <group>
-      <mesh ref={ref} geometry={tubeGeom} receiveShadow>
-        <meshStandardMaterial
-          color="#3b7dd8"
-          roughness={0.2}
-          metalness={0.1}
-          emissive="#1a4a8a"
-          emissiveIntensity={0.1}
-          transparent
-          opacity={0.85}
-        />
+      {/* Outer grass-to-dirt transition */}
+      <mesh geometry={outerBankGeom} position={[0, 0.01, 0]} receiveShadow>
+        <meshStandardMaterial color="#6b7b3a" roughness={0.9} />
       </mesh>
-      {/* River banks */}
-      <mesh geometry={new THREE.TubeGeometry(curve, 64, 3.5, 8, false)} position={[0, -0.02, 0]} receiveShadow>
+
+      {/* River banks (dirt/mud) */}
+      <mesh geometry={bankGeom} position={[0, 0.03, 0]} receiveShadow>
         <meshStandardMaterial color="#6b5b3a" roughness={0.9} />
+      </mesh>
+
+      {/* Water surface — flat ribbon */}
+      <mesh geometry={waterGeom} position={[0, 0.05, 0]} receiveShadow>
+        <meshStandardMaterial
+          ref={matRef}
+          color="#3b7dd8"
+          roughness={0.15}
+          metalness={0.15}
+          emissive="#1a4a8a"
+          emissiveIntensity={0.12}
+          transparent
+          opacity={0.82}
+        />
       </mesh>
     </group>
   );
 }
 
-/* â•â•â• Bridge â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Bridge ══════════════════════════════════════════ */
 function WoodBridge() {
   return (
-    <group position={[-2, 0.3, -3]} rotation={[0, 0.5, 0]}>
+    <group position={[-2, 0.15, -3]} rotation={[0, 0.5, 0]}>
       {/* Planks */}
       <mesh castShadow receiveShadow>
         <boxGeometry args={[6, 0.2, 4]} />
@@ -195,28 +425,149 @@ function WoodBridge() {
   );
 }
 
-/* â•â•â• Dirt Paths â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function DirtPaths({ positions }: { positions: [number, number, number][] }) {
+/* ══ Cobblestone Roads ═══════════════════════════════ */
+function StoneRoads({ buildingPositions }: { buildingPositions: [number, number, number][] }) {
+  const cobbleTex = useMemo(() => createCobblestoneTexture(), []);
+
+  const allSlots = useMemo(() => getAllSlotPositions(), []);
+
+  // Radial roads: from center to each slot
+  const radialRoads = useMemo(() => {
+    return allSlots.slice(1).map((pos) => {
+      const dir = new THREE.Vector3(pos[0], 0, pos[2]).normalize();
+      const len = new THREE.Vector3(pos[0], 0, pos[2]).length();
+      const mid = dir.clone().multiplyScalar(len / 2);
+      const angle = Math.atan2(dir.x, dir.z);
+      return { mid, angle, len };
+    });
+  }, [allSlots]);
+
+  // Ring road: circular arc connecting slot positions
+  const ringRoadSegments = useMemo(() => {
+    const segments: { mid: THREE.Vector3; angle: number; len: number }[] = [];
+    const outerSlots = allSlots.slice(1);
+    for (let i = 0; i < outerSlots.length; i++) {
+      const a = outerSlots[i];
+      const b = outerSlots[(i + 1) % outerSlots.length];
+      const mx = (a[0] + b[0]) / 2;
+      const mz = (a[2] + b[2]) / 2;
+      // Push midpoint outward to follow the ring
+      const mDir = new THREE.Vector3(mx, 0, mz).normalize().multiplyScalar(RING_RADIUS);
+      const dx = b[0] - a[0];
+      const dz = b[2] - a[2];
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const angle = Math.atan2(dx, dz);
+      segments.push({ mid: mDir, angle, len: dist });
+    }
+    return segments;
+  }, [allSlots]);
+
   return (
     <group>
-      {positions.map((pos, i) => {
-        if (pos[0] === 0 && pos[2] === 0) return null;
-        const dir = new THREE.Vector3(pos[0], 0, pos[2]).normalize();
-        const len = new THREE.Vector3(pos[0], 0, pos[2]).length() - 3;
-        const mid = dir.clone().multiplyScalar(len / 2 + 1.5);
-        const angle = Math.atan2(dir.x, dir.z);
-        return (
-          <mesh key={i} position={[mid.x, 0.02, mid.z]} rotation={[-Math.PI / 2, 0, -angle]} receiveShadow>
-            <planeGeometry args={[2.2, len]} />
-            <meshStandardMaterial color="#a0926b" roughness={0.95} />
+      {/* Radial roads from castle to each building slot */}
+      {radialRoads.map((road, i) => (
+        <group key={`radial-${i}`}>
+          {/* Road surface */}
+          <mesh
+            position={[road.mid.x, 0.04, road.mid.z]}
+            rotation={[-Math.PI / 2, 0, -road.angle]}
+            receiveShadow
+          >
+            <planeGeometry args={[2.8, road.len]} />
+            <meshStandardMaterial map={cobbleTex} color="#b0a898" roughness={0.85} />
           </mesh>
+          {/* Road border left */}
+          <mesh
+            position={[
+              road.mid.x + Math.cos(road.angle + Math.PI / 2) * 1.5,
+              0.06,
+              road.mid.z + Math.sin(road.angle + Math.PI / 2) * 1.5,
+            ]}
+            rotation={[-Math.PI / 2, 0, -road.angle]}
+            receiveShadow
+          >
+            <planeGeometry args={[0.25, road.len]} />
+            <meshStandardMaterial color="#706050" roughness={0.9} />
+          </mesh>
+          {/* Road border right */}
+          <mesh
+            position={[
+              road.mid.x - Math.cos(road.angle + Math.PI / 2) * 1.5,
+              0.06,
+              road.mid.z - Math.sin(road.angle + Math.PI / 2) * 1.5,
+            ]}
+            rotation={[-Math.PI / 2, 0, -road.angle]}
+            receiveShadow
+          >
+            <planeGeometry args={[0.25, road.len]} />
+            <meshStandardMaterial color="#706050" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Ring road connecting all outer slots */}
+      {ringRoadSegments.map((seg, i) => (
+        <mesh
+          key={`ring-${i}`}
+          position={[seg.mid.x, 0.035, seg.mid.z]}
+          rotation={[-Math.PI / 2, 0, -seg.angle]}
+          receiveShadow
+        >
+          <planeGeometry args={[2.4, seg.len]} />
+          <meshStandardMaterial map={cobbleTex} color="#a09888" roughness={0.88} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ══ Building Slot Bases (empty platforms for future structures) ═ */
+function BuildingSlotBases({ occupiedSlots }: { occupiedSlots: Set<number> }) {
+  const cobbleTex = useMemo(() => createCobblestoneTexture(), []);
+  const allSlots = useMemo(() => getAllSlotPositions(), []);
+
+  return (
+    <group>
+      {allSlots.map((pos, i) => {
+        if (i === 0) return null; // Castle slot handled separately
+        if (occupiedSlots.has(i)) return null; // Has a building already
+
+        return (
+          <group key={`slot-${i}`} position={pos}>
+            {/* Stone foundation */}
+            <mesh position={[0, 0.06, 0]} castShadow receiveShadow>
+              <cylinderGeometry args={[3.2, 3.4, 0.18, 8]} />
+              <meshStandardMaterial map={cobbleTex} color="#8a8070" roughness={0.88} />
+            </mesh>
+
+            {/* Corner marker stones */}
+            {[0, Math.PI / 2, Math.PI, Math.PI * 1.5].map((a, j) => (
+              <mesh
+                key={j}
+                position={[Math.cos(a) * 2.8, 0.2, Math.sin(a) * 2.8]}
+                castShadow
+              >
+                <boxGeometry args={[0.4, 0.25, 0.4]} />
+                <meshStandardMaterial color="#706050" roughness={0.9} />
+              </mesh>
+            ))}
+
+            {/* Construction marker label */}
+            <Html position={[0, 1.2, 0]} center distanceFactor={50} zIndexRange={[10, 0]}>
+              <div className="pointer-events-none select-none text-center whitespace-nowrap">
+                <div className="text-xs text-gray-400 bg-black/40 rounded px-1.5 py-0.5 backdrop-blur-sm border border-gray-600/30">
+                  ⚒️ Vazio
+                </div>
+              </div>
+            </Html>
+          </group>
         );
       })}
     </group>
   );
 }
 
-/* â•â•â• GLB Model Loader â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ GLB Model Loader ════════════════════════════════ */
 function GLBModel({ url, position, scale = 1, rotation = 0, onClick }: {
   url: string;
   position: [number, number, number];
@@ -247,7 +598,7 @@ function GLBModel({ url, position, scale = 1, rotation = 0, onClick }: {
   );
 }
 
-/* â•â•â• Placeholder Building (base + label â€” ready for GLB swap) */
+/* ══ Placeholder Building (textured — ready for GLB swap) ═ */
 function PlaceholderBuilding({ building, position, onClick }: {
   building: BuildingInstance;
   position: [number, number, number];
@@ -259,31 +610,55 @@ function PlaceholderBuilding({ building, position, onClick }: {
   const w = style.width;
   const upgrading = building.upgradeStartedAt != null;
 
+  const stoneTex = useMemo(() => createStoneTexture(), []);
+  const roofTex = useMemo(() => createRoofTexture(), []);
+
   return (
     <group position={position} onClick={onClick}>
       {/* Foundation platform */}
-      <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[w * 0.7, w * 0.75, 0.3, 16]} />
-        <meshStandardMaterial color="#8a7d6b" roughness={0.9} />
+      <mesh position={[0, 0.08, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[w * 0.75, w * 0.8, 0.22, 8]} />
+        <meshStandardMaterial map={stoneTex} color="#8a7d6b" roughness={0.88} />
       </mesh>
 
-      {/* Building body */}
-      <mesh position={[0, h / 2 + 0.25, 0]} castShadow receiveShadow>
+      {/* Building body — textured stone walls */}
+      <mesh position={[0, h / 2 + 0.2, 0]} castShadow receiveShadow>
         <boxGeometry args={[w, h, w]} />
-        <meshStandardMaterial color={style.color} roughness={0.7} />
+        <meshStandardMaterial map={stoneTex} color={style.color} roughness={0.65} />
       </mesh>
 
-      {/* Roof */}
-      <mesh position={[0, h + 0.25, 0]} castShadow>
+      {/* Window details (dark insets) */}
+      {[
+        [w / 2 + 0.01, h * 0.5 + 0.2, 0],
+        [-w / 2 - 0.01, h * 0.5 + 0.2, 0],
+        [0, h * 0.5 + 0.2, w / 2 + 0.01],
+        [0, h * 0.5 + 0.2, -w / 2 - 0.01],
+      ].map((wPos, wi) => (
+        <mesh key={wi} position={wPos as [number, number, number]} castShadow>
+          <boxGeometry args={[wi < 2 ? 0.05 : w * 0.2, h * 0.18, wi < 2 ? w * 0.2 : 0.05]} />
+          <meshStandardMaterial color="#2a1a0a" roughness={0.95} />
+        </mesh>
+      ))}
+
+      {/* Door */}
+      <mesh position={[w / 2 + 0.02, 0.2 + h * 0.2, 0]} castShadow>
+        <boxGeometry args={[0.06, h * 0.35, w * 0.25]} />
+        <meshStandardMaterial color="#5a3a1a" roughness={0.8} />
+      </mesh>
+
+      {/* Roof — textured */}
+      <mesh position={[0, h + 0.2, 0]} castShadow>
         <coneGeometry args={[w * 0.75, h * 0.4, 4]} />
-        <meshStandardMaterial color={style.roofColor} roughness={0.6} />
+        <meshStandardMaterial map={roofTex} color={style.roofColor} roughness={0.55} />
       </mesh>
 
-      {/* Level indicator ring */}
-      <mesh position={[0, 0.05, 0]}>
-        <torusGeometry args={[w * 0.75, 0.15, 6, 24]} />
-        <meshStandardMaterial color="#d4a827" emissive="#d4a827" emissiveIntensity={0.3} />
-      </mesh>
+      {/* Chimney */}
+      {building.type !== 'wall' && building.type !== 'tower' && (
+        <mesh position={[w * 0.25, h + h * 0.2, w * 0.2]} castShadow>
+          <boxGeometry args={[0.5, h * 0.2, 0.5]} />
+          <meshStandardMaterial color="#6a5a4a" roughness={0.85} />
+        </mesh>
+      )}
 
       {/* Upgrade spinning indicator */}
       {upgrading && <UpgradeIndicator y={h + h * 0.4 + 1} />}
@@ -317,7 +692,7 @@ function UpgradeIndicator({ y }: { y: number }) {
   );
 }
 
-/* â•â•â• Decorative Trees (from GLB) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Decorative Trees (textured fallback + GLB) ══════ */
 const TREE_POSITIONS: [number, number, number][] = [
   [-35, 0, -25], [-28, 0, -30], [-40, 0, -10], [-38, 0, 5],
   [-32, 0, 18], [-25, 0, 28], [-15, 0, 32],
@@ -348,32 +723,77 @@ function ForestRing() {
 }
 
 function FallbackTrees() {
+  const barkTex = useMemo(() => createBarkTexture(), []);
+  const leafTex = useMemo(() => createLeafTexture(), []);
+
   return (
     <group>
-      {TREE_POSITIONS.map((pos, i) => (
-        <group key={i} position={pos}>
-          <mesh position={[0, 1.5, 0]} castShadow>
-            <cylinderGeometry args={[0.3, 0.4, 3, 6]} />
-            <meshStandardMaterial color="#8B5E3C" />
-          </mesh>
-          <mesh position={[0, 4, 0]} castShadow>
-            <sphereGeometry args={[2 + Math.sin(i) * 0.5, 8, 8]} />
-            <meshStandardMaterial color="#2d8a4e" roughness={0.8} />
-          </mesh>
-        </group>
-      ))}
+      {TREE_POSITIONS.map((pos, i) => {
+        const trunkH = 2.5 + Math.sin(i * 3) * 0.8;
+        const crownR = 2 + Math.sin(i) * 0.5;
+        const lean = Math.sin(i * 5) * 0.05;
+        return (
+          <group key={i} position={pos} rotation={[lean, i * 1.1, 0]}>
+            {/* Roots flare */}
+            <mesh position={[0, 0.15, 0]} castShadow>
+              <cylinderGeometry args={[0.5, 0.7, 0.4, 6]} />
+              <meshStandardMaterial map={barkTex} color="#5c3a1e" roughness={0.9} />
+            </mesh>
+
+            {/* Trunk — textured */}
+            <mesh position={[0, trunkH / 2 + 0.3, 0]} castShadow>
+              <cylinderGeometry args={[0.25, 0.4, trunkH, 8]} />
+              <meshStandardMaterial map={barkTex} color="#6b4226" roughness={0.85} />
+            </mesh>
+
+            {/* Branch stubs */}
+            <mesh position={[0.4, trunkH * 0.6, 0.2]} rotation={[0.3, 0, 0.8]} castShadow>
+              <cylinderGeometry args={[0.08, 0.12, 1, 4]} />
+              <meshStandardMaterial map={barkTex} color="#5c3a1e" roughness={0.9} />
+            </mesh>
+            <mesh position={[-0.3, trunkH * 0.75, -0.15]} rotation={[-0.2, 0, -0.7]} castShadow>
+              <cylinderGeometry args={[0.06, 0.1, 0.8, 4]} />
+              <meshStandardMaterial map={barkTex} color="#5c3a1e" roughness={0.9} />
+            </mesh>
+
+            {/* Main leaf canopy — textured sphere */}
+            <mesh position={[0, trunkH + crownR * 0.6, 0]} castShadow>
+              <sphereGeometry args={[crownR, 10, 10]} />
+              <meshStandardMaterial map={leafTex} color="#2d8a4e" roughness={0.75} />
+            </mesh>
+
+            {/* Secondary leaf cluster (offset) */}
+            <mesh position={[crownR * 0.4, trunkH + crownR * 0.3, crownR * 0.3]} castShadow>
+              <sphereGeometry args={[crownR * 0.65, 8, 8]} />
+              <meshStandardMaterial map={leafTex} color="#35974a" roughness={0.78} />
+            </mesh>
+
+            {/* Top tuft */}
+            <mesh position={[-crownR * 0.2, trunkH + crownR * 1.1, -crownR * 0.15]} castShadow>
+              <sphereGeometry args={[crownR * 0.45, 7, 7]} />
+              <meshStandardMaterial map={leafTex} color="#248f3e" roughness={0.72} />
+            </mesh>
+
+            {/* Shadow disk at base */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} receiveShadow>
+              <circleGeometry args={[crownR * 0.9, 12]} />
+              <meshStandardMaterial color="#1a4a1a" transparent opacity={0.25} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
 
-/* â•â•â• Decorative rocks & bushes â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Decorative rocks & bushes ═══════════════════════ */
 function Decorations() {
   return (
     <group>
       {/* Rocks */}
       {[
-        [-22, 0, -18], [25, 0, 16], [-18, 0, 20], [20, 0, -22],
-        [-30, 0, 2], [32, 0, -8], [8, 0, -28], [-8, 0, 30],
+        [-22, 0.2, -18], [25, 0.2, 16], [-18, 0.2, 20], [20, 0.2, -22],
+        [-30, 0.2, 2], [32, 0.2, -8], [8, 0.2, -28], [-8, 0.2, 30],
       ].map((pos, i) => (
         <mesh key={`rock-${i}`} position={pos as [number, number, number]} castShadow receiveShadow>
           <dodecahedronGeometry args={[0.8 + Math.sin(i * 3) * 0.4, 0]} />
@@ -388,8 +808,8 @@ function Decorations() {
         [-20, 0.4, 14], [22, 0.4, -12],
       ].map((pos, i) => (
         <mesh key={`bush-${i}`} position={pos as [number, number, number]} castShadow>
-          <sphereGeometry args={[1 + Math.sin(i * 5) * 0.3, 6, 6]} />
-          <meshStandardMaterial color={i % 3 === 0 ? '#3a8f3a' : '#2d7a2d'} roughness={0.85} />
+          <sphereGeometry args={[1 + Math.sin(i * 5) * 0.3, 8, 8]} />
+          <meshStandardMaterial color={i % 3 === 0 ? '#3a8f3a' : '#2d7a2d'} roughness={0.82} />
         </mesh>
       ))}
 
@@ -404,11 +824,23 @@ function Decorations() {
           <meshStandardMaterial color={p[3] as string} emissive={p[3] as string} emissiveIntensity={0.2} />
         </mesh>
       ))}
+
+      {/* Grass tufts near buildings */}
+      {Array.from({ length: 30 }, (_, i) => {
+        const a = (i / 30) * Math.PI * 2;
+        const r = 12 + Math.sin(i * 7) * 6;
+        return (
+          <mesh key={`tuft-${i}`} position={[Math.cos(a) * r, 0.1, Math.sin(a) * r]} castShadow>
+            <coneGeometry args={[0.3, 0.6, 4]} />
+            <meshStandardMaterial color={i % 2 === 0 ? '#4a9e3e' : '#3d8a2e'} roughness={0.9} />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
 
-/* â•â•â• Lighting (warm, bright, friendly) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Lighting (warm, bright, friendly) ═══════════════ */
 function VillageLighting() {
   return (
     <group>
@@ -434,12 +866,16 @@ function VillageLighting() {
   );
 }
 
-/* â•â•â• Main Scene Content â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Main Scene Content ══════════════════════════════ */
 function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
   const castleAsset = ASSET_MANIFEST.castle;
 
   const buildingPositions = useMemo(() => {
     return city.buildings.map((b) => getSlotPosition(b.slotIndex, city.buildings.length));
+  }, [city.buildings]);
+
+  const occupiedSlots = useMemo(() => {
+    return new Set(city.buildings.map((b) => b.slotIndex));
   }, [city.buildings]);
 
   return (
@@ -450,7 +886,8 @@ function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
       <Terrain />
       <River />
       <WoodBridge />
-      <DirtPaths positions={buildingPositions} />
+      <StoneRoads buildingPositions={buildingPositions} />
+      <BuildingSlotBases occupiedSlots={occupiedSlots} />
       <Decorations />
       <ForestRing />
 
@@ -475,7 +912,7 @@ function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
                 <Html position={[pos[0], 9, pos[2]]} center distanceFactor={50}>
                   <div className="pointer-events-none select-none text-center whitespace-nowrap">
                     <div className="text-sm font-medieval text-white bg-black/60 rounded-lg px-2 py-1 backdrop-blur-sm border border-castle-gold/30">
-                      ðŸ° Castelo <span className="text-castle-gold font-bold">Lv.{building.level}</span>
+                      🏰 Castelo <span className="text-castle-gold font-bold">Lv.{building.level}</span>
                     </div>
                   </div>
                 </Html>
@@ -494,7 +931,7 @@ function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
         })}
       </Suspense>
 
-      {/* Camera controls â€” isometric-like angle, limited zoom */}
+      {/* Camera controls — isometric-like angle, limited zoom */}
       <OrbitControls
         target={[0, 0, 0]}
         minDistance={25}
@@ -510,13 +947,13 @@ function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
   );
 }
 
-/* â•â•â• Exported Component â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ══ Exported Component ══════════════════════════════ */
 export function VillageScene({ city, onBuildingClick }: VillageSceneProps) {
   return (
     <ErrorBoundary
       fallback={
         <div className="w-full h-full bg-castle-dark flex items-center justify-center">
-          <p className="font-medieval text-parchment-300">Erro ao carregar cena 3D. Verifique se WebGL estÃ¡ habilitado.</p>
+          <p className="font-medieval text-parchment-300">Erro ao carregar cena 3D. Verifique se WebGL está habilitado.</p>
         </div>
       }
     >
