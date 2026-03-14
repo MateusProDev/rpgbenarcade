@@ -1,21 +1,20 @@
+/**
+ * Auth Store — manages Firebase authentication state.
+ */
+
 import { create } from 'zustand';
 import type { User } from 'firebase/auth';
-import type { Player } from '../types';
 
 interface AuthState {
-  user:   User | null;
-  player: Player | null;
+  user: User | null;
   loading: boolean;
-  setUser:   (user: User | null) => void;
-  setPlayer: (player: Player | null) => void;
+  setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user:    null,
-  player:  null,
+  user: null,
   loading: true,
-  setUser:    (user)    => set({ user }),
-  setPlayer:  (player)  => set({ player }),
+  setUser: (user) => set({ user, loading: false }),
   setLoading: (loading) => set({ loading }),
 }));

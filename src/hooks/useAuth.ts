@@ -1,35 +1,21 @@
+/**
+ * useAuth — Firebase authentication listener hook.
+ *
+ * Subscribes to auth state changes and syncs with Zustand store.
+ */
+
 import { useEffect } from 'react';
-import { onAuthChange, getPlayerData, handleRedirectResult } from '../services/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { getFirebaseAuth } from '../firebase/config';
 import { useAuthStore } from '../stores/useAuthStore';
 
-/** Hook raiz — observa estado de autenticação e carrega dados do jogador */
-export function useAuth() {
-  const { user, player, loading, setUser, setPlayer, setLoading } = useAuthStore();
+export function useAuth(): void {
+  const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
-    // Processa retorno do redirect do Google e chama matchmaking se necessário
-    handleRedirectResult().then(async (redirectUser) => {
-      if (redirectUser) {
-        await fetch('/api/matchmaking', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: redirectUser.uid }),
-        });
-      }
-    }).catch(console.error);
-
-    const unsub = onAuthChange(async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        const p = await getPlayerData(firebaseUser.uid);
-        setPlayer(p);
-      } else {
-        setPlayer(null);
-      }
-      setLoading(false);
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
+      setUser(user);
     });
-    return unsub;
-  }, [setUser, setPlayer, setLoading]);
-
-  return { user, player, loading };
+    return unsubscribe;
+  }, [setUser]);
 }

@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ── Animações da Cena do Castelo / Mapa Medieval ── */
 
 /* Mapa isométrico premium */
@@ -55,9 +57,6 @@
   0%,100% { filter: drop-shadow(0 0 6px #f0c040cc); }
   50%      { filter: drop-shadow(0 0 16px #f0c040ff); }
 }
-
-
-@import "tailwindcss";
 
 @theme {
   /* Paleta parchment */

@@ -1,53 +1,79 @@
-import React, { useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { CastleView } from '../components/castle/CastleView';
-import { ResourceBar } from '../components/ui/ResourceBar';
-import { useAuthStore } from '../stores/useAuthStore';
+/**
+ * Castle — main village/city management page.
+ *
+ * This is the core gameplay screen with:
+ * - 3D village scene
+ * - Resource bar
+ * - Building panel
+ * - Troop training
+ */
+
+import { useState, useCallback } from 'react';
 import { useGameStore } from '../stores/useGameStore';
-import { loadCastle } from '../modules/castle/castleLogic';
-import { useResources } from '../hooks/useResources';
+import { useGameTick } from '../hooks/useGameTick';
+import { useCity } from '../hooks/useCity';
+import { GameEngine } from '../game/engine/GameEngine';
+import { CityService } from '../services/cityService';
+import { VillageScene } from '../components/village/VillageScene';
+import { BuildingPanel } from '../components/village/BuildingPanel';
+import { ResourceBar } from '../ui/ResourceBar';
 
-export const Castle: React.FC = () => {
-  const navigate  = useNavigate();
-  const player    = useAuthStore((s) => s.player);
-  const { setCastle } = useGameStore();
-  const resources = useResources();
+export function Castle() {
+  useCity();
+  useGameTick();
 
-  useEffect(() => {
-    if (!player) { navigate('/login'); return; }
-    if (!player.castleId) return;
-    loadCastle(player.castleId).then((c) => { if (c) setCastle(c); });
-  }, [player]);
+  const city = useGameStore((s) => s.currentCity);
+  const updateCity = useGameStore((s) => s.updateCity);
+  const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
+
+  const handleUpgrade = useCallback(
+    async (buildingId: string) => {
+      if (!city) return;
+      const updated = GameEngine.upgradeBuilding(city, buildingId);
+      if (updated) {
+        updateCity(() => updated);
+        await CityService.save(updated);
+      }
+    },
+    [city, updateCity],
+  );
+
+  if (!city) {
+    return (
+      <div className="min-h-screen bg-castle-dark flex items-center justify-center">
+        <p className="font-medieval text-castle-gold text-xl animate-pulse">
+          Carregando sua cidade...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-castle-dark text-parchment-100">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-40 bg-castle-dark/95 border-b border-castle-wall backdrop-blur-sm px-4 py-2 flex items-center justify-between">
-        <Link to="/" className="font-medieval text-castle-gold text-lg">🏰 Bentropy</Link>
-        <div className="flex items-center gap-2 flex-wrap">
-          {resources && <ResourceBar resources={resources} compact />}
-        </div>
-        <div className="flex gap-2">
-          <Link to="/world"    className="text-parchment-400 hover:text-parchment-100 text-sm">🗺 Mapa</Link>
-          <Link to="/alliance" className="text-parchment-400 hover:text-parchment-100 text-sm">🤝 Aliança</Link>
-          <Link to="/profile"  className="text-parchment-400 hover:text-parchment-100 text-sm">👤 Perfil</Link>
-        </div>
-      </nav>
+    <div className="h-screen bg-castle-dark flex flex-col overflow-hidden">
+      {/* Top bar */}
+      <header className="shrink-0 p-3 flex items-center justify-between">
+        <h1 className="font-medieval text-castle-gold text-xl">{city.name}</h1>
+        <ResourceBar resources={city.resources} />
+      </header>
 
-      {/* Conteúdo */}
-      <main className="pb-0 overflow-hidden h-[calc(100vh-56px)]">
-        {!player ? (
-          <div className="flex justify-center items-center h-64 text-parchment-400">
-            Faça login para continuar...
+      {/* Main content */}
+      <div className="flex-1 flex min-h-0">
+        {/* 3D Scene */}
+        <div className="flex-1 relative min-h-0">
+          <div className="absolute inset-0">
+            <VillageScene city={city} onBuildingClick={setSelectedBuilding} />
           </div>
-        ) : !player.castleId ? (
-          <div className="flex justify-center items-center h-64 text-parchment-400">
-            Configurando seu castelo... aguarde um momento.
-          </div>
-        ) : (
-          <CastleView />
-        )}
-      </main>
+        </div>
+
+        {/* Side panel */}
+        <aside className="w-80 shrink-0 p-4 overflow-y-auto">
+          <BuildingPanel
+            city={city}
+            selectedBuildingId={selectedBuilding}
+            onUpgrade={handleUpgrade}
+          />
+        </aside>
+      </div>
     </div>
   );
-};
+}

@@ -14,7 +14,6 @@ export default defineConfig({
         manualChunks: {
           react:    ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          pixi:     ['pixi.js'],
           three:    ['three', '@react-three/fiber', '@react-three/drei'],
         },
       },

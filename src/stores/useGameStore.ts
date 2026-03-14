@@ -1,23 +1,30 @@
+/**
+ * Game Store — manages current game state (city, player data).
+ *
+ * Game logic does NOT live here. The store only holds state.
+ * All mutations go through GameEngine and services.
+ */
+
 import { create } from 'zustand';
-import type { Castle, March } from '../types';
+import type { City } from '../types/city';
+import type { Player } from '../types/player';
 
 interface GameState {
-  castle:  Castle | null;
-  marches: March[];
-  setCastle:  (castle: Castle | null) => void;
-  updateCastle: (partial: Partial<Castle>) => void;
-  setMarches: (marches: March[]) => void;
-  addMarch:   (march: March) => void;
-  removeMarch:(id: string) => void;
+  player: Player | null;
+  currentCity: City | null;
+  setPlayer: (player: Player | null) => void;
+  setCurrentCity: (city: City | null) => void;
+  updateCity: (updater: (city: City) => City) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  castle:  null,
-  marches: [],
-  setCastle: (castle) => set({ castle }),
-  updateCastle: (partial) =>
-    set((s) => ({ castle: s.castle ? { ...s.castle, ...partial } : null })),
-  setMarches: (marches) => set({ marches }),
-  addMarch:   (march)   => set((s) => ({ marches: [...s.marches, march] })),
-  removeMarch:(id)      => set((s) => ({ marches: s.marches.filter((m) => m.id !== id) })),
+  player: null,
+  currentCity: null,
+  setPlayer: (player) => set({ player }),
+  setCurrentCity: (city) => set({ currentCity: city }),
+  updateCity: (updater) =>
+    set((state) => {
+      if (!state.currentCity) return state;
+      return { currentCity: updater(state.currentCity) };
+    }),
 }));

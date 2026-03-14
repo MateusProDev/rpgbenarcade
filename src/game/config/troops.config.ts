@@ -1,0 +1,80 @@
+/** Troop definitions — data-driven configuration */
+
+import type { TroopDefinition } from '../../types/troops';
+
+export const TROOP_DEFINITIONS: Record<string, TroopDefinition> = {
+  militia: {
+    type: 'militia',
+    name: 'Milícia',
+    description: 'Unidade básica e barata.',
+    attack: 10,
+    defense: 8,
+    speed: 3,
+    carryCapacity: 30,
+    foodUpkeep: 1,
+    cost: { wood: 50, stone: 0, iron: 10, food: 30, gold: 5 },
+    trainTimeSeconds: 60,
+    requiredBuildingType: 'barracks',
+    requiredBuildingLevel: 1,
+  },
+
+  swordsman: {
+    type: 'swordsman',
+    name: 'Espadachim',
+    description: 'Infantaria balanceada com boa defesa.',
+    attack: 20,
+    defense: 25,
+    speed: 2,
+    carryCapacity: 20,
+    foodUpkeep: 2,
+    cost: { wood: 30, stone: 0, iron: 60, food: 50, gold: 15 },
+    trainTimeSeconds: 120,
+    requiredBuildingType: 'barracks',
+    requiredBuildingLevel: 2,
+  },
+
+  archer: {
+    type: 'archer',
+    name: 'Arqueiro',
+    description: 'Unidade de ataque à distância.',
+    attack: 30,
+    defense: 10,
+    speed: 3,
+    carryCapacity: 15,
+    foodUpkeep: 2,
+    cost: { wood: 80, stone: 0, iron: 30, food: 40, gold: 20 },
+    trainTimeSeconds: 100,
+    requiredBuildingType: 'barracks',
+    requiredBuildingLevel: 2,
+  },
+
+  cavalry: {
+    type: 'cavalry',
+    name: 'Cavalaria',
+    description: 'Unidade rápida e poderosa.',
+    attack: 40,
+    defense: 20,
+    speed: 6,
+    carryCapacity: 50,
+    foodUpkeep: 4,
+    cost: { wood: 50, stone: 0, iron: 80, food: 100, gold: 40 },
+    trainTimeSeconds: 180,
+    requiredBuildingType: 'stable',
+    requiredBuildingLevel: 1,
+  },
+
+  catapult: {
+    type: 'catapult',
+    name: 'Catapulta',
+    description: 'Máquina de cerco pesada.',
+    attack: 80,
+    defense: 5,
+    speed: 1,
+    carryCapacity: 0,
+    foodUpkeep: 6,
+    cost: { wood: 200, stone: 150, iron: 100, food: 60, gold: 80 },
+    trainTimeSeconds: 300,
+    requiredBuildingType: 'barracks',
+    requiredBuildingLevel: 2,
+  },
+};

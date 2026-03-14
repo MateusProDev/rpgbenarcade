@@ -1,70 +1,144 @@
-import React, { useEffect, useState } from 'react';
+/**
+ * Login — Firebase authentication page.
+ */
+
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithGoogle } from '../services/auth';
-import { useAuthStore } from '../stores/useAuthStore';
-import { Button } from '../components/ui/Button';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from 'firebase/auth';
+import { getFirebaseAuth } from '../firebase/config';
+import { PlayerService } from '../services/playerService';
 
-export const Login: React.FC = () => {
-  const navigate  = useNavigate();
-  const user      = useAuthStore((s) => s.user);
-  const loading   = useAuthStore((s) => s.loading);
-  const [error,   setError]   = useState('');
-  const [pending, setPending] = useState(false);
+export function Login() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState('');
 
-  // Redireciona para /castle quando o usuário estiver autenticado
-  // (cobre tanto redirect do Google quanto sessão já existente)
-  useEffect(() => {
-    if (!loading && user) navigate('/castle', { replace: true });
-  }, [user, loading, navigate]);
-
-  const handleGoogleLogin = async () => {
-    setPending(true);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError('');
     try {
-      // signInWithGoogle faz redirect — a página será recarregada pelo Google
-      await signInWithGoogle();
-    } catch (e: unknown) {
-      setError((e as Error).message ?? 'Erro ao entrar. Tente novamente.');
-      setPending(false);
+      const auth = getFirebaseAuth();
+      if (isSignUp) {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await PlayerService.create({
+          uid: cred.user.uid,
+          displayName: cred.user.displayName ?? email.split('@')[0],
+          email,
+          avatarUrl: null,
+          allianceId: null,
+          activeCityId: null,
+          worldId: '',
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+        });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      navigate('/world-select');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao autenticar.');
     }
-  };
+  }
+
+  async function handleGoogle() {
+    setError('');
+    try {
+      const auth = getFirebaseAuth();
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+
+      // Create player doc if first time
+      const existing = await PlayerService.get(cred.user.uid);
+      if (!existing) {
+        await PlayerService.create({
+          uid: cred.user.uid,
+          displayName: cred.user.displayName ?? 'Jogador',
+          email: cred.user.email ?? '',
+          avatarUrl: cred.user.photoURL,
+          allianceId: null,
+          activeCityId: null,
+          worldId: '',
+          createdAt: Date.now(),
+          lastLoginAt: Date.now(),
+        });
+      } else {
+        await PlayerService.updateLastLogin(cred.user.uid);
+      }
+
+      navigate('/world-select');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao autenticar com Google.');
+    }
+  }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-castle-dark px-4"
-      style={{
-        backgroundImage: 'radial-gradient(ellipse at top, #2d1f0e 0%, #1a1208 70%, #0a0804 100%)',
-      }}
-    >
-      <div className="bg-castle-stone border border-castle-gold rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-        <div className="text-6xl mb-4">🏰</div>
-        <h1 className="font-medieval text-3xl text-castle-gold mb-1">Bentropy Kingdom</h1>
-        <p className="text-parchment-400 text-sm mb-8">
-          Faça login para começar sua jornada medieval
-        </p>
+    <div className="min-h-screen bg-castle-dark flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-castle-stone/80 rounded-xl p-8 border border-castle-wall/30">
+        <h2 className="text-3xl font-medieval text-castle-gold text-center mb-6">
+          {isSignUp ? 'Criar Conta' : 'Entrar'}
+        </h2>
 
         {error && (
-          <div className="bg-red-900/30 border border-red-700 text-red-300 rounded-lg p-3 text-sm mb-4">
-            {error}
-          </div>
+          <div className="mb-4 p-2 bg-red-900/50 text-red-200 rounded text-sm">{error}</div>
         )}
 
-        <Button
-          size="lg"
-          className="w-full"
-          loading={pending}
-          onClick={handleGoogleLogin}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-          Entrar com Google
-        </Button>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full px-4 py-2 bg-castle-dark border border-castle-wall/30 rounded
+                       text-parchment-100 placeholder-parchment-400 focus:outline-none focus:border-castle-gold"
+          />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full px-4 py-2 bg-castle-dark border border-castle-wall/30 rounded
+                       text-parchment-100 placeholder-parchment-400 focus:outline-none focus:border-castle-gold"
+          />
+          <button
+            type="submit"
+            className="w-full py-2 bg-castle-gold text-castle-dark font-medieval rounded
+                       hover:bg-parchment-300 transition-colors"
+          >
+            {isSignUp ? 'Registrar' : 'Entrar'}
+          </button>
+        </form>
 
-        <div className="mt-6 space-y-1 text-xs text-parchment-500">
-          <p>✅ Login instantâneo</p>
-          <p>✅ Mundo atribuído automaticamente</p>
-          <p>✅ Tutorial em 2 minutos</p>
+        <div className="my-4 flex items-center gap-2">
+          <hr className="flex-1 border-castle-wall/30" />
+          <span className="text-parchment-400 text-sm">ou</span>
+          <hr className="flex-1 border-castle-wall/30" />
         </div>
+
+        <button
+          onClick={handleGoogle}
+          className="w-full py-2 bg-parchment-100 text-castle-dark font-medieval rounded
+                     hover:bg-parchment-200 transition-colors"
+        >
+          Entrar com Google
+        </button>
+
+        <p className="mt-4 text-center text-parchment-300 text-sm">
+          {isSignUp ? 'Já tem conta?' : 'Não tem conta?'}{' '}
+          <button onClick={() => setIsSignUp(!isSignUp)} className="text-castle-gold underline">
+            {isSignUp ? 'Entrar' : 'Criar conta'}
+          </button>
+        </p>
       </div>
     </div>
   );
-};
+}

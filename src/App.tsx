@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useAuthStore } from './stores/useAuthStore';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 const Home        = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
 const Login       = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
@@ -48,8 +49,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
