@@ -2,4 +2,4 @@
 
 export { VillageScene } from './VillageScene';
 export { BuildingModel } from './BuildingModel';
-export { BuildingPanel } from './BuildingPanel';
+export { BuildingPanel } from './BuildingPanel'; 
