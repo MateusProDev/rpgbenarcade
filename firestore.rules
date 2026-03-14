@@ -12,8 +12,8 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
-    // Castelos — leitura pública autenticada, escrita própria
-    match /castles/{castleId} {
+    // Cidades — leitura pública autenticada, escrita própria
+    match /cities/{cityId} {
       allow read:  if isAuth();
       allow write: if isAuth() && resource.data.playerId == request.auth.uid;
       allow create: if isAuth() && request.resource.data.playerId == request.auth.uid;

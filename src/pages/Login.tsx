@@ -96,6 +96,7 @@ export function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
             className="w-full px-4 py-2 bg-castle-dark border border-castle-wall/30 rounded
                        text-parchment-100 placeholder-parchment-400 focus:outline-none focus:border-castle-gold"
           />
@@ -106,6 +107,7 @@ export function Login() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
+            autoComplete={isSignUp ? 'new-password' : 'current-password'}
             className="w-full px-4 py-2 bg-castle-dark border border-castle-wall/30 rounded
                        text-parchment-100 placeholder-parchment-400 focus:outline-none focus:border-castle-gold"
           />
