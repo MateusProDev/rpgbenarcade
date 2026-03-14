@@ -426,7 +426,7 @@ function WoodBridge() {
 }
 
 /* ══ Cobblestone Roads ═══════════════════════════════ */
-function StoneRoads({ buildingPositions }: { buildingPositions: [number, number, number][] }) {
+function StoneRoads() {
   const cobbleTex = useMemo(() => createCobblestoneTexture(), []);
 
   const allSlots = useMemo(() => getAllSlotPositions(), []);
@@ -886,7 +886,7 @@ function SceneContent({ city, onBuildingClick }: VillageSceneProps) {
       <Terrain />
       <River />
       <WoodBridge />
-      <StoneRoads buildingPositions={buildingPositions} />
+      <StoneRoads />
       <BuildingSlotBases occupiedSlots={occupiedSlots} />
       <Decorations />
       <ForestRing />
