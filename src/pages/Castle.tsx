@@ -49,31 +49,28 @@ export function Castle() {
   }
 
   return (
-    <div className="h-screen bg-castle-dark flex flex-col overflow-hidden">
-      {/* Top bar */}
-      <header className="shrink-0 p-3 flex items-center justify-between">
-        <h1 className="font-medieval text-castle-gold text-xl">{city.name}</h1>
+    <div className="h-screen w-screen bg-castle-dark overflow-hidden relative">
+      {/* 3D Scene — fullscreen background */}
+      <div className="absolute inset-0">
+        <VillageScene city={city} onBuildingClick={setSelectedBuilding} />
+      </div>
+
+      {/* HUD overlay — top bar */}
+      <header className="absolute top-0 left-0 right-0 z-10 p-3 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-auto">
+        <h1 className="font-medieval text-castle-gold text-xl drop-shadow-lg">{city.name}</h1>
         <ResourceBar resources={city.resources} />
       </header>
 
-      {/* Main content */}
-      <div className="flex-1 flex min-h-0">
-        {/* 3D Scene */}
-        <div className="flex-1 relative min-h-0">
-          <div className="absolute inset-0">
-            <VillageScene city={city} onBuildingClick={setSelectedBuilding} />
-          </div>
-        </div>
-
-        {/* Side panel */}
-        <aside className="w-80 shrink-0 p-4 overflow-y-auto">
+      {/* Floating side panel */}
+      {selectedBuilding && (
+        <aside className="absolute right-0 top-16 bottom-0 w-80 z-10 p-4 overflow-y-auto bg-castle-dark/85 backdrop-blur-md border-l border-castle-gold/20 pointer-events-auto">
           <BuildingPanel
             city={city}
             selectedBuildingId={selectedBuilding}
             onUpgrade={handleUpgrade}
           />
         </aside>
-      </div>
+      )}
     </div>
   );
 }
